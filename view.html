@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0a0806" />
+<title>AR Menu — See your meal</title>
+<meta name="description" content="See this dish in augmented reality on your table." />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+
+<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
+
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden}
+  body{
+    font-family:'Inter',system-ui,sans-serif;
+    background:#0a0806;color:#f5efe6;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:#ff5722;color:#0a0806}
+
+  /* Stage */
+  .stage{
+    position:fixed;inset:0;
+    background:
+      radial-gradient(ellipse 70% 50% at 50% 30%,rgba(255,87,34,.18),transparent 60%),
+      radial-gradient(ellipse 80% 40% at 50% 90%,rgba(201,61,0,.12),transparent 60%),
+      #0a0806;
+  }
+  model-viewer{
+    width:100%;height:100%;background:transparent;
+    --poster-color:transparent;
+  }
+
+  /* Header */
+  .header{
+    position:fixed;top:0;left:0;right:0;z-index:10;
+    padding:18px 22px;
+    display:flex;justify-content:space-between;align-items:center;
+    background:linear-gradient(180deg,rgba(10,8,6,.9),transparent);
+  }
+  .brand{
+    display:flex;align-items:center;gap:9px;font-weight:700;font-size:14px;letter-spacing:.06em;text-transform:uppercase;
+  }
+  .brand .mark{
+    width:24px;height:24px;border-radius:7px;
+    background:linear-gradient(135deg,#ff5722,#ffb066);
+    position:relative;
+    box-shadow:0 4px 12px rgba(255,87,34,.4),inset 0 1px 0 rgba(255,255,255,.3);
+  }
+  .brand .mark::after{
+    content:"";position:absolute;inset:5px;border-radius:3px;background:#0a0806;
+    box-shadow:inset 0 0 0 2px rgba(255,87,34,.6);
+  }
+  .brand b{font-weight:800}.brand i{font-style:normal;color:#9a9388;font-weight:500;margin-left:3px}
+
+  .venue-pill{
+    font-size:11px;font-weight:600;color:#f5efe6;letter-spacing:.08em;text-transform:uppercase;
+    padding:6px 12px;border-radius:999px;
+    background:rgba(255,239,220,.06);
+    border:1px solid rgba(255,239,220,.1);
+    backdrop-filter:blur(10px);
+  }
+
+  /* Bottom panel */
+  .panel{
+    position:fixed;left:0;right:0;bottom:0;z-index:10;
+    padding:28px 22px calc(22px + env(safe-area-inset-bottom));
+    background:linear-gradient(0deg,rgba(10,8,6,.97) 70%,rgba(10,8,6,0));
+  }
+  .panel-inner{max-width:520px;margin:0 auto}
+  .meta-line{
+    font-family:'Instrument Serif',serif;font-style:italic;font-size:14px;color:#9a9388;
+    margin-bottom:6px;letter-spacing:.01em;
+  }
+  .dish-row{
+    display:flex;align-items:baseline;justify-content:space-between;gap:14px;margin-bottom:18px;
+  }
+  .dish-name{
+    font-size:30px;font-weight:300;letter-spacing:-.02em;line-height:1.05;
+    font-family:'Instrument Serif',serif;
+  }
+  .dish-price{color:#ff5722;font-size:18px;font-weight:700;letter-spacing:-.01em;white-space:nowrap}
+
+  .ar-button{
+    width:100%;position:relative;
+    display:flex;align-items:center;justify-content:center;gap:12px;
+    padding:20px;border-radius:18px;border:none;cursor:pointer;
+    background:linear-gradient(135deg,#ff5722,#c93d00);
+    color:#fff;font-family:inherit;font-weight:700;font-size:17px;letter-spacing:.01em;
+    box-shadow:
+      0 14px 32px rgba(255,87,34,.45),
+      inset 0 1px 0 rgba(255,255,255,.3),
+      0 0 0 1px rgba(255,87,34,.4);
+    transition:transform .2s;
+  }
+  .ar-button:active{transform:scale(.98)}
+  .ar-button svg{width:22px;height:22px;flex-shrink:0}
+  .ar-button::after{
+    content:"";position:absolute;inset:-4px;border-radius:22px;
+    box-shadow:0 0 0 0 rgba(255,87,34,.55);
+    animation:pulse 2.4s ease-out infinite;pointer-events:none;
+  }
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(255,87,34,.5)}
+    70%{box-shadow:0 0 0 22px rgba(255,87,34,0)}
+    100%{box-shadow:0 0 0 0 rgba(255,87,34,0)}
+  }
+
+  .hint{
+    text-align:center;font-size:12px;color:#564f45;margin-top:14px;letter-spacing:.02em;
+  }
+  .hint em{font-family:'Instrument Serif',serif;font-style:italic;color:#9a9388;font-size:13px}
+
+  /* Loader */
+  .loading{
+    position:fixed;inset:0;display:grid;place-items:center;z-index:5;
+    color:#9a9388;font-size:13px;letter-spacing:.05em;
+    background:#0a0806;
+  }
+  .loading.gone{opacity:0;visibility:hidden;transition:all .5s}
+  .spinner{
+    width:42px;height:42px;border-radius:50%;
+    border:2px solid rgba(255,239,220,.08);
+    border-top-color:#ff5722;
+    animation:spin 1s linear infinite;
+    margin-bottom:18px;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* Error state */
+  .err{
+    position:fixed;inset:20px;display:none;place-items:center;text-align:center;z-index:6;
+  }
+  .err.show{display:grid}
+  .err h2{font-family:'Instrument Serif',serif;font-style:italic;font-size:32px;margin-bottom:10px}
+  .err p{color:#9a9388;font-size:14px;max-width:300px}
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="loading" id="loader">
+    <div style="text-align:center">
+      <div class="spinner"></div>
+      <span>Preparing your meal…</span>
+    </div>
+  </div>
+  <model-viewer id="mv"
+    alt="3D dish"
+    ar
+    ar-modes="webxr scene-viewer quick-look"
+    ar-scale="fixed"
+    ar-placement="floor"
+    auto-rotate
+    auto-rotate-delay="0"
+    rotation-per-second="20deg"
+    camera-controls
+    shadow-intensity="1.6"
+    shadow-softness="0.8"
+    exposure="1.05"
+    interaction-prompt="none">
+  </model-viewer>
+  <div class="err" id="err">
+    <div>
+      <h2>This dish hasn't been set up yet.</h2>
+      <p>If you're a customer, ask the restaurant. If you're the restaurant, sign in to your portal at <strong>armenu.co.za/portal</strong>.</p>
+    </div>
+  </div>
+</div>
+
+<div class="header">
+  <div class="brand"><span class="mark"></span><b>AR</b><i>Menu</i></div>
+  <div class="venue-pill" id="venue">Restaurant</div>
+</div>
+
+<div class="panel">
+  <div class="panel-inner">
+    <div class="meta-line" id="venue2">·</div>
+    <div class="dish-row">
+      <div class="dish-name" id="dish">Loading…</div>
+      <div class="dish-price" id="price"></div>
+    </div>
+    <button class="ar-button" id="arBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+        <path d="M2 17l10 5 10-5"/>
+        <path d="M2 12l10 5 10-5"/>
+      </svg>
+      See my meal
+    </button>
+    <div class="hint">Tap, then point at the table — <em>your meal will appear at real size.</em></div>
+  </div>
+</div>
+
+<script>
+  const params = new URLSearchParams(location.search);
+  const r = params.get('r') || 'demo';
+  const d = params.get('d') || 'avocado';
+
+  // Lightweight client-side registry — production reads from /api/dish/:r/:d
+  const REGISTRY = {
+    'demo/avocado':{
+      dish:'The Signature Avocado', venue:'Demo Restaurant', price:'R 89',
+      glb:'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Avocado/glTF-Binary/Avocado.glb',
+      orbit:'0deg 70deg 0.4m'
+    }
+  };
+
+  async function loadDish(){
+    let meal=null;
+    try{
+      // Try live API first (works once backend is deployed)
+      const res = await fetch(`/api/dish/${encodeURIComponent(r)}/${encodeURIComponent(d)}`);
+      if(res.ok){ meal = await res.json(); }
+    }catch(e){ /* offline / not deployed yet */ }
+
+    if(!meal) meal = REGISTRY[`${r}/${d}`];
+    if(!meal){ document.getElementById('err').classList.add('show'); document.getElementById('loader').classList.add('gone'); return; }
+
+    document.getElementById('dish').textContent = meal.dish;
+    document.getElementById('venue').textContent = meal.venue;
+    document.getElementById('venue2').textContent = meal.venue;
+    document.getElementById('price').textContent = meal.price || '';
+
+    const mv = document.getElementById('mv');
+    mv.setAttribute('src', meal.glb);
+    if(meal.usdz) mv.setAttribute('ios-src', meal.usdz);
+    if(meal.orbit) mv.setAttribute('camera-orbit', meal.orbit);
+
+    mv.addEventListener('load', ()=>{
+      document.getElementById('loader').classList.add('gone');
+    });
+
+    // Track scan (fire-and-forget)
+    try{
+      navigator.sendBeacon?.('/api/scan', JSON.stringify({r,d,t:Date.now(),ua:navigator.userAgent}));
+    }catch(e){}
+  }
+  loadDish();
+
+  document.getElementById('arBtn').addEventListener('click', ()=>{
+    const mv = document.getElementById('mv');
+    if (mv.canActivateAR) mv.activateAR();
+    else alert('AR is not supported on this device. You can still rotate and zoom the 3D model above.');
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+# AR Menu — Cloudflare Workers + D1 + R2 config
+# Deploy: wrangler deploy
+name = "armenu-api"
+main = "src/index.js"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# Routes — bind once you have the domain on Cloudflare
+# routes = [
+#   { pattern = "armenu.co.za/api/*", zone_name = "armenu.co.za" }
+# ]
+
+# Database (run: wrangler d1 create armenu-db, then paste the id)
+[[d1_databases]]
+binding = "DB"
+database_name = "armenu-db"
+database_id = "REPLACE_AFTER_d1_create"
+
+# Object storage for .glb / .usdz / QR PDFs (run: wrangler r2 bucket create armenu-assets)
+[[r2_buckets]]
+binding = "ASSETS"
+bucket_name = "armenu-assets"
+
+# Secrets — set with: wrangler secret put <NAME>
+# CLERK_SECRET_KEY    — Clerk backend key (for verifying logins)
+# CLERK_PUBLIC_KEY    — Clerk JWKS verification
+# RESEND_API_KEY      — for emailing monthly reports (optional, free tier)
+# OWNER_WHATSAPP      — your WhatsApp number for portal request notifications
+
+[vars]
+PUBLIC_BASE = "https://armenu.co.za"

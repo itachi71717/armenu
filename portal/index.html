@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AR Menu · Restaurant Portal</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#0a0806;--ink:#f5efe6;--ink-dim:#9a9388;--ink-faint:#564f45;
+    --accent:#ff5722;--accent-2:#ffb066;--line:rgba(255,239,220,.08);
+    --serif:'Instrument Serif',serif;--mono:'JetBrains Mono',monospace;
+  }
+  body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;-webkit-font-smoothing:antialiased}
+  a{color:inherit;text-decoration:none}
+
+  /* Top nav */
+  nav{
+    position:sticky;top:0;z-index:20;
+    background:rgba(10,8,6,.85);backdrop-filter:blur(18px);
+    border-bottom:1px solid var(--line);
+    padding:18px 32px;display:flex;justify-content:space-between;align-items:center;
+  }
+  .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:14px;letter-spacing:.06em;text-transform:uppercase}
+  .brand .mark{
+    width:26px;height:26px;border-radius:7px;
+    background:linear-gradient(135deg,#ff5722,#ffb066);
+    position:relative;
+    box-shadow:0 4px 12px rgba(255,87,34,.4),inset 0 1px 0 rgba(255,255,255,.3);
+  }
+  .brand .mark::after{content:"";position:absolute;inset:5px;border-radius:3px;background:#0a0806;box-shadow:inset 0 0 0 2px rgba(255,87,34,.6)}
+  .brand b{font-weight:800}.brand i{font-style:normal;color:var(--ink-dim);font-weight:500;margin-left:3px}
+  .brand .div{margin:0 14px;color:var(--ink-faint)}
+  .brand .venue{font-weight:600;color:var(--ink-dim);text-transform:none;letter-spacing:0;font-size:13px}
+
+  .nav-right{display:flex;gap:8px;align-items:center}
+  .pill{padding:6px 12px;border-radius:999px;font-family:var(--mono);font-size:11px;background:rgba(255,239,220,.04);border:1px solid var(--line);color:var(--ink-dim);letter-spacing:.05em}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:10px;cursor:pointer;background:rgba(255,239,220,.06);border:1px solid var(--line);color:var(--ink);font-family:inherit;font-weight:500;font-size:13px;transition:all .2s}
+  .btn:hover{background:rgba(255,239,220,.1)}
+  .btn-primary{background:linear-gradient(135deg,#ff5722,#c93d00);color:#fff;border:none;font-weight:600;box-shadow:0 6px 16px rgba(255,87,34,.3)}
+  .btn-primary:hover{transform:translateY(-1px)}
+
+  /* Container */
+  main{max-width:1200px;margin:0 auto;padding:40px 32px 80px}
+  @media(max-width:760px){main{padding:24px 20px 60px}}
+
+  .hello{margin-bottom:36px}
+  .hello h1{font-family:var(--serif);font-style:italic;font-size:42px;font-weight:400;letter-spacing:-.025em;line-height:1.05;margin-bottom:8px}
+  .hello h1 b{font-style:normal;font-family:'Inter',sans-serif;font-weight:800}
+  .hello p{color:var(--ink-dim);font-size:15px}
+
+  /* Quick actions */
+  .actions-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:40px}
+  @media(max-width:760px){.actions-grid{grid-template-columns:1fr}}
+  .action{
+    padding:24px;border-radius:16px;
+    background:linear-gradient(180deg,rgba(255,239,220,.03),rgba(255,239,220,.005));
+    border:1px solid var(--line);cursor:pointer;
+    transition:border-color .2s,transform .2s;
+    display:flex;align-items:center;gap:18px;
+  }
+  .action:hover{border-color:rgba(255,87,34,.3);transform:translateY(-2px)}
+  .action .ico{
+    width:48px;height:48px;border-radius:14px;flex-shrink:0;
+    background:linear-gradient(135deg,rgba(255,87,34,.2),rgba(255,87,34,.05));
+    border:1px solid rgba(255,87,34,.3);
+    display:grid;place-items:center;font-size:22px;
+  }
+  .action h3{font-size:16px;font-weight:600;letter-spacing:-.01em;margin-bottom:3px}
+  .action p{color:var(--ink-dim);font-size:13px;line-height:1.4}
+
+  /* Section header */
+  h2{font-family:var(--serif);font-style:italic;font-size:30px;font-weight:400;letter-spacing:-.02em;line-height:1.1;margin-bottom:6px}
+  h2 b{font-style:normal;font-family:'Inter',sans-serif;font-weight:800}
+  .section-sub{color:var(--ink-dim);font-size:14px;margin-bottom:20px}
+
+  /* Dishes grid */
+  .dishes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;margin-bottom:40px}
+  .dish-tile{
+    border-radius:16px;border:1px solid var(--line);overflow:hidden;
+    background:rgba(255,239,220,.02);
+    transition:border-color .2s,transform .2s;
+  }
+  .dish-tile:hover{border-color:rgba(255,87,34,.3);transform:translateY(-2px)}
+  .dish-tile .thumb{
+    aspect-ratio:1/1;background:#1a1410;
+    background-size:cover;background-position:center;
+    position:relative;
+  }
+  .dish-tile .thumb::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 50%,rgba(0,0,0,.7))}
+  .dish-tile .qr-mini{
+    position:absolute;top:12px;right:12px;z-index:1;
+    width:42px;height:42px;border-radius:8px;border:3px solid #fff;
+    background:conic-gradient(#0a0806 25%,#fff 0 50%,#0a0806 0 75%,#fff 0),#fff;
+    background-size:6px 6px;
+  }
+  .dish-tile .info{padding:16px;display:flex;justify-content:space-between;align-items:flex-end;gap:10px}
+  .dish-tile .name{font-weight:600;font-size:15px;letter-spacing:-.01em;margin-bottom:3px;line-height:1.2}
+  .dish-tile .lbl{font-family:var(--mono);font-size:10px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.12em}
+  .dish-tile .dl{
+    padding:6px 10px;border-radius:8px;background:rgba(255,87,34,.1);
+    border:1px solid rgba(255,87,34,.2);color:var(--accent);
+    font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.05em;cursor:pointer;
+    text-transform:uppercase;
+  }
+  .dish-tile .dl:hover{background:rgba(255,87,34,.15)}
+
+  /* Request panel */
+  .request-card{
+    padding:32px;border-radius:18px;
+    background:
+      radial-gradient(circle at 80% 0%,rgba(255,87,34,.1),transparent 50%),
+      linear-gradient(180deg,rgba(255,239,220,.03),rgba(255,239,220,.005));
+    border:1px solid var(--line);
+  }
+  .request-card h3{font-size:20px;font-weight:600;margin-bottom:6px;letter-spacing:-.015em}
+  .request-card p{color:var(--ink-dim);font-size:14px;margin-bottom:20px}
+  .req-row{display:flex;gap:12px;flex-wrap:wrap}
+  .req-row input{flex:1;min-width:240px;padding:13px 16px;border-radius:10px;background:rgba(10,8,6,.5);border:1px solid var(--line);color:var(--ink);font-family:inherit;font-size:14px}
+  .req-row input:focus{outline:none;border-color:rgba(255,87,34,.5)}
+
+  /* Login */
+  .login-cover{position:fixed;inset:0;z-index:100;background:rgba(10,8,6,.97);backdrop-filter:blur(20px);display:grid;place-items:center;padding:20px}
+  .login-card{
+    width:min(440px,100%);padding:44px 36px;border-radius:24px;
+    background:linear-gradient(180deg,rgba(255,239,220,.03),rgba(255,239,220,.01));
+    border:1px solid var(--line);text-align:center;
+  }
+  .login-card .brand{justify-content:center;margin-bottom:14px}
+  .login-card h2{font-family:var(--serif);font-style:italic;font-size:30px;font-weight:400;margin-bottom:6px;letter-spacing:-.02em}
+  .login-card p{color:var(--ink-dim);font-size:13px;margin-bottom:24px}
+  .form-row{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;text-align:left}
+  .form-row label{font-family:var(--mono);font-size:10px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.14em;font-weight:500}
+  .form-row input{padding:12px 14px;border-radius:10px;background:rgba(255,239,220,.03);border:1px solid var(--line);color:var(--ink);font-family:inherit;font-size:14px}
+  .form-row input:focus{outline:none;border-color:rgba(255,87,34,.5)}
+  .login-card .btn-primary{width:100%;justify-content:center;padding:14px;font-size:14px}
+  .login-card small{display:block;margin-top:18px;color:var(--ink-faint);font-size:11px;font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase}
+</style>
+</head>
+<body>
+
+<!-- Login -->
+<div class="login-cover" id="login">
+  <div class="login-card">
+    <div class="brand"><span class="mark"></span><b>AR</b><i>Menu</i></div>
+    <h2>Restaurant Portal</h2>
+    <p>Sign in to download your QR codes and request changes.</p>
+    <div class="form-row"><label>Email</label><input type="email" placeholder="manager@yourrestaurant.co.za" autocomplete="email" /></div>
+    <div class="form-row"><label>Password</label><input type="password" placeholder="••••••••" autocomplete="current-password" /></div>
+    <button class="btn btn-primary" onclick="document.getElementById('login').style.display='none'">Sign in →</button>
+    <small>Account created by AR Menu — Powered by Clerk on deploy</small>
+  </div>
+</div>
+
+<nav>
+  <div class="brand">
+    <span class="mark"></span><b>AR</b><i>Menu</i>
+    <span class="div">|</span>
+    <span class="venue">Spur · Sandton City</span>
+  </div>
+  <div class="nav-right">
+    <span class="pill">14 dishes live</span>
+    <button class="btn">Sign out</button>
+  </div>
+</nav>
+
+<main>
+
+  <div class="hello">
+    <h1>Welcome back, <b>Sandton.</b></h1>
+    <p>Your AR menu has been scanned <strong>3,482 times</strong> in the last 30 days. Top dish: <strong>Gold Burger</strong> (847 scans).</p>
+  </div>
+
+  <!-- Quick actions -->
+  <div class="actions-grid">
+    <div class="action" onclick="alert('Downloads PDF with all your QR codes — print-ready, vector format.')">
+      <span class="ico">⬇</span>
+      <div>
+        <h3>Download all QR codes</h3>
+        <p>One PDF, ready to print and stick onto menus.</p>
+      </div>
+    </div>
+    <div class="action" onclick="document.getElementById('reqInput').focus()">
+      <span class="ico">+</span>
+      <div>
+        <h3>Request a new dish</h3>
+        <p>Tell us the dish — we'll quote, scan, and add it.</p>
+      </div>
+    </div>
+    <div class="action" onclick="alert('Your last monthly report is sent by email on the 1st of each month.')">
+      <span class="ico">◈</span>
+      <div>
+        <h3>Latest monthly report</h3>
+        <p>Sent by email · April 2026 sent on 1 May.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dishes -->
+  <h2>Your <b>dishes.</b></h2>
+  <div class="section-sub">Click any QR to download just that one. Dish edits go through us — request below.</div>
+
+  <div class="dishes-grid" id="dishes"></div>
+
+  <!-- Request -->
+  <div class="request-card">
+    <h3>Need a new dish or a change?</h3>
+    <p>Drop the dish name or describe what needs updating. We'll come back within 1 business day with a quote and a scanning slot.</p>
+    <div class="req-row">
+      <input id="reqInput" type="text" placeholder="e.g. New seasonal burger — Spring Smash" />
+      <button class="btn btn-primary" onclick="handleReq()">Send request →</button>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  // Mock dishes — replaced by /api/portal/dishes on deploy (auth scoped)
+  const DISHES=[
+    {name:'Gold Burger',scans:847,img:'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=500&q=80&auto=format'},
+    {name:'Cheese & Bacon Stack',scans:612,img:'https://images.unsplash.com/photo-1551782450-a2132b4ba21d?w=500&q=80&auto=format'},
+    {name:'Spur Ribs Full Rack',scans:543,img:'https://images.unsplash.com/photo-1546964124-0cce460f38ef?w=500&q=80&auto=format'},
+    {name:'Chicken Schnitzel',scans:391,img:'https://images.unsplash.com/photo-1604908554007-0876f292d09a?w=500&q=80&auto=format'},
+    {name:'Onion Rings Side',scans:289,img:'https://images.unsplash.com/photo-1639024471283-03518883512d?w=500&q=80&auto=format'},
+    {name:'Spur Sundae',scans:267,img:'https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=500&q=80&auto=format'}
+  ];
+  document.getElementById('dishes').innerHTML=DISHES.map(d=>`
+    <div class="dish-tile">
+      <div class="thumb" style="background-image:url('${d.img}')">
+        <div class="qr-mini"></div>
+      </div>
+      <div class="info">
+        <div>
+          <div class="name">${d.name}</div>
+          <div class="lbl">${d.scans} scans · 30d</div>
+        </div>
+        <button class="dl" onclick="alert('Downloads QR PDF for ${d.name}')">⬇ QR</button>
+      </div>
+    </div>
+  `).join('');
+
+  function handleReq(){
+    const v=document.getElementById('reqInput').value.trim();
+    if(!v){alert('Please describe what you need.');return}
+    alert('Request sent. We\\'ll be in touch within 1 business day.');
+    document.getElementById('reqInput').value='';
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AR Menu · Boss Panel</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
+
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#0a0806;--panel:#13100c;--ink:#f5efe6;--ink-dim:#9a9388;--ink-faint:#564f45;
+    --accent:#ff5722;--accent-2:#ffb066;--line:rgba(255,239,220,.08);
+    --serif:'Instrument Serif',serif;--mono:'JetBrains Mono',monospace;
+  }
+  body{
+    font-family:'Inter',system-ui,sans-serif;
+    background:var(--bg);color:var(--ink);min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit;text-decoration:none}
+
+  .layout{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+  @media(max-width:880px){.layout{grid-template-columns:1fr}.sidebar{display:none}}
+
+  /* Sidebar */
+  .sidebar{
+    background:#080603;border-right:1px solid var(--line);
+    padding:24px 16px;position:sticky;top:0;height:100vh;overflow-y:auto;
+  }
+  .brand{
+    display:flex;align-items:center;gap:9px;font-weight:700;font-size:14px;letter-spacing:.06em;text-transform:uppercase;
+    margin-bottom:36px;padding:0 8px;
+  }
+  .brand .mark{
+    width:26px;height:26px;border-radius:7px;
+    background:linear-gradient(135deg,#ff5722,#ffb066);
+    position:relative;
+    box-shadow:0 4px 12px rgba(255,87,34,.4),inset 0 1px 0 rgba(255,255,255,.3);
+  }
+  .brand .mark::after{content:"";position:absolute;inset:5px;border-radius:3px;background:#0a0806;box-shadow:inset 0 0 0 2px rgba(255,87,34,.6)}
+  .brand b{font-weight:800}.brand i{font-style:normal;color:var(--ink-dim);font-weight:500;margin-left:3px}
+
+  .nav-section{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.18em;color:var(--ink-faint);margin:22px 12px 10px}
+  .nav-item{
+    display:flex;align-items:center;gap:12px;
+    padding:10px 14px;border-radius:10px;
+    color:var(--ink-dim);font-size:14px;font-weight:500;
+    cursor:pointer;margin-bottom:2px;transition:all .15s;
+  }
+  .nav-item:hover{background:rgba(255,239,220,.04);color:var(--ink)}
+  .nav-item.active{background:rgba(255,87,34,.1);color:var(--accent);border:1px solid rgba(255,87,34,.18)}
+  .nav-item .ico{width:18px;text-align:center;font-size:14px}
+
+  /* Main */
+  main{padding:32px 40px;max-width:1400px}
+  @media(max-width:760px){main{padding:24px 20px}}
+
+  .topbar{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;gap:20px;flex-wrap:wrap}
+  .topbar h1{font-size:30px;font-weight:300;letter-spacing:-.025em;line-height:1.1;font-family:var(--serif);font-style:italic}
+  .topbar h1 b{font-style:normal;font-family:'Inter',sans-serif;font-weight:800}
+  .topbar .sub{color:var(--ink-dim);font-size:14px;margin-top:4px}
+
+  .pill{
+    padding:6px 12px;border-radius:999px;font-family:var(--mono);font-size:11px;font-weight:500;
+    background:rgba(255,239,220,.04);border:1px solid var(--line);color:var(--ink-dim);letter-spacing:.05em;
+  }
+  .btn{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:11px 18px;border-radius:10px;cursor:pointer;
+    background:linear-gradient(135deg,#ff5722,#c93d00);color:#fff;
+    font-family:inherit;font-weight:600;font-size:13px;border:none;
+    box-shadow:0 6px 16px rgba(255,87,34,.3),inset 0 1px 0 rgba(255,255,255,.2);
+    transition:transform .2s;
+  }
+  .btn:hover{transform:translateY(-1px)}
+  .btn-ghost{background:rgba(255,239,220,.04);border:1px solid var(--line);color:var(--ink);box-shadow:none}
+  .btn-ghost:hover{background:rgba(255,239,220,.08)}
+
+  /* Stat strip */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:32px}
+  @media(max-width:880px){.stats{grid-template-columns:repeat(2,1fr)}}
+  .stat{
+    padding:22px;border-radius:16px;
+    background:linear-gradient(180deg,rgba(255,239,220,.03),rgba(255,239,220,.005));
+    border:1px solid var(--line);position:relative;overflow:hidden;
+  }
+  .stat .label{font-family:var(--mono);font-size:10px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.16em;font-weight:500;margin-bottom:10px}
+  .stat .num{font-size:34px;font-weight:300;letter-spacing:-.025em;line-height:1;font-family:var(--serif)}
+  .stat .num b{font-family:'Inter',sans-serif;font-weight:800}
+  .stat .delta{font-size:12px;color:#7dd87d;margin-top:6px;font-weight:500}
+  .stat .delta.down{color:#f87171}
+
+  /* Card */
+  .card{
+    border-radius:18px;border:1px solid var(--line);
+    background:linear-gradient(180deg,rgba(255,239,220,.025),rgba(255,239,220,.005));
+    padding:24px;margin-bottom:20px;
+  }
+  .card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;gap:12px;flex-wrap:wrap}
+  .card-head h2{font-size:20px;font-weight:600;letter-spacing:-.015em}
+  .card-head .sub{font-size:13px;color:var(--ink-dim);margin-top:3px}
+
+  /* Clients table */
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th{text-align:left;padding:14px 16px;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.16em;color:var(--ink-faint);font-weight:500;border-bottom:1px solid var(--line)}
+  td{padding:18px 16px;border-bottom:1px solid var(--line)}
+  tbody tr{cursor:pointer;transition:background .15s}
+  tbody tr:hover td{background:rgba(255,239,220,.025)}
+  .client-cell{display:flex;align-items:center;gap:14px}
+  .avatar{
+    width:40px;height:40px;border-radius:11px;flex-shrink:0;
+    background:linear-gradient(135deg,#ff5722,#c93d00);
+    display:grid;place-items:center;font-weight:700;font-size:14px;color:#fff;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.2);
+  }
+  .avatar.alt{background:linear-gradient(135deg,#7a4612,#3a1a08)}
+  .avatar.alt2{background:linear-gradient(135deg,#3a5e1f,#1a3008)}
+  .avatar.alt3{background:linear-gradient(135deg,#5e1f3a,#3a081a)}
+  .avatar.alt4{background:linear-gradient(135deg,#1f3a5e,#08213a)}
+  .client-name{font-weight:600;font-size:15px;letter-spacing:-.01em}
+  .client-slug{color:var(--ink-faint);font-family:var(--mono);font-size:11px;margin-top:2px}
+  .status{font-family:var(--mono);font-size:10px;font-weight:500;padding:4px 9px;border-radius:999px;text-transform:uppercase;letter-spacing:.1em}
+  .status.live{background:rgba(125,216,125,.1);color:#7dd87d;border:1px solid rgba(125,216,125,.2)}
+  .status.pending{background:rgba(255,176,102,.1);color:#ffb066;border:1px solid rgba(255,176,102,.2)}
+  .status.paused{background:rgba(255,239,220,.04);color:var(--ink-dim);border:1px solid var(--line)}
+
+  /* Drill-down view */
+  .view{display:none}.view.active{display:block}
+
+  .breadcrumb{
+    display:flex;align-items:center;gap:8px;color:var(--ink-faint);font-size:13px;margin-bottom:18px;
+  }
+  .breadcrumb a{color:var(--ink-dim);cursor:pointer}
+  .breadcrumb a:hover{color:var(--ink)}
+  .breadcrumb .sep{color:var(--ink-faint)}
+
+  /* Client header */
+  .client-hero{
+    display:flex;align-items:center;gap:20px;margin-bottom:32px;flex-wrap:wrap;
+  }
+  .client-hero .avatar{width:64px;height:64px;border-radius:16px;font-size:22px}
+  .client-hero h1{font-size:34px;font-weight:300;letter-spacing:-.025em;font-family:var(--serif);font-style:italic}
+  .client-hero h1 b{font-style:normal;font-family:'Inter',sans-serif;font-weight:800}
+  .client-hero .meta{color:var(--ink-dim);font-size:13px;margin-top:4px;display:flex;gap:14px;flex-wrap:wrap}
+  .client-hero .meta span::before{content:"·";margin-right:14px;color:var(--ink-faint)}
+  .client-hero .meta span:first-child::before{display:none}
+  .client-hero .actions{margin-left:auto;display:flex;gap:10px;flex-wrap:wrap}
+
+  /* Dishes grid (within client view) */
+  .dishes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+  .dish-tile{
+    border-radius:14px;border:1px solid var(--line);overflow:hidden;
+    background:rgba(255,239,220,.02);
+    transition:border-color .2s,transform .2s;cursor:pointer;
+  }
+  .dish-tile:hover{border-color:rgba(255,87,34,.3);transform:translateY(-2px)}
+  .dish-tile .thumb{
+    aspect-ratio:1/1;background:#1a1410;
+    background-size:cover;background-position:center;
+    position:relative;
+  }
+  .dish-tile .thumb::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 60%,rgba(0,0,0,.6))}
+  .dish-tile .scans{
+    position:absolute;top:10px;right:10px;z-index:1;
+    padding:4px 9px;border-radius:999px;font-family:var(--mono);font-size:10px;font-weight:600;
+    background:rgba(10,8,6,.8);backdrop-filter:blur(10px);color:var(--accent-2);letter-spacing:.06em;
+  }
+  .dish-tile .info{padding:14px}
+  .dish-tile .name{font-weight:600;font-size:15px;letter-spacing:-.01em;margin-bottom:3px}
+  .dish-tile .lbl{font-family:var(--mono);font-size:10px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.12em}
+
+  /* Mini stats inside drill */
+  .mini-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+  @media(max-width:760px){.mini-stats{grid-template-columns:repeat(2,1fr)}}
+
+  /* Add dish form */
+  .upload-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+  @media(max-width:880px){.upload-grid{grid-template-columns:1fr}}
+  .drop{
+    border:2px dashed var(--line);border-radius:14px;padding:36px;text-align:center;cursor:pointer;
+    transition:all .2s;
+  }
+  .drop:hover,.drop.over{border-color:rgba(255,87,34,.4);background:rgba(255,87,34,.04)}
+  .drop .ico{font-size:32px;margin-bottom:8px;opacity:.6}
+  .drop p{color:var(--ink-dim);font-size:14px}
+  .drop small{color:var(--ink-faint);display:block;margin-top:6px;font-size:11px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.12em}
+  .form-row{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+  .form-row label{font-family:var(--mono);font-size:10px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.14em;font-weight:500}
+  .form-row input,.form-row select{
+    padding:12px 14px;border-radius:10px;background:rgba(255,239,220,.03);border:1px solid var(--line);
+    color:var(--ink);font-family:inherit;font-size:14px;
+  }
+  .form-row input:focus,.form-row select:focus{outline:none;border-color:rgba(255,87,34,.5);background:rgba(255,87,34,.04)}
+  .preview-box{aspect-ratio:1/1;border-radius:14px;overflow:hidden;background:radial-gradient(circle at 50% 50%,rgba(255,87,34,.1),transparent 60%);border:1px solid var(--line)}
+  .preview-box model-viewer{width:100%;height:100%;background:transparent}
+
+  /* Login gate */
+  .login-cover{position:fixed;inset:0;z-index:100;background:rgba(10,8,6,.97);backdrop-filter:blur(20px);display:grid;place-items:center;padding:20px}
+  .login-card{
+    width:min(440px,100%);padding:44px 36px;border-radius:24px;
+    background:linear-gradient(180deg,rgba(255,239,220,.03),rgba(255,239,220,.01));
+    border:1px solid var(--line);text-align:center;
+  }
+  .login-card .brand{justify-content:center;margin-bottom:12px}
+  .login-card h2{font-family:var(--serif);font-style:italic;font-size:30px;font-weight:400;margin-bottom:6px;letter-spacing:-.02em}
+  .login-card p{color:var(--ink-dim);font-size:13px;margin-bottom:24px}
+  .login-card .form-row{text-align:left}
+  .login-card .btn{width:100%;justify-content:center;padding:14px;font-size:14px}
+  .login-card small{display:block;margin-top:18px;color:var(--ink-faint);font-size:11px;font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase}
+</style>
+</head>
+<body>
+
+<!-- Login gate (Clerk replaces this once configured) -->
+<div class="login-cover" id="login">
+  <div class="login-card">
+    <div class="brand"><span class="mark"></span><b>AR</b><i>Menu</i></div>
+    <h2>Boss Panel</h2>
+    <p>Owner sign-in. This area is restricted to AR Menu staff.</p>
+    <div class="form-row"><label>Email</label><input type="email" id="loginEmail" placeholder="you@armenu.co.za" autocomplete="email" /></div>
+    <div class="form-row"><label>Password</label><input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password" /></div>
+    <button class="btn" onclick="document.getElementById('login').style.display='none'">Sign in →</button>
+    <small>Auth wires to Clerk on deploy</small>
+  </div>
+</div>
+
+<div class="layout">
+
+  <aside class="sidebar">
+    <div class="brand"><span class="mark"></span><b>AR</b><i>Menu</i></div>
+
+    <div class="nav-section">Workspace</div>
+    <div class="nav-item active" data-view="dashboard"><span class="ico">⌂</span> Dashboard</div>
+    <div class="nav-item" data-view="clients"><span class="ico">◉</span> Clients</div>
+    <div class="nav-item" data-view="upload"><span class="ico">↑</span> Add new dish</div>
+
+    <div class="nav-section">Tools</div>
+    <div class="nav-item" data-view="reports"><span class="ico">◈</span> Monthly reports</div>
+    <div class="nav-item" data-view="billing"><span class="ico">◇</span> Billing</div>
+
+    <div class="nav-section">Settings</div>
+    <div class="nav-item"><span class="ico">⚙</span> Account</div>
+    <div class="nav-item"><span class="ico">↗</span> Sign out</div>
+  </aside>
+
+  <main>
+
+    <!-- DASHBOARD VIEW -->
+    <div class="view active" id="view-dashboard">
+      <div class="topbar">
+        <div>
+          <h1><b>Welcome back.</b></h1>
+          <div class="sub">Here's what's happening across your restaurants.</div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <span class="pill">April 2026</span>
+          <button class="btn" onclick="switchView('clients')">+ New client</button>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="label">Active restaurants</div><div class="num"><b>7</b></div><div class="delta">+2 this month</div></div>
+        <div class="stat"><div class="label">Dishes live</div><div class="num"><b>63</b></div><div class="delta">+11 this month</div></div>
+        <div class="stat"><div class="label">Total scans</div><div class="num"><b>14,281</b></div><div class="delta">+38% vs March</div></div>
+        <div class="stat"><div class="label">Recurring revenue</div><div class="num"><b>R 12,600</b></div><div class="delta">+R 3,000</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <h2>Clients</h2>
+            <div class="sub">Click any client to drill into their dishes &amp; stats.</div>
+          </div>
+          <button class="btn-ghost btn" onclick="switchView('clients')">View all →</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Restaurant</th>
+              <th>Dishes</th>
+              <th>Scans (30d)</th>
+              <th>Plan</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="clientsBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- CLIENTS LIST VIEW -->
+    <div class="view" id="view-clients">
+      <div class="topbar">
+        <div>
+          <h1><b>Clients</b></h1>
+          <div class="sub">All restaurants on your platform.</div>
+        </div>
+        <button class="btn">+ Add restaurant</button>
+      </div>
+      <div class="card">
+        <table>
+          <thead>
+            <tr><th>Restaurant</th><th>Dishes</th><th>Scans (30d)</th><th>MRR</th><th>Plan</th><th>Status</th></tr>
+          </thead>
+          <tbody id="clientsBody2"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- CLIENT DRILL-DOWN VIEW -->
+    <div class="view" id="view-client">
+      <div class="breadcrumb">
+        <a onclick="switchView('clients')">Clients</a>
+        <span class="sep">/</span>
+        <span id="crumbName">—</span>
+      </div>
+
+      <div class="client-hero">
+        <div class="avatar" id="cAvatar">SP</div>
+        <div>
+          <h1 id="cName"><b>—</b></h1>
+          <div class="meta">
+            <span id="cSlug">—</span>
+            <span id="cPlan">—</span>
+            <span id="cStatus">—</span>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn-ghost btn" onclick="alert('Generates branded monthly performance PDF — wires to /api/report/:client/:month on deploy.')">⬇ Download monthly report</button>
+          <button class="btn" onclick="switchView('upload')">+ Add dish for this client</button>
+        </div>
+      </div>
+
+      <div class="mini-stats">
+        <div class="stat"><div class="label">Dishes live</div><div class="num"><b id="msDishes">14</b></div></div>
+        <div class="stat"><div class="label">Scans (30d)</div><div class="num"><b id="msScans">3,482</b></div><div class="delta">+22% vs prev</div></div>
+        <div class="stat"><div class="label">Best dish</div><div class="num" style="font-size:18px"><b id="msBest">Gold Burger</b></div><div class="delta">847 scans</div></div>
+        <div class="stat"><div class="label">Peak hour</div><div class="num" style="font-size:18px"><b id="msPeak">Fri 19:00</b></div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <h2>Dishes</h2>
+            <div class="sub">Click any dish to view AR page, edit, regenerate QR.</div>
+          </div>
+          <button class="btn-ghost btn">⬇ Download all QRs (PDF)</button>
+        </div>
+        <div class="dishes-grid" id="dishesGrid"></div>
+      </div>
+    </div>
+
+    <!-- UPLOAD VIEW -->
+    <div class="view" id="view-upload">
+      <div class="topbar">
+        <div>
+          <h1><b>Add new dish</b></h1>
+          <div class="sub">Drop a .glb file → the system stores it, generates the QR code, and publishes the AR page.</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="upload-grid">
+          <div>
+            <div class="drop" id="drop">
+              <div class="ico">⬆</div>
+              <p><strong>Drop your .glb here</strong> or click to browse</p>
+              <small>Polycam → Export → glTF Binary</small>
+              <input type="file" id="file" accept=".glb,model/gltf-binary" style="display:none" />
+            </div>
+            <div style="margin-top:18px">
+              <div class="form-row"><label>Restaurant</label><select id="dishVenue"></select></div>
+              <div class="form-row"><label>Dish name</label><input type="text" id="dishName" placeholder="The Signature Avocado" /></div>
+              <div class="form-row"><label>Slug (URL)</label><input type="text" id="dishSlug" placeholder="signature-avocado" /></div>
+              <div class="form-row"><label>Price</label><input type="text" id="dishPrice" placeholder="R 89" /></div>
+              <button class="btn" style="width:100%;justify-content:center;padding:14px;font-size:14px">Generate QR &amp; publish →</button>
+            </div>
+          </div>
+          <div>
+            <div class="preview-box">
+              <model-viewer
+                src="https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Avocado/glTF-Binary/Avocado.glb"
+                alt="Preview" auto-rotate camera-controls
+                shadow-intensity="1.4" exposure="1.05"
+                camera-orbit="0deg 70deg 0.4m" interaction-prompt="none">
+              </model-viewer>
+            </div>
+            <div style="margin-top:14px;color:var(--ink-faint);font-size:12px;text-align:center;font-family:var(--mono);text-transform:uppercase;letter-spacing:.12em">Diners see exactly this</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- REPORTS VIEW -->
+    <div class="view" id="view-reports">
+      <div class="topbar">
+        <div><h1><b>Monthly reports</b></h1><div class="sub">One-tap branded PDF per client.</div></div>
+        <span class="pill">April 2026</span>
+      </div>
+      <div class="card">
+        <table>
+          <thead><tr><th>Restaurant</th><th>Period</th><th>Dishes</th><th>Scans</th><th></th></tr></thead>
+          <tbody id="reportsBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- BILLING VIEW -->
+    <div class="view" id="view-billing">
+      <div class="topbar"><div><h1><b>Billing</b></h1><div class="sub">Invoice status by client.</div></div></div>
+      <div class="card">
+        <table>
+          <thead><tr><th>Restaurant</th><th>Plan</th><th>Monthly</th><th>Last invoice</th><th>Status</th></tr></thead>
+          <tbody id="billingBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  // Mock data — replaced by live /api/clients on deploy
+  const CLIENTS = [
+    {slug:'spur-sandton',  name:'Spur Sandton',           plan:'Restaurant',mrr:1500,dishes:14,scans:3482,status:'live',   av:'SP',avc:''},
+    {slug:'ocean-basket',  name:'Ocean Basket Rosebank',  plan:'Restaurant',mrr:1500,dishes:11,scans:2901,status:'live',   av:'OB',avc:'alt4'},
+    {slug:'kauai-melrose', name:'Kauai Melrose',          plan:'Starter',   mrr: 800,dishes: 9,scans:1845,status:'live',   av:'KA',avc:'alt2'},
+    {slug:'rocomamas',     name:'RocoMamas Fourways',     plan:'Starter',   mrr: 800,dishes: 6,scans:1220,status:'pending',av:'RC',avc:'alt'},
+    {slug:'tashas-vanda',  name:'Tashas V&A',             plan:'Restaurant',mrr:1500,dishes:12,scans:2015,status:'live',   av:'TA',avc:'alt3'},
+    {slug:'colcacchio',    name:'Col\'Cacchio Sea Point', plan:'Starter',   mrr: 800,dishes: 7,scans:1456,status:'live',   av:'CC',avc:''},
+    {slug:'hussar-grill',  name:'Hussar Grill Camps Bay', plan:'Chain',     mrr:3500,dishes:14,scans:1362,status:'live',   av:'HG',avc:'alt'}
+  ];
+
+  const DISHES = {
+    'spur-sandton':[
+      {name:'Gold Burger',scans:847,img:'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&q=80&auto=format'},
+      {name:'Cheese & Bacon Stack',scans:612,img:'https://images.unsplash.com/photo-1551782450-a2132b4ba21d?w=400&q=80&auto=format'},
+      {name:'Spur Ribs Full Rack',scans:543,img:'https://images.unsplash.com/photo-1546964124-0cce460f38ef?w=400&q=80&auto=format'},
+      {name:'Chicken Schnitzel',scans:391,img:'https://images.unsplash.com/photo-1604908554007-0876f292d09a?w=400&q=80&auto=format'},
+      {name:'Onion Rings Side',scans:289,img:'https://images.unsplash.com/photo-1639024471283-03518883512d?w=400&q=80&auto=format'},
+      {name:'Spur Sundae',scans:267,img:'https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=400&q=80&auto=format'},
+    ],
+    'ocean-basket':[
+      {name:'Calamari Lemon & Herb',scans:801,img:'https://images.unsplash.com/photo-1559339352-11d035aa65de?w=400&q=80&auto=format'},
+      {name:'Fish & Calamari Combo',scans:643,img:'https://images.unsplash.com/photo-1580959375944-abd7e991f971?w=400&q=80&auto=format'},
+      {name:'Greek Salad',scans:412,img:'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=80&auto=format'},
+      {name:'Prawn Platter',scans:387,img:'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=400&q=80&auto=format'}
+    ],
+    'kauai-melrose':[
+      {name:'Buddha Bowl',scans:521,img:'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=80&auto=format'},
+      {name:'Power Smoothie',scans:398,img:'https://images.unsplash.com/photo-1610970881699-44a5587cabec?w=400&q=80&auto=format'}
+    ],
+    'rocomamas':[
+      {name:'Cheese Smash',scans:521,img:'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&q=80&auto=format'}
+    ],
+    'tashas-vanda':[
+      {name:'Chocolate Fondant',scans:612,img:'https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=400&q=80&auto=format'},
+      {name:'Eggs Benedict',scans:489,img:'https://images.unsplash.com/photo-1592861956120-e524fc739696?w=400&q=80&auto=format'}
+    ],
+    'colcacchio':[
+      {name:'Margherita Pizza',scans:632,img:'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400&q=80&auto=format'}
+    ],
+    'hussar-grill':[
+      {name:'Ribeye 350g',scans:721,img:'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400&q=80&auto=format'}
+    ]
+  };
+
+  // Render clients tables
+  function renderClients(targetId,full){
+    const tbody=document.getElementById(targetId);if(!tbody)return;
+    tbody.innerHTML=CLIENTS.map(c=>`
+      <tr onclick="openClient('${c.slug}')">
+        <td><div class="client-cell"><div class="avatar ${c.avc}">${c.av}</div><div><div class="client-name">${c.name}</div><div class="client-slug">armenu.co.za/r/${c.slug}</div></div></div></td>
+        <td>${c.dishes}</td>
+        <td>${c.scans.toLocaleString()}</td>
+        ${full?`<td>R ${c.mrr.toLocaleString()}</td>`:''}
+        <td>${c.plan}</td>
+        <td><span class="status ${c.status}">${c.status}</span></td>
+      </tr>
+    `).join('');
+  }
+
+  // Reports table
+  function renderReports(){
+    const tbody=document.getElementById('reportsBody');if(!tbody)return;
+    tbody.innerHTML=CLIENTS.map(c=>`
+      <tr>
+        <td><div class="client-cell"><div class="avatar ${c.avc}">${c.av}</div><div class="client-name">${c.name}</div></div></td>
+        <td>April 2026</td>
+        <td>${c.dishes}</td>
+        <td>${c.scans.toLocaleString()}</td>
+        <td><button class="btn-ghost btn" onclick="event.stopPropagation();alert('Generates branded PDF — /api/report/${c.slug}/2026-04')">⬇ Generate PDF</button></td>
+      </tr>
+    `).join('');
+  }
+
+  // Billing
+  function renderBilling(){
+    const tbody=document.getElementById('billingBody');if(!tbody)return;
+    tbody.innerHTML=CLIENTS.map(c=>`
+      <tr>
+        <td><div class="client-cell"><div class="avatar ${c.avc}">${c.av}</div><div class="client-name">${c.name}</div></div></td>
+        <td>${c.plan}</td>
+        <td>R ${c.mrr.toLocaleString()}</td>
+        <td>2026-04-01</td>
+        <td><span class="status live">paid</span></td>
+      </tr>
+    `).join('');
+  }
+
+  // Restaurant select
+  function renderVenueSelect(){
+    const sel=document.getElementById('dishVenue');
+    sel.innerHTML=CLIENTS.map(c=>`<option value="${c.slug}">${c.name}</option>`).join('');
+  }
+
+  // Open a client drill-down
+  function openClient(slug){
+    const c=CLIENTS.find(x=>x.slug===slug);if(!c)return;
+    document.getElementById('crumbName').textContent=c.name;
+    document.getElementById('cName').innerHTML=`<b>${c.name}</b>`;
+    document.getElementById('cSlug').textContent=`armenu.co.za/r/${c.slug}`;
+    document.getElementById('cPlan').textContent=c.plan;
+    document.getElementById('cStatus').innerHTML=`<span class="status ${c.status}">${c.status}</span>`;
+    document.getElementById('cAvatar').textContent=c.av;
+    document.getElementById('cAvatar').className='avatar '+c.avc;
+    document.getElementById('msDishes').textContent=c.dishes;
+    document.getElementById('msScans').textContent=c.scans.toLocaleString();
+    const dishes=DISHES[slug]||[];
+    if(dishes.length){
+      document.getElementById('msBest').textContent=dishes[0].name;
+    }
+    document.getElementById('dishesGrid').innerHTML=dishes.map(d=>`
+      <div class="dish-tile">
+        <div class="thumb" style="background-image:url('${d.img}')">
+          <span class="scans">${d.scans} scans</span>
+        </div>
+        <div class="info">
+          <div class="name">${d.name}</div>
+          <div class="lbl">${d.scans} scans · 30d</div>
+        </div>
+      </div>
+    `).join('');
+    switchView('client');
+  }
+
+  // View switcher
+  function switchView(v){
+    document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+    document.getElementById('view-'+v).classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+    const navEl=document.querySelector(`.nav-item[data-view="${v==='client'?'clients':v}"]`);
+    if(navEl) navEl.classList.add('active');
+    window.scrollTo(0,0);
+  }
+  document.querySelectorAll('.nav-item[data-view]').forEach(el=>{
+    el.addEventListener('click',()=>switchView(el.dataset.view));
+  });
+
+  // File drop
+  const drop=document.getElementById('drop');const file=document.getElementById('file');
+  drop.addEventListener('click',()=>file.click());
+  ['dragenter','dragover'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add('over')}));
+  ['dragleave','drop'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove('over')}));
+  drop.addEventListener('drop',ev=>{if(ev.dataTransfer.files[0])file.files=ev.dataTransfer.files;updateDrop()});
+  file.addEventListener('change',updateDrop);
+  function updateDrop(){if(file.files[0])drop.querySelector('p').innerHTML='<strong>'+file.files[0].name+'</strong> ready to upload'}
+
+  // Init
+  renderClients('clientsBody',false);
+  renderClients('clientsBody2',true);
+  renderReports();
+  renderBilling();
+  renderVenueSelect();
+</script>
+</body>
+</html>
