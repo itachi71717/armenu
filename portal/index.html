@@ -19,20 +19,9 @@
   body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;-webkit-font-smoothing:antialiased}
   a{color:inherit;text-decoration:none}
 
-  /* Top nav */
-  nav{
-    position:sticky;top:0;z-index:20;
-    background:rgba(10,8,6,.85);backdrop-filter:blur(18px);
-    border-bottom:1px solid var(--line);
-    padding:18px 32px;display:flex;justify-content:space-between;align-items:center;
-  }
+  nav{position:sticky;top:0;z-index:20;background:rgba(10,8,6,.85);backdrop-filter:blur(18px);border-bottom:1px solid var(--line);padding:18px 32px;display:flex;justify-content:space-between;align-items:center}
   .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:14px;letter-spacing:.06em;text-transform:uppercase}
-  .brand .mark{
-    width:26px;height:26px;border-radius:7px;
-    background:linear-gradient(135deg,#ff5722,#ffb066);
-    position:relative;
-    box-shadow:0 4px 12px rgba(255,87,34,.4),inset 0 1px 0 rgba(255,255,255,.3);
-  }
+  .brand .mark{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,#ff5722,#ffb066);position:relative;box-shadow:0 4px 12px rgba(255,87,34,.4),inset 0 1px 0 rgba(255,255,255,.3)}
   .brand .mark::after{content:"";position:absolute;inset:5px;border-radius:3px;background:#0a0806;box-shadow:inset 0 0 0 2px rgba(255,87,34,.6)}
   .brand b{font-weight:800}.brand i{font-style:normal;color:var(--ink-dim);font-weight:500;margin-left:3px}
   .brand .div{margin:0 14px;color:var(--ink-faint)}
@@ -45,7 +34,6 @@
   .btn-primary{background:linear-gradient(135deg,#ff5722,#c93d00);color:#fff;border:none;font-weight:600;box-shadow:0 6px 16px rgba(255,87,34,.3)}
   .btn-primary:hover{transform:translateY(-1px)}
 
-  /* Container */
   main{max-width:1200px;margin:0 auto;padding:40px 32px 80px}
   @media(max-width:760px){main{padding:24px 20px 60px}}
 
@@ -54,201 +42,418 @@
   .hello h1 b{font-style:normal;font-family:'Inter',sans-serif;font-weight:800}
   .hello p{color:var(--ink-dim);font-size:15px}
 
-  /* Quick actions */
   .actions-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:40px}
   @media(max-width:760px){.actions-grid{grid-template-columns:1fr}}
-  .action{
-    padding:24px;border-radius:16px;
-    background:linear-gradient(180deg,rgba(255,239,220,.03),rgba(255,239,220,.005));
-    border:1px solid var(--line);cursor:pointer;
-    transition:border-color .2s,transform .2s;
-    display:flex;align-items:center;gap:18px;
-  }
+  .action{padding:24px;border-radius:16px;background:linear-gradient(180deg,rgba(255,239,220,.03),rgba(255,239,220,.005));border:1px solid var(--line);cursor:pointer;transition:border-color .2s,transform .2s;display:flex;align-items:center;gap:18px}
   .action:hover{border-color:rgba(255,87,34,.3);transform:translateY(-2px)}
-  .action .ico{
-    width:48px;height:48px;border-radius:14px;flex-shrink:0;
-    background:linear-gradient(135deg,rgba(255,87,34,.2),rgba(255,87,34,.05));
-    border:1px solid rgba(255,87,34,.3);
-    display:grid;place-items:center;font-size:22px;
-  }
+  .action .ico{width:48px;height:48px;border-radius:14px;flex-shrink:0;background:linear-gradient(135deg,rgba(255,87,34,.2),rgba(255,87,34,.05));border:1px solid rgba(255,87,34,.3);display:grid;place-items:center;font-size:22px}
   .action h3{font-size:16px;font-weight:600;letter-spacing:-.01em;margin-bottom:3px}
   .action p{color:var(--ink-dim);font-size:13px;line-height:1.4}
 
-  /* Section header */
   h2{font-family:var(--serif);font-style:italic;font-size:30px;font-weight:400;letter-spacing:-.02em;line-height:1.1;margin-bottom:6px}
   h2 b{font-style:normal;font-family:'Inter',sans-serif;font-weight:800}
   .section-sub{color:var(--ink-dim);font-size:14px;margin-bottom:20px}
 
-  /* Dishes grid */
-  .dishes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;margin-bottom:40px}
-  .dish-tile{
-    border-radius:16px;border:1px solid var(--line);overflow:hidden;
-    background:rgba(255,239,220,.02);
-    transition:border-color .2s,transform .2s;
-  }
+  .dishes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin-bottom:40px}
+  .dish-tile{border-radius:16px;border:1px solid var(--line);overflow:hidden;background:rgba(255,239,220,.02);transition:border-color .2s,transform .2s;display:flex;flex-direction:column}
   .dish-tile:hover{border-color:rgba(255,87,34,.3);transform:translateY(-2px)}
-  .dish-tile .thumb{
-    aspect-ratio:1/1;background:#1a1410;
-    background-size:cover;background-position:center;
-    position:relative;
-  }
-  .dish-tile .thumb::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 50%,rgba(0,0,0,.7))}
-  .dish-tile .qr-mini{
-    position:absolute;top:12px;right:12px;z-index:1;
-    width:42px;height:42px;border-radius:8px;border:3px solid #fff;
-    background:conic-gradient(#0a0806 25%,#fff 0 50%,#0a0806 0 75%,#fff 0),#fff;
-    background-size:6px 6px;
-  }
-  .dish-tile .info{padding:16px;display:flex;justify-content:space-between;align-items:flex-end;gap:10px}
-  .dish-tile .name{font-weight:600;font-size:15px;letter-spacing:-.01em;margin-bottom:3px;line-height:1.2}
+  .dish-tile .thumb{aspect-ratio:1/1;background:#1a1410;background-size:cover;background-position:center;position:relative;display:grid;place-items:center}
+  .dish-tile .thumb-fallback{font-family:var(--serif);font-style:italic;font-size:48px;color:var(--ink-faint)}
+  .dish-tile .info{padding:16px;flex:1}
+  .dish-tile .name{font-weight:600;font-size:16px;letter-spacing:-.01em;margin-bottom:4px;line-height:1.2}
   .dish-tile .lbl{font-family:var(--mono);font-size:10px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.12em}
-  .dish-tile .dl{
-    padding:6px 10px;border-radius:8px;background:rgba(255,87,34,.1);
-    border:1px solid rgba(255,87,34,.2);color:var(--accent);
-    font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.05em;cursor:pointer;
-    text-transform:uppercase;
-  }
-  .dish-tile .dl:hover{background:rgba(255,87,34,.15)}
+  .dish-tile .actions-row{display:flex;border-top:1px solid var(--line)}
+  .dish-tile .qr-btn{flex:1;padding:12px;background:transparent;border:none;color:var(--accent);font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:background .15s}
+  .dish-tile .qr-btn:hover{background:rgba(255,87,34,.06)}
+  .dish-tile .qr-btn + .qr-btn{border-left:1px solid var(--line)}
 
-  /* Request panel */
-  .request-card{
-    padding:32px;border-radius:18px;
-    background:
-      radial-gradient(circle at 80% 0%,rgba(255,87,34,.1),transparent 50%),
-      linear-gradient(180deg,rgba(255,239,220,.03),rgba(255,239,220,.005));
-    border:1px solid var(--line);
-  }
+  .request-card{padding:32px;border-radius:18px;background:radial-gradient(circle at 80% 0%,rgba(255,87,34,.1),transparent 50%),linear-gradient(180deg,rgba(255,239,220,.03),rgba(255,239,220,.005));border:1px solid var(--line)}
   .request-card h3{font-size:20px;font-weight:600;margin-bottom:6px;letter-spacing:-.015em}
   .request-card p{color:var(--ink-dim);font-size:14px;margin-bottom:20px}
   .req-row{display:flex;gap:12px;flex-wrap:wrap}
   .req-row input{flex:1;min-width:240px;padding:13px 16px;border-radius:10px;background:rgba(10,8,6,.5);border:1px solid var(--line);color:var(--ink);font-family:inherit;font-size:14px}
   .req-row input:focus{outline:none;border-color:rgba(255,87,34,.5)}
 
-  /* Login */
-  .login-cover{position:fixed;inset:0;z-index:100;background:rgba(10,8,6,.97);backdrop-filter:blur(20px);display:grid;place-items:center;padding:20px}
-  .login-card{
-    width:min(440px,100%);padding:44px 36px;border-radius:24px;
-    background:linear-gradient(180deg,rgba(255,239,220,.03),rgba(255,239,220,.01));
-    border:1px solid var(--line);text-align:center;
-  }
-  .login-card .brand{justify-content:center;margin-bottom:14px}
-  .login-card h2{font-family:var(--serif);font-style:italic;font-size:30px;font-weight:400;margin-bottom:6px;letter-spacing:-.02em}
-  .login-card p{color:var(--ink-dim);font-size:13px;margin-bottom:24px}
-  .form-row{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;text-align:left}
-  .form-row label{font-family:var(--mono);font-size:10px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.14em;font-weight:500}
-  .form-row input{padding:12px 14px;border-radius:10px;background:rgba(255,239,220,.03);border:1px solid var(--line);color:var(--ink);font-family:inherit;font-size:14px}
-  .form-row input:focus{outline:none;border-color:rgba(255,87,34,.5)}
-  .login-card .btn-primary{width:100%;justify-content:center;padding:14px;font-size:14px}
-  .login-card small{display:block;margin-top:18px;color:var(--ink-faint);font-size:11px;font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase}
+  .empty-state{padding:60px 24px;text-align:center;color:var(--ink-dim);border-radius:18px;border:1px dashed var(--line)}
+  .empty-state h3{font-family:var(--serif);font-style:italic;font-size:22px;color:var(--ink);margin-bottom:8px;font-weight:400}
+  .empty-state p{font-size:14px;max-width:380px;margin:0 auto}
+
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:14px 22px;border-radius:12px;background:#13100c;border:1px solid var(--line);font-size:14px;z-index:200;box-shadow:0 16px 40px rgba(0,0,0,.6);display:none;max-width:90vw;text-align:center}
+  .toast.show{display:block}
+  .toast.err{border-color:rgba(248,113,113,.3);color:#f87171}
+  .toast.ok{border-color:rgba(125,216,125,.3);color:#7dd87d}
+
+  .gate{position:fixed;inset:0;z-index:1000;background:rgba(10,8,6,.97);backdrop-filter:blur(20px);display:grid;place-items:center;padding:20px;overflow-y:auto}
+  .gate-card{width:min(460px,100%);padding:36px 28px;border-radius:24px;background:linear-gradient(180deg,rgba(255,239,220,.03),rgba(255,239,220,.01));border:1px solid var(--line);text-align:center}
+  .gate-card .brand{justify-content:center;margin-bottom:14px}
+  .gate-card h2{font-family:var(--serif);font-style:italic;font-size:30px;font-weight:400;margin-bottom:6px;letter-spacing:-.02em}
+  .gate-card p{color:var(--ink-dim);font-size:13px;margin-bottom:24px}
+  .gate-card #clerk-mount{min-height:380px;display:flex;justify-content:center;align-items:center}
+  .gate-card #clerk-mount > div{margin:0 auto !important}
+  .gate-card .cl-rootBox,.gate-card .cl-card{margin:0 auto !important;width:100% !important;max-width:100% !important;box-shadow:none !important;background:transparent !important}
+  .gate-card .err-block{padding:20px;border-radius:14px;border:1px solid rgba(255,176,102,.25);background:rgba(255,176,102,.05);color:var(--accent-2);text-align:left;font-size:13px;line-height:1.55;margin-bottom:18px}
+  .gate-card .err-block strong{display:block;margin-bottom:6px;color:#fff;font-size:14px}
+  .gate-card .lead-form{text-align:left;margin-top:8px}
+  .gate-card .lead-form .form-row{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+  .gate-card .lead-form label{font-family:var(--mono);font-size:10px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.14em;font-weight:500}
+  .gate-card .lead-form input,.gate-card .lead-form textarea{padding:11px 14px;border-radius:10px;background:rgba(255,239,220,.03);border:1px solid var(--line);color:var(--ink);font-family:inherit;font-size:14px;width:100%}
+  .gate-card .lead-form input:focus,.gate-card .lead-form textarea:focus{outline:none;border-color:rgba(255,87,34,.5)}
+  .gate-card .lead-form textarea{min-height:70px;resize:vertical}
+  .gate-card .btn-primary{background:linear-gradient(135deg,#ff5722,#c93d00);color:#fff;border:none;font-weight:600;padding:13px;font-size:14px;border-radius:10px;width:100%;cursor:pointer;font-family:inherit;margin-top:6px}
+  .gate-card .lead-success{padding:18px;border-radius:12px;background:rgba(125,216,125,.08);border:1px solid rgba(125,216,125,.25);color:#7dd87d;font-size:13px;line-height:1.5;text-align:left}
+
+  /* QR modal */
+  .modal{position:fixed;inset:0;z-index:500;background:rgba(10,8,6,.92);backdrop-filter:blur(14px);display:none;place-items:center;padding:20px}
+  .modal.show{display:grid}
+  .modal-card{width:min(420px,100%);padding:32px;border-radius:20px;background:#13100c;border:1px solid var(--line);text-align:center}
+  .modal-card h3{font-family:var(--serif);font-style:italic;font-size:24px;font-weight:400;margin-bottom:6px}
+  .modal-card p{color:var(--ink-dim);font-size:13px;margin-bottom:20px}
+  .modal-card .qr-img{width:280px;height:280px;background:#fff;padding:14px;border-radius:14px;margin:0 auto 20px;display:block}
+  .modal-card .modal-actions{display:flex;gap:10px}
+  .modal-card .modal-actions .btn{flex:1;justify-content:center;padding:12px}
+
+  #app{display:none}
+  #app.ready{display:block}
 </style>
 </head>
 <body>
 
-<!-- Login -->
-<div class="login-cover" id="login">
-  <div class="login-card">
+<!-- Auth gate -->
+<div class="gate" id="gate">
+  <div class="gate-card">
     <div class="brand"><span class="mark"></span><b>AR</b><i>Menu</i></div>
     <h2>Restaurant Portal</h2>
-    <p>Sign in to download your QR codes and request changes.</p>
-    <div class="form-row"><label>Email</label><input type="email" placeholder="manager@yourrestaurant.co.za" autocomplete="email" /></div>
-    <div class="form-row"><label>Password</label><input type="password" placeholder="••••••••" autocomplete="current-password" /></div>
-    <button class="btn btn-primary" onclick="document.getElementById('login').style.display='none'">Sign in →</button>
-    <small>Account created by AR Menu — Powered by Clerk on deploy</small>
+    <p>Sign in with the email AR Menu set up for your restaurant.</p>
+    <div id="clerk-mount"></div>
+
+    <div id="link-error" style="display:none">
+      <div class="err-block">
+        <strong>Almost there — we just need to link your account.</strong>
+        Tell us about your restaurant and the AR Menu team will activate your portal within 1 business day.
+      </div>
+      <div class="lead-form" id="leadForm">
+        <div class="form-row"><label>Restaurant name</label><input type="text" id="leadName" placeholder="e.g. Ocean Basket Sandton" /></div>
+        <div class="form-row"><label>Phone (WhatsApp)</label><input type="tel" id="leadPhone" placeholder="e.g. 071 234 5678" /></div>
+        <div class="form-row"><label>Anything else? (optional)</label><textarea id="leadMsg" placeholder="Number of dishes, location, when you want to launch…"></textarea></div>
+        <button class="btn-primary" id="leadBtn">Submit details →</button>
+      </div>
+      <div class="lead-success" id="leadSuccess" style="display:none">
+        ✓ <strong>Got it.</strong> AR Menu will reach out via WhatsApp within 1 business day to activate your portal.
+      </div>
+      <button class="btn" id="signOutLink" style="margin-top:14px;width:100%;justify-content:center">Sign out</button>
+    </div>
   </div>
 </div>
 
-<nav>
-  <div class="brand">
-    <span class="mark"></span><b>AR</b><i>Menu</i>
-    <span class="div">|</span>
-    <span class="venue">Spur · Sandton City</span>
-  </div>
-  <div class="nav-right">
-    <span class="pill">14 dishes live</span>
-    <button class="btn">Sign out</button>
-  </div>
-</nav>
-
-<main>
-
-  <div class="hello">
-    <h1>Welcome back, <b>Sandton.</b></h1>
-    <p>Your AR menu has been scanned <strong>3,482 times</strong> in the last 30 days. Top dish: <strong>Gold Burger</strong> (847 scans).</p>
-  </div>
-
-  <!-- Quick actions -->
-  <div class="actions-grid">
-    <div class="action" onclick="alert('Downloads PDF with all your QR codes — print-ready, vector format.')">
-      <span class="ico">⬇</span>
-      <div>
-        <h3>Download all QR codes</h3>
-        <p>One PDF, ready to print and stick onto menus.</p>
-      </div>
+<!-- App -->
+<div id="app">
+  <nav>
+    <div class="brand">
+      <span class="mark"></span><b>AR</b><i>Menu</i>
+      <span class="div">|</span>
+      <span class="venue" id="navVenue">—</span>
     </div>
-    <div class="action" onclick="document.getElementById('reqInput').focus()">
-      <span class="ico">+</span>
-      <div>
-        <h3>Request a new dish</h3>
-        <p>Tell us the dish — we'll quote, scan, and add it.</p>
-      </div>
+    <div class="nav-right">
+      <span class="pill" id="navDishCount">0 dishes live</span>
+      <button class="btn" id="signOutBtn">Sign out</button>
     </div>
-    <div class="action" onclick="alert('Your last monthly report is sent by email on the 1st of each month.')">
-      <span class="ico">◈</span>
-      <div>
-        <h3>Latest monthly report</h3>
-        <p>Sent by email · April 2026 sent on 1 May.</p>
-      </div>
+  </nav>
+
+  <main>
+    <div class="hello">
+      <h1>Welcome back, <b id="welcomeName">—</b></h1>
+      <p id="welcomeSub">—</p>
     </div>
-  </div>
 
-  <!-- Dishes -->
-  <h2>Your <b>dishes.</b></h2>
-  <div class="section-sub">Click any QR to download just that one. Dish edits go through us — request below.</div>
-
-  <div class="dishes-grid" id="dishes"></div>
-
-  <!-- Request -->
-  <div class="request-card">
-    <h3>Need a new dish or a change?</h3>
-    <p>Drop the dish name or describe what needs updating. We'll come back within 1 business day with a quote and a scanning slot.</p>
-    <div class="req-row">
-      <input id="reqInput" type="text" placeholder="e.g. New seasonal burger — Spring Smash" />
-      <button class="btn btn-primary" onclick="handleReq()">Send request →</button>
-    </div>
-  </div>
-
-</main>
-
-<script>
-  // Mock dishes — replaced by /api/portal/dishes on deploy (auth scoped)
-  const DISHES=[
-    {name:'Gold Burger',scans:847,img:'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=500&q=80&auto=format'},
-    {name:'Cheese & Bacon Stack',scans:612,img:'https://images.unsplash.com/photo-1551782450-a2132b4ba21d?w=500&q=80&auto=format'},
-    {name:'Spur Ribs Full Rack',scans:543,img:'https://images.unsplash.com/photo-1546964124-0cce460f38ef?w=500&q=80&auto=format'},
-    {name:'Chicken Schnitzel',scans:391,img:'https://images.unsplash.com/photo-1604908554007-0876f292d09a?w=500&q=80&auto=format'},
-    {name:'Onion Rings Side',scans:289,img:'https://images.unsplash.com/photo-1639024471283-03518883512d?w=500&q=80&auto=format'},
-    {name:'Spur Sundae',scans:267,img:'https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=500&q=80&auto=format'}
-  ];
-  document.getElementById('dishes').innerHTML=DISHES.map(d=>`
-    <div class="dish-tile">
-      <div class="thumb" style="background-image:url('${d.img}')">
-        <div class="qr-mini"></div>
-      </div>
-      <div class="info">
+    <div class="actions-grid">
+      <div class="action" id="masterQrAction">
+        <span class="ico">◉</span>
         <div>
-          <div class="name">${d.name}</div>
-          <div class="lbl">${d.scans} scans · 30d</div>
+          <h3>Master menu QR</h3>
+          <p>One QR for the whole menu — perfect for table tents.</p>
         </div>
-        <button class="dl" onclick="alert('Downloads QR PDF for ${d.name}')">⬇ QR</button>
+      </div>
+      <div class="action" id="dlAllAction">
+        <span class="ico">⬇</span>
+        <div>
+          <h3>Per-dish QR codes</h3>
+          <p>One QR per dish — for placing next to each menu item.</p>
+        </div>
+      </div>
+      <div class="action" onclick="document.getElementById('reqInput').focus()">
+        <span class="ico">+</span>
+        <div>
+          <h3>Request a new dish</h3>
+          <p>Tell us the dish — we'll quote, scan, and add it.</p>
+        </div>
+      </div>
+      <div class="action" id="contactAction">
+        <span class="ico">✉</span>
+        <div>
+          <h3>Contact support</h3>
+          <p>WhatsApp AR Menu directly. We reply same-day.</p>
+        </div>
       </div>
     </div>
-  `).join('');
 
-  function handleReq(){
-    const v=document.getElementById('reqInput').value.trim();
-    if(!v){alert('Please describe what you need.');return}
-    alert('Request sent. We\\'ll be in touch within 1 business day.');
-    document.getElementById('reqInput').value='';
+    <h2>Your <b>dishes.</b></h2>
+    <div class="section-sub">All dishes currently live on your menu. Tap "QR" to download the printable QR code for that dish.</div>
+
+    <div id="dishesWrap"></div>
+
+    <div class="request-card" style="margin-top:32px">
+      <h3>Need a new dish or a change?</h3>
+      <p>Drop the dish name or describe what needs updating. We'll come back within 1 business day.</p>
+      <div class="req-row">
+        <input id="reqInput" type="text" placeholder="e.g. New seasonal burger — Spring Smash" />
+        <button class="btn btn-primary" id="reqBtn">Send request →</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- QR Modal -->
+<div class="modal" id="qrModal">
+  <div class="modal-card">
+    <h3 id="qrTitle">—</h3>
+    <p id="qrSub">Scan with any phone camera to open the AR view. Print this on your menu next to the dish.</p>
+    <img class="qr-img" id="qrImg" alt="QR code" />
+    <div class="modal-actions">
+      <button class="btn" id="qrClose">Close</button>
+      <a class="btn btn-primary" id="qrDownload" download>Download PNG</a>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+  import { Clerk } from 'https://esm.sh/@clerk/clerk-js@5?bundle';
+
+  const PUBLISHABLE_KEY = 'pk_test_c3Ryb25nLWZvYWwtMzAuY2xlcmsuYWNjb3VudHMuZGV2JA';
+  const SUPPORT_WHATSAPP = '27676257818';
+  const SITE_ORIGIN = location.origin;
+
+  const $ = id => document.getElementById(id);
+  const toast = (msg, kind='ok') => {
+    const t = $('toast');
+    t.textContent = msg; t.className = 'toast show ' + kind;
+    setTimeout(() => t.classList.remove('show'), 3500);
+  };
+
+  function qrUrl(slug, dishSlug, size = 800) {
+    const target = `${SITE_ORIGIN}/view.html?r=${encodeURIComponent(slug)}&d=${encodeURIComponent(dishSlug)}`;
+    return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&margin=20&data=${encodeURIComponent(target)}`;
+  }
+
+  function masterMenuQrUrl(slug, size = 800) {
+    const target = `${SITE_ORIGIN}/menu.html?r=${encodeURIComponent(slug)}`;
+    return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&margin=20&data=${encodeURIComponent(target)}`;
+  }
+
+  const clerk = new Clerk(PUBLISHABLE_KEY);
+  await clerk.load({ });
+
+  async function authFetch(path, opts = {}) {
+    const token = await clerk.session?.getToken();
+    const res = await fetch(path, {
+      ...opts,
+      headers: {
+        'content-type': 'application/json',
+        'authorization': token ? `Bearer ${token}` : '',
+        ...(opts.headers || {})
+      }
+    });
+    const data = await res.json().catch(() => ({}));
+    return { ok: res.ok, status: res.status, data };
+  }
+
+  // Dark-theme appearance for Clerk widgets so text is readable on our background
+  const clerkAppearance = {
+    variables: {
+      colorPrimary: '#ff5722',
+      colorBackground: '#13100c',
+      colorText: '#f5efe6',
+      colorTextSecondary: '#9a9388',
+      colorInputBackground: 'rgba(255,239,220,0.04)',
+      colorInputText: '#f5efe6',
+      colorNeutral: '#f5efe6',
+      colorDanger: '#f87171',
+      colorSuccess: '#7dd87d',
+      borderRadius: '12px',
+      fontFamily: 'Inter, system-ui, sans-serif'
+    },
+    elements: {
+      card: { boxShadow: 'none', background: 'transparent', border: 'none', padding: '0' },
+      rootBox: { width: '100%' },
+      headerTitle: { color: '#f5efe6' },
+      headerSubtitle: { color: '#9a9388' },
+      socialButtonsBlockButton: { borderColor: 'rgba(255,239,220,0.12)', color: '#f5efe6' },
+      formFieldLabel: { color: '#9a9388' },
+      formFieldInput: { color: '#f5efe6', borderColor: 'rgba(255,239,220,0.12)' },
+      formButtonPrimary: { backgroundColor: '#ff5722', color: '#fff', '&:hover': { backgroundColor: '#c93d00' } },
+      footerActionText: { color: '#9a9388' },
+      footerActionLink: { color: '#ffb066' },
+      identityPreviewText: { color: '#f5efe6' },
+      identityPreviewEditButton: { color: '#ffb066' },
+      dividerLine: { background: 'rgba(255,239,220,0.08)' },
+      dividerText: { color: '#564f45' },
+      formFieldHintText: { color: '#564f45' }
+    }
+  };
+
+  function showSignIn() {
+    $('gate').style.display = 'grid';
+    $('app').classList.remove('ready');
+    $('link-error').style.display = 'none';
+    const mount = $('clerk-mount');
+    mount.style.display = 'flex';
+    mount.innerHTML = '';
+    clerk.mountSignIn(mount, {
+      afterSignInUrl: '/portal/',
+      afterSignUpUrl: '/portal/',
+      appearance: clerkAppearance
+    });
+  }
+
+  function showLinkError() {
+    $('gate').style.display = 'grid';
+    $('app').classList.remove('ready');
+    const mount = $('clerk-mount');
+    mount.style.display = 'none';
+    mount.innerHTML = '';
+    $('link-error').style.display = 'block';
+  }
+
+  $('signOutLink').addEventListener('click', async () => { await clerk.signOut(); location.reload(); });
+
+  $('leadBtn').addEventListener('click', async () => {
+    const restaurant_name = $('leadName').value.trim();
+    const phone = $('leadPhone').value.trim();
+    const message = $('leadMsg').value.trim();
+    if (!restaurant_name) { toast('Restaurant name is required', 'err'); return; }
+    $('leadBtn').disabled = true;
+    $('leadBtn').textContent = 'Submitting…';
+    const { ok, data } = await authFetch('/api/portal/pending-signup', {
+      method: 'POST',
+      body: JSON.stringify({ restaurant_name, phone, message })
+    });
+    if (!ok) {
+      toast(data.error || 'Failed to submit', 'err');
+      $('leadBtn').disabled = false;
+      $('leadBtn').textContent = 'Submit details →';
+      return;
+    }
+    $('leadForm').style.display = 'none';
+    $('leadSuccess').style.display = 'block';
+  });
+  $('signOutBtn').addEventListener('click', async () => { await clerk.signOut(); location.reload(); });
+
+  $('contactAction').addEventListener('click', () => {
+    window.open(`https://wa.me/${SUPPORT_WHATSAPP}?text=Hi%20AR%20Menu%2C%20I%20need%20support%20with%20my%20portal.`, '_blank');
+  });
+
+  let CURRENT = null; // {restaurant, dishes}
+
+  async function loadMe() {
+    const { ok, status, data } = await authFetch('/api/portal/me');
+    if (status === 401) { showSignIn(); return; }
+    if (status === 404 && data.error === 'no_restaurant_linked') { showLinkError(); return; }
+    if (!ok) { toast(data.error || 'Failed to load', 'err'); return; }
+
+    CURRENT = data;
+    const r = data.restaurant;
+    $('navVenue').textContent = r.name;
+    $('navDishCount').textContent = `${data.dishes.length} dish${data.dishes.length === 1 ? '' : 'es'} live`;
+    $('welcomeName').textContent = r.name;
+    $('welcomeSub').textContent = data.dishes.length
+      ? `Your AR menu is live with ${data.dishes.length} dish${data.dishes.length === 1 ? '' : 'es'}. Performance reports are emailed by AR Menu monthly.`
+      : `Your account is set up. AR Menu will publish your first dishes after the kitchen visit.`;
+
+    $('dishesWrap').innerHTML = data.dishes.length
+      ? `<div class="dishes-grid">${data.dishes.map(d => `
+          <div class="dish-tile">
+            <div class="thumb" ${d.thumb_url ? `style="background-image:url('${d.thumb_url}')"` : ''}>
+              ${d.thumb_url ? '' : `<span class="thumb-fallback">${d.name[0]}</span>`}
+            </div>
+            <div class="info">
+              <div class="name">${d.name}</div>
+              <div class="lbl">${d.price || 'Live on menu'}</div>
+            </div>
+            <div class="actions-row">
+              <button class="qr-btn" data-action="view-qr" data-slug="${d.slug}" data-name="${d.name}">⬇ QR Code</button>
+              <button class="qr-btn" data-action="open-ar" data-slug="${d.slug}">↗ Preview AR</button>
+            </div>
+          </div>`).join('')}</div>`
+      : `<div class="empty-state"><h3>No dishes yet.</h3><p>AR Menu will add your first dishes after the kitchen visit. Use the request form below to suggest dishes you'd like added.</p></div>`;
+
+    $('dishesWrap').addEventListener('click', e => {
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      if (btn.dataset.action === 'view-qr') openQr(btn.dataset.slug, btn.dataset.name);
+      if (btn.dataset.action === 'open-ar') window.open(`/view.html?r=${r.slug}&d=${btn.dataset.slug}`, '_blank');
+    }, { once: false });
+
+    $('gate').style.display = 'none';
+    $('app').classList.add('ready');
+  }
+
+  // QR Modal
+  function openQr(dishSlug, dishName) {
+    const url = qrUrl(CURRENT.restaurant.slug, dishSlug);
+    $('qrTitle').textContent = dishName;
+    $('qrSub').textContent = 'Print this next to the dish on your menu. Diners scan it and the dish appears on their table in AR.';
+    $('qrImg').src = url;
+    $('qrDownload').href = url;
+    $('qrDownload').setAttribute('download', `armenu-qr-${dishSlug}.png`);
+    $('qrModal').classList.add('show');
+  }
+  $('qrClose').addEventListener('click', () => $('qrModal').classList.remove('show'));
+  $('qrModal').addEventListener('click', e => { if (e.target === $('qrModal')) $('qrModal').classList.remove('show'); });
+
+  // Master menu QR — opens modal with the single whole-menu QR
+  $('masterQrAction').addEventListener('click', () => {
+    if (!CURRENT?.restaurant?.slug) return toast('Loading…', 'err');
+    const url = masterMenuQrUrl(CURRENT.restaurant.slug);
+    $('qrTitle').textContent = `${CURRENT.restaurant.name} · Whole menu`;
+    $('qrSub').textContent = 'Place this on every table (tent card / sticker). Diners scan it once and tap any dish to see it in AR.';
+    $('qrImg').src = url;
+    $('qrDownload').href = url;
+    $('qrDownload').setAttribute('download', `armenu-menu-${CURRENT.restaurant.slug}.png`);
+    $('qrModal').classList.add('show');
+  });
+
+  // Download all QRs — opens each one in a new tab as PNG download
+  $('dlAllAction').addEventListener('click', () => {
+    if (!CURRENT?.dishes?.length) return toast('No dishes to download yet', 'err');
+    toast(`Opening ${CURRENT.dishes.length} QR codes — save each one`, 'ok');
+    CURRENT.dishes.forEach((d, i) => {
+      setTimeout(() => {
+        const a = document.createElement('a');
+        a.href = qrUrl(CURRENT.restaurant.slug, d.slug);
+        a.download = `armenu-qr-${d.slug}.png`;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        document.body.appendChild(a); a.click(); a.remove();
+      }, i * 400);
+    });
+  });
+
+  $('reqBtn').addEventListener('click', async () => {
+    const message = $('reqInput').value.trim();
+    if (!message) return toast('Type your request first', 'err');
+    const { ok, data } = await authFetch('/api/portal/request', { method: 'POST', body: JSON.stringify({ message }) });
+    if (!ok) return toast(data.error || 'Failed', 'err');
+    $('reqInput').value = '';
+    toast('Request sent — AR Menu will reply within 1 business day.', 'ok');
+  });
+
+  // Boot
+  if (clerk.user) {
+    loadMe();
+  } else {
+    showSignIn();
+    clerk.addListener(({ user }) => { if (user) loadMe(); });
   }
 </script>
 </body>

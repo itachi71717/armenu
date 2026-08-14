@@ -1,123 +1,57 @@
--- AR Menu — Cloudflare D1 schema
--- Run with: wrangler d1 execute armenu-db --file=./schema.sql
+-- AR Menu — Supabase (PostgreSQL) schema
+-- HOW TO RUN: go to supabase.com → your project → SQL Editor → paste this → Run
 
-PRAGMA foreign_keys = ON;
-
--- Owners (you + any staff). Auth provided by Clerk; clerk_user_id is the link.
-CREATE TABLE IF NOT EXISTS owners (
-  id           INTEGER PRIMARY KEY AUTOINCREMENT,
-  clerk_user_id TEXT UNIQUE NOT NULL,
-  email        TEXT NOT NULL,
-  name         TEXT,
-  role         TEXT NOT NULL DEFAULT 'owner',  -- owner | staff
-  created_at   INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+create table if not exists restaurants (
+  id          uuid primary key default gen_random_uuid(),
+  slug        text unique not null,
+  name        text not null,
+  email       text unique not null,
+  created_at  timestamptz default now()
 );
 
--- Restaurants (your clients)
-CREATE TABLE IF NOT EXISTS restaurants (
-  id           INTEGER PRIMARY KEY AUTOINCREMENT,
-  slug         TEXT UNIQUE NOT NULL,        -- url path: armenu.co.za/r/<slug>
-  name         TEXT NOT NULL,
-  logo_url     TEXT,
-  plan         TEXT NOT NULL DEFAULT 'starter',  -- starter | restaurant | chain
-  mrr_cents    INTEGER NOT NULL DEFAULT 0,
-  status       TEXT NOT NULL DEFAULT 'pending',  -- pending | live | paused
-  contact_email TEXT,
-  contact_phone TEXT,
-  notes        TEXT,
-  created_at   INTEGER NOT NULL DEFAULT (strftime('%s','now')),
-  updated_at   INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+create table if not exists dishes (
+  id            uuid primary key default gen_random_uuid(),
+  restaurant_id uuid references restaurants(id) on delete cascade,
+  slug          text not null,
+  name          text not null,
+  price         text,
+  glb_url       text not null,
+  usdz_url      text,
+  thumb_url     text,
+  camera_orbit  text,
+  active        boolean default true,
+  created_at    timestamptz default now(),
+  unique(restaurant_id, slug)
 );
-CREATE INDEX IF NOT EXISTS idx_restaurants_slug ON restaurants(slug);
-CREATE INDEX IF NOT EXISTS idx_restaurants_status ON restaurants(status);
 
--- Restaurant managers (your clients' staff who log in to the portal)
-CREATE TABLE IF NOT EXISTS managers (
-  id            INTEGER PRIMARY KEY AUTOINCREMENT,
-  clerk_user_id TEXT UNIQUE NOT NULL,
-  restaurant_id INTEGER NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
-  email         TEXT NOT NULL,
-  name          TEXT,
-  created_at    INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+create table if not exists scans (
+  id            uuid primary key default gen_random_uuid(),
+  restaurant_id uuid references restaurants(id) on delete cascade,
+  dish_id       uuid references dishes(id) on delete set null,
+  user_agent    text,
+  scanned_at    timestamptz default now()
 );
-CREATE INDEX IF NOT EXISTS idx_managers_restaurant ON managers(restaurant_id);
 
--- Dishes
-CREATE TABLE IF NOT EXISTS dishes (
-  id            INTEGER PRIMARY KEY AUTOINCREMENT,
-  restaurant_id INTEGER NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
-  slug          TEXT NOT NULL,                -- url path: armenu.co.za/v?r=<r>&d=<slug>
-  name          TEXT NOT NULL,
-  price_text    TEXT,                         -- e.g. "R 89"
-  glb_key       TEXT NOT NULL,                -- R2 object key for the .glb
-  usdz_key      TEXT,                         -- R2 object key for the .usdz (auto-converted)
-  thumb_key     TEXT,                         -- R2 object key for thumbnail
-  camera_orbit  TEXT DEFAULT '0deg 70deg 1m',
-  qr_pdf_key    TEXT,                         -- R2 object key for the printable QR PDF
-  status        TEXT NOT NULL DEFAULT 'draft', -- draft | live | archived
-  created_at    INTEGER NOT NULL DEFAULT (strftime('%s','now')),
-  updated_at    INTEGER NOT NULL DEFAULT (strftime('%s','now')),
-  UNIQUE(restaurant_id, slug)
+create table if not exists requests (
+  id            uuid primary key default gen_random_uuid(),
+  restaurant_id uuid references restaurants(id) on delete cascade,
+  message       text not null,
+  status        text default 'pending',
+  created_at    timestamptz default now()
 );
-CREATE INDEX IF NOT EXISTS idx_dishes_restaurant ON dishes(restaurant_id);
-CREATE INDEX IF NOT EXISTS idx_dishes_status ON dishes(status);
 
--- Scan log (every QR scan)
-CREATE TABLE IF NOT EXISTS scans (
-  id            INTEGER PRIMARY KEY AUTOINCREMENT,
-  dish_id       INTEGER NOT NULL REFERENCES dishes(id) ON DELETE CASCADE,
-  restaurant_id INTEGER NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
-  ts            INTEGER NOT NULL DEFAULT (strftime('%s','now')),
-  ua            TEXT,                         -- truncated user-agent
-  ip_hash       TEXT,                         -- hashed (privacy)
-  country       TEXT,                         -- from CF-IPCountry
-  is_ar_capable INTEGER DEFAULT 0,            -- bool 0/1 (best-effort)
-  ar_activated  INTEGER DEFAULT 0             -- bool: did they tap "See my meal"
+create index if not exists scans_restaurant_date on scans(restaurant_id, scanned_at);
+create index if not exists scans_dish on scans(dish_id);
+
+-- Pending sign-ups: people who signed up at /portal/ before a restaurant exists for their email.
+-- Owner sees these in admin and either creates a restaurant for them or rejects.
+create table if not exists pending_signups (
+  id              uuid primary key default gen_random_uuid(),
+  email           text not null,
+  restaurant_name text,
+  phone           text,
+  message         text,
+  status          text default 'pending',
+  created_at      timestamptz default now()
 );
-CREATE INDEX IF NOT EXISTS idx_scans_dish_ts ON scans(dish_id, ts);
-CREATE INDEX IF NOT EXISTS idx_scans_restaurant_ts ON scans(restaurant_id, ts);
-
--- Change requests from the portal (managers asking for new dishes / edits)
-CREATE TABLE IF NOT EXISTS requests (
-  id            INTEGER PRIMARY KEY AUTOINCREMENT,
-  restaurant_id INTEGER NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
-  manager_id    INTEGER REFERENCES managers(id) ON DELETE SET NULL,
-  kind          TEXT NOT NULL,                -- new_dish | edit_dish | remove_dish | other
-  body          TEXT NOT NULL,
-  status        TEXT NOT NULL DEFAULT 'open', -- open | quoted | done | declined
-  notes         TEXT,
-  created_at    INTEGER NOT NULL DEFAULT (strftime('%s','now')),
-  updated_at    INTEGER NOT NULL DEFAULT (strftime('%s','now'))
-);
-CREATE INDEX IF NOT EXISTS idx_requests_restaurant ON requests(restaurant_id);
-CREATE INDEX IF NOT EXISTS idx_requests_status ON requests(status);
-
--- Invoices (lightweight; full billing through Yoco/Stripe later)
-CREATE TABLE IF NOT EXISTS invoices (
-  id            INTEGER PRIMARY KEY AUTOINCREMENT,
-  restaurant_id INTEGER NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
-  period        TEXT NOT NULL,                -- 'YYYY-MM'
-  amount_cents  INTEGER NOT NULL,
-  status        TEXT NOT NULL DEFAULT 'pending', -- pending | paid | overdue
-  paid_at       INTEGER,
-  created_at    INTEGER NOT NULL DEFAULT (strftime('%s','now')),
-  UNIQUE(restaurant_id, period)
-);
-CREATE INDEX IF NOT EXISTS idx_invoices_restaurant ON invoices(restaurant_id);
-
--- Helpful aggregate view: dish leaderboard for a restaurant
--- (D1 supports views; create-or-replace pattern)
-DROP VIEW IF EXISTS v_dish_stats_30d;
-CREATE VIEW v_dish_stats_30d AS
-SELECT
-  d.id            AS dish_id,
-  d.restaurant_id AS restaurant_id,
-  d.name          AS dish_name,
-  d.slug          AS dish_slug,
-  COUNT(s.id)     AS scans_30d,
-  SUM(CASE WHEN s.ar_activated=1 THEN 1 ELSE 0 END) AS ar_activations_30d
-FROM dishes d
-LEFT JOIN scans s
-  ON s.dish_id = d.id
- AND s.ts >= strftime('%s','now','-30 days')
-GROUP BY d.id;
+create unique index if not exists pending_signups_email on pending_signups(lower(email));

@@ -10,3 +10,4 @@ dist/
 .cache/
 .vscode/
 .idea/
+.vercel

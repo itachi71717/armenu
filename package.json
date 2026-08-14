@@ -1,0 +1,13 @@
+{
+  "name": "ar-menu",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "@clerk/backend": "^1.13.0"
+  }
+}

@@ -18,46 +18,24 @@
     --accent:#ff5722;--accent-2:#ffb066;--line:rgba(255,239,220,.08);
     --serif:'Instrument Serif',serif;--mono:'JetBrains Mono',monospace;
   }
-  body{
-    font-family:'Inter',system-ui,sans-serif;
-    background:var(--bg);color:var(--ink);min-height:100vh;
-    -webkit-font-smoothing:antialiased;
-  }
+  body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;-webkit-font-smoothing:antialiased}
   a{color:inherit;text-decoration:none}
 
   .layout{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
   @media(max-width:880px){.layout{grid-template-columns:1fr}.sidebar{display:none}}
 
-  /* Sidebar */
-  .sidebar{
-    background:#080603;border-right:1px solid var(--line);
-    padding:24px 16px;position:sticky;top:0;height:100vh;overflow-y:auto;
-  }
-  .brand{
-    display:flex;align-items:center;gap:9px;font-weight:700;font-size:14px;letter-spacing:.06em;text-transform:uppercase;
-    margin-bottom:36px;padding:0 8px;
-  }
-  .brand .mark{
-    width:26px;height:26px;border-radius:7px;
-    background:linear-gradient(135deg,#ff5722,#ffb066);
-    position:relative;
-    box-shadow:0 4px 12px rgba(255,87,34,.4),inset 0 1px 0 rgba(255,255,255,.3);
-  }
+  .sidebar{background:#080603;border-right:1px solid var(--line);padding:24px 16px;position:sticky;top:0;height:100vh;overflow-y:auto}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:14px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:36px;padding:0 8px}
+  .brand .mark{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,#ff5722,#ffb066);position:relative;box-shadow:0 4px 12px rgba(255,87,34,.4),inset 0 1px 0 rgba(255,255,255,.3)}
   .brand .mark::after{content:"";position:absolute;inset:5px;border-radius:3px;background:#0a0806;box-shadow:inset 0 0 0 2px rgba(255,87,34,.6)}
   .brand b{font-weight:800}.brand i{font-style:normal;color:var(--ink-dim);font-weight:500;margin-left:3px}
 
   .nav-section{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.18em;color:var(--ink-faint);margin:22px 12px 10px}
-  .nav-item{
-    display:flex;align-items:center;gap:12px;
-    padding:10px 14px;border-radius:10px;
-    color:var(--ink-dim);font-size:14px;font-weight:500;
-    cursor:pointer;margin-bottom:2px;transition:all .15s;
-  }
+  .nav-item{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:10px;color:var(--ink-dim);font-size:14px;font-weight:500;cursor:pointer;margin-bottom:2px;transition:all .15s}
   .nav-item:hover{background:rgba(255,239,220,.04);color:var(--ink)}
   .nav-item.active{background:rgba(255,87,34,.1);color:var(--accent);border:1px solid rgba(255,87,34,.18)}
   .nav-item .ico{width:18px;text-align:center;font-size:14px}
 
-  /* Main */
   main{padding:32px 40px;max-width:1400px}
   @media(max-width:760px){main{padding:24px 20px}}
 
@@ -66,517 +44,682 @@
   .topbar h1 b{font-style:normal;font-family:'Inter',sans-serif;font-weight:800}
   .topbar .sub{color:var(--ink-dim);font-size:14px;margin-top:4px}
 
-  .pill{
-    padding:6px 12px;border-radius:999px;font-family:var(--mono);font-size:11px;font-weight:500;
-    background:rgba(255,239,220,.04);border:1px solid var(--line);color:var(--ink-dim);letter-spacing:.05em;
-  }
-  .btn{
-    display:inline-flex;align-items:center;gap:8px;
-    padding:11px 18px;border-radius:10px;cursor:pointer;
-    background:linear-gradient(135deg,#ff5722,#c93d00);color:#fff;
-    font-family:inherit;font-weight:600;font-size:13px;border:none;
-    box-shadow:0 6px 16px rgba(255,87,34,.3),inset 0 1px 0 rgba(255,255,255,.2);
-    transition:transform .2s;
-  }
+  .pill{padding:6px 12px;border-radius:999px;font-family:var(--mono);font-size:11px;font-weight:500;background:rgba(255,239,220,.04);border:1px solid var(--line);color:var(--ink-dim);letter-spacing:.05em}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:11px 18px;border-radius:10px;cursor:pointer;background:linear-gradient(135deg,#ff5722,#c93d00);color:#fff;font-family:inherit;font-weight:600;font-size:13px;border:none;box-shadow:0 6px 16px rgba(255,87,34,.3),inset 0 1px 0 rgba(255,255,255,.2);transition:transform .2s}
   .btn:hover{transform:translateY(-1px)}
   .btn-ghost{background:rgba(255,239,220,.04);border:1px solid var(--line);color:var(--ink);box-shadow:none}
   .btn-ghost:hover{background:rgba(255,239,220,.08)}
 
-  /* Stat strip */
-  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:32px}
-  @media(max-width:880px){.stats{grid-template-columns:repeat(2,1fr)}}
-  .stat{
-    padding:22px;border-radius:16px;
-    background:linear-gradient(180deg,rgba(255,239,220,.03),rgba(255,239,220,.005));
-    border:1px solid var(--line);position:relative;overflow:hidden;
-  }
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:32px}
+  @media(max-width:880px){.stats{grid-template-columns:1fr}}
+  .stat{padding:22px;border-radius:16px;background:linear-gradient(180deg,rgba(255,239,220,.03),rgba(255,239,220,.005));border:1px solid var(--line)}
   .stat .label{font-family:var(--mono);font-size:10px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.16em;font-weight:500;margin-bottom:10px}
   .stat .num{font-size:34px;font-weight:300;letter-spacing:-.025em;line-height:1;font-family:var(--serif)}
   .stat .num b{font-family:'Inter',sans-serif;font-weight:800}
-  .stat .delta{font-size:12px;color:#7dd87d;margin-top:6px;font-weight:500}
-  .stat .delta.down{color:#f87171}
 
-  /* Card */
-  .card{
-    border-radius:18px;border:1px solid var(--line);
-    background:linear-gradient(180deg,rgba(255,239,220,.025),rgba(255,239,220,.005));
-    padding:24px;margin-bottom:20px;
-  }
+  .card{border-radius:18px;border:1px solid var(--line);background:linear-gradient(180deg,rgba(255,239,220,.025),rgba(255,239,220,.005));padding:24px;margin-bottom:20px}
   .card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;gap:12px;flex-wrap:wrap}
   .card-head h2{font-size:20px;font-weight:600;letter-spacing:-.015em}
   .card-head .sub{font-size:13px;color:var(--ink-dim);margin-top:3px}
 
-  /* Clients table */
   table{width:100%;border-collapse:collapse;font-size:14px}
   th{text-align:left;padding:14px 16px;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.16em;color:var(--ink-faint);font-weight:500;border-bottom:1px solid var(--line)}
   td{padding:18px 16px;border-bottom:1px solid var(--line)}
   tbody tr{cursor:pointer;transition:background .15s}
   tbody tr:hover td{background:rgba(255,239,220,.025)}
   .client-cell{display:flex;align-items:center;gap:14px}
-  .avatar{
-    width:40px;height:40px;border-radius:11px;flex-shrink:0;
-    background:linear-gradient(135deg,#ff5722,#c93d00);
-    display:grid;place-items:center;font-weight:700;font-size:14px;color:#fff;
-    box-shadow:inset 0 1px 0 rgba(255,255,255,.2);
-  }
-  .avatar.alt{background:linear-gradient(135deg,#7a4612,#3a1a08)}
-  .avatar.alt2{background:linear-gradient(135deg,#3a5e1f,#1a3008)}
-  .avatar.alt3{background:linear-gradient(135deg,#5e1f3a,#3a081a)}
-  .avatar.alt4{background:linear-gradient(135deg,#1f3a5e,#08213a)}
+  .avatar{width:40px;height:40px;border-radius:11px;flex-shrink:0;background:linear-gradient(135deg,#ff5722,#c93d00);display:grid;place-items:center;font-weight:700;font-size:14px;color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.2)}
   .client-name{font-weight:600;font-size:15px;letter-spacing:-.01em}
   .client-slug{color:var(--ink-faint);font-family:var(--mono);font-size:11px;margin-top:2px}
-  .status{font-family:var(--mono);font-size:10px;font-weight:500;padding:4px 9px;border-radius:999px;text-transform:uppercase;letter-spacing:.1em}
-  .status.live{background:rgba(125,216,125,.1);color:#7dd87d;border:1px solid rgba(125,216,125,.2)}
-  .status.pending{background:rgba(255,176,102,.1);color:#ffb066;border:1px solid rgba(255,176,102,.2)}
-  .status.paused{background:rgba(255,239,220,.04);color:var(--ink-dim);border:1px solid var(--line)}
+  .status{font-family:var(--mono);font-size:10px;font-weight:500;padding:4px 9px;border-radius:999px;text-transform:uppercase;letter-spacing:.1em;background:rgba(125,216,125,.1);color:#7dd87d;border:1px solid rgba(125,216,125,.2)}
 
-  /* Drill-down view */
   .view{display:none}.view.active{display:block}
 
-  .breadcrumb{
-    display:flex;align-items:center;gap:8px;color:var(--ink-faint);font-size:13px;margin-bottom:18px;
-  }
+  .breadcrumb{display:flex;align-items:center;gap:8px;color:var(--ink-faint);font-size:13px;margin-bottom:18px}
   .breadcrumb a{color:var(--ink-dim);cursor:pointer}
   .breadcrumb a:hover{color:var(--ink)}
   .breadcrumb .sep{color:var(--ink-faint)}
 
-  /* Client header */
-  .client-hero{
-    display:flex;align-items:center;gap:20px;margin-bottom:32px;flex-wrap:wrap;
-  }
+  .client-hero{display:flex;align-items:center;gap:20px;margin-bottom:32px;flex-wrap:wrap}
   .client-hero .avatar{width:64px;height:64px;border-radius:16px;font-size:22px}
   .client-hero h1{font-size:34px;font-weight:300;letter-spacing:-.025em;font-family:var(--serif);font-style:italic}
   .client-hero h1 b{font-style:normal;font-family:'Inter',sans-serif;font-weight:800}
   .client-hero .meta{color:var(--ink-dim);font-size:13px;margin-top:4px;display:flex;gap:14px;flex-wrap:wrap}
-  .client-hero .meta span::before{content:"·";margin-right:14px;color:var(--ink-faint)}
-  .client-hero .meta span:first-child::before{display:none}
   .client-hero .actions{margin-left:auto;display:flex;gap:10px;flex-wrap:wrap}
 
-  /* Dishes grid (within client view) */
   .dishes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
-  .dish-tile{
-    border-radius:14px;border:1px solid var(--line);overflow:hidden;
-    background:rgba(255,239,220,.02);
-    transition:border-color .2s,transform .2s;cursor:pointer;
-  }
+  .dish-tile{border-radius:14px;border:1px solid var(--line);overflow:hidden;background:rgba(255,239,220,.02);transition:border-color .2s,transform .2s}
   .dish-tile:hover{border-color:rgba(255,87,34,.3);transform:translateY(-2px)}
-  .dish-tile .thumb{
-    aspect-ratio:1/1;background:#1a1410;
-    background-size:cover;background-position:center;
-    position:relative;
-  }
-  .dish-tile .thumb::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 60%,rgba(0,0,0,.6))}
-  .dish-tile .scans{
-    position:absolute;top:10px;right:10px;z-index:1;
-    padding:4px 9px;border-radius:999px;font-family:var(--mono);font-size:10px;font-weight:600;
-    background:rgba(10,8,6,.8);backdrop-filter:blur(10px);color:var(--accent-2);letter-spacing:.06em;
-  }
+  .dish-tile .thumb{aspect-ratio:1/1;background:#1a1410;background-size:cover;background-position:center;position:relative;display:grid;place-items:center}
+  .dish-tile .thumb-fallback{color:var(--ink-faint);font-size:32px;font-family:var(--serif);font-style:italic}
+  .dish-tile .scans{position:absolute;top:10px;right:10px;z-index:1;padding:4px 9px;border-radius:999px;font-family:var(--mono);font-size:10px;font-weight:600;background:rgba(10,8,6,.8);backdrop-filter:blur(10px);color:var(--accent-2);letter-spacing:.06em}
   .dish-tile .info{padding:14px}
   .dish-tile .name{font-weight:600;font-size:15px;letter-spacing:-.01em;margin-bottom:3px}
   .dish-tile .lbl{font-family:var(--mono);font-size:10px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.12em}
+  .dish-tile a{display:block;padding:8px 12px;font-family:var(--mono);font-size:10px;color:var(--accent);text-transform:uppercase;letter-spacing:.1em;border-top:1px solid var(--line);text-align:center}
 
-  /* Mini stats inside drill */
-  .mini-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
-  @media(max-width:760px){.mini-stats{grid-template-columns:repeat(2,1fr)}}
-
-  /* Add dish form */
-  .upload-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
-  @media(max-width:880px){.upload-grid{grid-template-columns:1fr}}
-  .drop{
-    border:2px dashed var(--line);border-radius:14px;padding:36px;text-align:center;cursor:pointer;
-    transition:all .2s;
-  }
-  .drop:hover,.drop.over{border-color:rgba(255,87,34,.4);background:rgba(255,87,34,.04)}
-  .drop .ico{font-size:32px;margin-bottom:8px;opacity:.6}
-  .drop p{color:var(--ink-dim);font-size:14px}
-  .drop small{color:var(--ink-faint);display:block;margin-top:6px;font-size:11px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.12em}
   .form-row{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
   .form-row label{font-family:var(--mono);font-size:10px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.14em;font-weight:500}
-  .form-row input,.form-row select{
-    padding:12px 14px;border-radius:10px;background:rgba(255,239,220,.03);border:1px solid var(--line);
-    color:var(--ink);font-family:inherit;font-size:14px;
-  }
-  .form-row input:focus,.form-row select:focus{outline:none;border-color:rgba(255,87,34,.5);background:rgba(255,87,34,.04)}
+  .form-row input,.form-row select,.form-row textarea{padding:12px 14px;border-radius:10px;background:rgba(255,239,220,.03);border:1px solid var(--line);color:var(--ink);font-family:inherit;font-size:14px}
+  .form-row input:focus,.form-row select:focus,.form-row textarea:focus{outline:none;border-color:rgba(255,87,34,.5);background:rgba(255,87,34,.04)}
+
+  .upload-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+  @media(max-width:880px){.upload-grid{grid-template-columns:1fr}}
   .preview-box{aspect-ratio:1/1;border-radius:14px;overflow:hidden;background:radial-gradient(circle at 50% 50%,rgba(255,87,34,.1),transparent 60%);border:1px solid var(--line)}
   .preview-box model-viewer{width:100%;height:100%;background:transparent}
+  .preview-box.empty{display:grid;place-items:center;color:var(--ink-faint);font-family:var(--mono);font-size:12px;text-transform:uppercase;letter-spacing:.14em;text-align:center;padding:24px}
+
+  .empty-state{padding:60px 24px;text-align:center;color:var(--ink-dim)}
+  .empty-state h3{font-family:var(--serif);font-style:italic;font-size:22px;color:var(--ink);margin-bottom:8px;font-weight:400}
+  .empty-state p{font-size:14px;max-width:380px;margin:0 auto 20px}
+
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:14px 22px;border-radius:12px;background:#13100c;border:1px solid var(--line);font-size:14px;z-index:200;box-shadow:0 16px 40px rgba(0,0,0,.6);display:none}
+  .toast.show{display:block;animation:up .3s ease}
+  .toast.err{border-color:rgba(248,113,113,.3);color:#f87171}
+  .toast.ok{border-color:rgba(125,216,125,.3);color:#7dd87d}
+  @keyframes up{from{opacity:0;transform:translate(-50%,10px)}to{opacity:1;transform:translate(-50%,0)}}
 
   /* Login gate */
-  .login-cover{position:fixed;inset:0;z-index:100;background:rgba(10,8,6,.97);backdrop-filter:blur(20px);display:grid;place-items:center;padding:20px}
-  .login-card{
-    width:min(440px,100%);padding:44px 36px;border-radius:24px;
-    background:linear-gradient(180deg,rgba(255,239,220,.03),rgba(255,239,220,.01));
-    border:1px solid var(--line);text-align:center;
-  }
+  .login-cover{position:fixed;inset:0;z-index:1000;background:rgba(10,8,6,.97);backdrop-filter:blur(20px);display:grid;place-items:center;padding:20px}
+  .login-card{width:min(440px,100%);padding:44px 36px;border-radius:24px;background:linear-gradient(180deg,rgba(255,239,220,.03),rgba(255,239,220,.01));border:1px solid var(--line);text-align:center}
   .login-card .brand{justify-content:center;margin-bottom:12px}
   .login-card h2{font-family:var(--serif);font-style:italic;font-size:30px;font-weight:400;margin-bottom:6px;letter-spacing:-.02em}
   .login-card p{color:var(--ink-dim);font-size:13px;margin-bottom:24px}
   .login-card .form-row{text-align:left}
   .login-card .btn{width:100%;justify-content:center;padding:14px;font-size:14px}
+  .login-card .err-msg{color:#f87171;font-size:12px;margin-bottom:12px;min-height:18px}
   .login-card small{display:block;margin-top:18px;color:var(--ink-faint);font-size:11px;font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase}
 </style>
 </head>
 <body>
 
-<!-- Login gate (Clerk replaces this once configured) -->
+<!-- Login gate -->
 <div class="login-cover" id="login">
   <div class="login-card">
     <div class="brand"><span class="mark"></span><b>AR</b><i>Menu</i></div>
     <h2>Boss Panel</h2>
-    <p>Owner sign-in. This area is restricted to AR Menu staff.</p>
-    <div class="form-row"><label>Email</label><input type="email" id="loginEmail" placeholder="you@armenu.co.za" autocomplete="email" /></div>
-    <div class="form-row"><label>Password</label><input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password" /></div>
-    <button class="btn" onclick="document.getElementById('login').style.display='none'">Sign in →</button>
-    <small>Auth wires to Clerk on deploy</small>
+    <p>Owner sign-in. Restricted to AR Menu staff.</p>
+    <div class="form-row"><label>Boss password</label><input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password" /></div>
+    <div class="err-msg" id="loginErr"></div>
+    <button class="btn" id="loginBtn">Sign in →</button>
+    <small>Single-owner access</small>
   </div>
 </div>
 
 <div class="layout">
-
   <aside class="sidebar">
     <div class="brand"><span class="mark"></span><b>AR</b><i>Menu</i></div>
-
     <div class="nav-section">Workspace</div>
     <div class="nav-item active" data-view="dashboard"><span class="ico">⌂</span> Dashboard</div>
     <div class="nav-item" data-view="clients"><span class="ico">◉</span> Clients</div>
-    <div class="nav-item" data-view="upload"><span class="ico">↑</span> Add new dish</div>
-
-    <div class="nav-section">Tools</div>
-    <div class="nav-item" data-view="reports"><span class="ico">◈</span> Monthly reports</div>
-    <div class="nav-item" data-view="billing"><span class="ico">◇</span> Billing</div>
-
-    <div class="nav-section">Settings</div>
-    <div class="nav-item"><span class="ico">⚙</span> Account</div>
-    <div class="nav-item"><span class="ico">↗</span> Sign out</div>
+    <div class="nav-item" data-view="pending"><span class="ico">●</span> Pending sign-ups <span id="pendingBadge" style="margin-left:auto;background:rgba(255,87,34,.2);color:var(--accent);padding:2px 8px;border-radius:999px;font-family:var(--mono);font-size:10px;font-weight:600;display:none"></span></div>
+    <div class="nav-item" data-view="add-client"><span class="ico">+</span> Add restaurant</div>
+    <div class="nav-item" data-view="add-dish"><span class="ico">↑</span> Add new dish</div>
+    <div class="nav-section">Account</div>
+    <div class="nav-item" id="signOut"><span class="ico">↗</span> Sign out</div>
   </aside>
 
   <main>
 
-    <!-- DASHBOARD VIEW -->
+    <!-- DASHBOARD -->
     <div class="view active" id="view-dashboard">
       <div class="topbar">
         <div>
           <h1><b>Welcome back.</b></h1>
-          <div class="sub">Here's what's happening across your restaurants.</div>
+          <div class="sub">Real-time stats across all your restaurants.</div>
         </div>
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          <span class="pill">April 2026</span>
-          <button class="btn" onclick="switchView('clients')">+ New client</button>
-        </div>
+        <button class="btn" data-go="add-client">+ New client</button>
       </div>
-
       <div class="stats">
-        <div class="stat"><div class="label">Active restaurants</div><div class="num"><b>7</b></div><div class="delta">+2 this month</div></div>
-        <div class="stat"><div class="label">Dishes live</div><div class="num"><b>63</b></div><div class="delta">+11 this month</div></div>
-        <div class="stat"><div class="label">Total scans</div><div class="num"><b>14,281</b></div><div class="delta">+38% vs March</div></div>
-        <div class="stat"><div class="label">Recurring revenue</div><div class="num"><b>R 12,600</b></div><div class="delta">+R 3,000</div></div>
+        <div class="stat"><div class="label">Active restaurants</div><div class="num"><b id="t-restaurants">—</b></div></div>
+        <div class="stat"><div class="label">Dishes live</div><div class="num"><b id="t-dishes">—</b></div></div>
+        <div class="stat"><div class="label">Total scans (30d)</div><div class="num"><b id="t-scans">—</b></div></div>
       </div>
-
       <div class="card">
         <div class="card-head">
-          <div>
-            <h2>Clients</h2>
-            <div class="sub">Click any client to drill into their dishes &amp; stats.</div>
-          </div>
-          <button class="btn-ghost btn" onclick="switchView('clients')">View all →</button>
+          <div><h2>Clients</h2><div class="sub">Click any to drill into their dishes.</div></div>
+          <button class="btn-ghost btn" data-go="clients">View all →</button>
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Restaurant</th>
-              <th>Dishes</th>
-              <th>Scans (30d)</th>
-              <th>Plan</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody id="clientsBody"></tbody>
-        </table>
+        <div id="dashClientsWrap"></div>
       </div>
     </div>
 
-    <!-- CLIENTS LIST VIEW -->
+    <!-- CLIENTS LIST -->
     <div class="view" id="view-clients">
       <div class="topbar">
-        <div>
-          <h1><b>Clients</b></h1>
-          <div class="sub">All restaurants on your platform.</div>
-        </div>
-        <button class="btn">+ Add restaurant</button>
+        <div><h1><b>Clients</b></h1><div class="sub">All restaurants on your platform.</div></div>
+        <button class="btn" data-go="add-client">+ Add restaurant</button>
       </div>
-      <div class="card">
-        <table>
-          <thead>
-            <tr><th>Restaurant</th><th>Dishes</th><th>Scans (30d)</th><th>MRR</th><th>Plan</th><th>Status</th></tr>
-          </thead>
-          <tbody id="clientsBody2"></tbody>
-        </table>
-      </div>
+      <div class="card"><div id="clientsWrap"></div></div>
     </div>
 
-    <!-- CLIENT DRILL-DOWN VIEW -->
+    <!-- CLIENT DRILL-DOWN -->
     <div class="view" id="view-client">
-      <div class="breadcrumb">
-        <a onclick="switchView('clients')">Clients</a>
-        <span class="sep">/</span>
-        <span id="crumbName">—</span>
-      </div>
-
+      <div class="breadcrumb"><a data-go="clients">Clients</a><span class="sep">/</span><span id="crumbName">—</span></div>
       <div class="client-hero">
-        <div class="avatar" id="cAvatar">SP</div>
+        <div class="avatar" id="cAvatar">—</div>
         <div>
           <h1 id="cName"><b>—</b></h1>
           <div class="meta">
-            <span id="cSlug">—</span>
-            <span id="cPlan">—</span>
-            <span id="cStatus">—</span>
+            <span id="cSlug">—</span><span id="cEmail">—</span>
           </div>
         </div>
         <div class="actions">
-          <button class="btn-ghost btn" onclick="alert('Generates branded monthly performance PDF — wires to /api/report/:client/:month on deploy.')">⬇ Download monthly report</button>
-          <button class="btn" onclick="switchView('upload')">+ Add dish for this client</button>
+          <button class="btn-ghost btn" id="cDeleteBtn">Delete restaurant</button>
+          <button class="btn" data-go="add-dish" id="cAddDishBtn">+ Add dish</button>
         </div>
       </div>
-
-      <div class="mini-stats">
-        <div class="stat"><div class="label">Dishes live</div><div class="num"><b id="msDishes">14</b></div></div>
-        <div class="stat"><div class="label">Scans (30d)</div><div class="num"><b id="msScans">3,482</b></div><div class="delta">+22% vs prev</div></div>
-        <div class="stat"><div class="label">Best dish</div><div class="num" style="font-size:18px"><b id="msBest">Gold Burger</b></div><div class="delta">847 scans</div></div>
-        <div class="stat"><div class="label">Peak hour</div><div class="num" style="font-size:18px"><b id="msPeak">Fri 19:00</b></div></div>
+      <div class="stats">
+        <div class="stat"><div class="label">Dishes live</div><div class="num"><b id="ms-dishes">—</b></div></div>
+        <div class="stat"><div class="label">Scans (30d)</div><div class="num"><b id="ms-scans">—</b></div></div>
+        <div class="stat"><div class="label">Pending requests</div><div class="num"><b id="ms-requests">—</b></div></div>
       </div>
-
       <div class="card">
-        <div class="card-head">
-          <div>
-            <h2>Dishes</h2>
-            <div class="sub">Click any dish to view AR page, edit, regenerate QR.</div>
-          </div>
-          <button class="btn-ghost btn">⬇ Download all QRs (PDF)</button>
-        </div>
-        <div class="dishes-grid" id="dishesGrid"></div>
+        <div class="card-head"><div><h2>Dishes</h2><div class="sub">Live AR pages — click to open the diner-facing view.</div></div></div>
+        <div id="clientDishesWrap"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div><h2>Requests from manager</h2><div class="sub">New dishes / changes submitted via portal.</div></div></div>
+        <div id="clientRequestsWrap"></div>
       </div>
     </div>
 
-    <!-- UPLOAD VIEW -->
-    <div class="view" id="view-upload">
+    <!-- PENDING SIGN-UPS -->
+    <div class="view" id="view-pending">
       <div class="topbar">
-        <div>
-          <h1><b>Add new dish</b></h1>
-          <div class="sub">Drop a .glb file → the system stores it, generates the QR code, and publishes the AR page.</div>
-        </div>
+        <div><h1><b>Pending sign-ups</b></h1><div class="sub">Restaurants who signed in via the portal but aren't linked yet. Create a restaurant for them with the same email to activate them.</div></div>
       </div>
+      <div class="card"><div id="pendingWrap"></div></div>
+    </div>
+
+    <!-- ADD CLIENT -->
+    <div class="view" id="view-add-client">
+      <div class="topbar"><div><h1><b>Add restaurant</b></h1><div class="sub">Creates the account. Manager logs in to the portal with the same email via Clerk.</div></div></div>
+      <div class="card" style="max-width:560px">
+        <div class="form-row"><label>Restaurant name</label><input type="text" id="ncName" placeholder="Spur Sandton City" /></div>
+        <div class="form-row"><label>URL slug (lowercase, dashes)</label><input type="text" id="ncSlug" placeholder="spur-sandton" /></div>
+        <div class="form-row"><label>Manager email (their portal login)</label><input type="email" id="ncEmail" placeholder="manager@spur.co.za" /></div>
+        <button class="btn" id="ncSubmit" style="width:100%;justify-content:center;padding:14px">Create restaurant →</button>
+      </div>
+    </div>
+
+    <!-- ADD DISH -->
+    <div class="view" id="view-add-dish">
+      <div class="topbar"><div><h1><b>Add new dish</b></h1><div class="sub">Paste your hosted .glb URL (Polycam → Export → upload to Supabase Storage or any host).</div></div></div>
       <div class="card">
         <div class="upload-grid">
           <div>
-            <div class="drop" id="drop">
-              <div class="ico">⬆</div>
-              <p><strong>Drop your .glb here</strong> or click to browse</p>
-              <small>Polycam → Export → glTF Binary</small>
-              <input type="file" id="file" accept=".glb,model/gltf-binary" style="display:none" />
+            <div class="form-row"><label>Restaurant</label><select id="ndVenue"><option value="">Loading…</option></select></div>
+            <div class="form-row"><label>Dish name</label><input type="text" id="ndName" placeholder="Signature Avocado" /></div>
+            <div class="form-row"><label>Price (optional)</label><input type="text" id="ndPrice" placeholder="R 89" /></div>
+            <div class="form-row">
+              <label>3D model — pick a .glb file from your computer</label>
+              <div id="ndDrop" style="border:2px dashed var(--line);border-radius:12px;padding:24px;text-align:center;cursor:pointer;transition:all .2s">
+                <div id="ndDropMsg" style="color:var(--ink-dim);font-size:14px"><strong>Click to select</strong> or drag your .glb here</div>
+                <small style="color:var(--ink-faint);font-size:11px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.12em;display:block;margin-top:6px">Polycam → Export → GLB</small>
+              </div>
+              <input type="file" id="ndFile" accept=".glb,model/gltf-binary" style="display:none" />
             </div>
-            <div style="margin-top:18px">
-              <div class="form-row"><label>Restaurant</label><select id="dishVenue"></select></div>
-              <div class="form-row"><label>Dish name</label><input type="text" id="dishName" placeholder="The Signature Avocado" /></div>
-              <div class="form-row"><label>Slug (URL)</label><input type="text" id="dishSlug" placeholder="signature-avocado" /></div>
-              <div class="form-row"><label>Price</label><input type="text" id="dishPrice" placeholder="R 89" /></div>
-              <button class="btn" style="width:100%;justify-content:center;padding:14px;font-size:14px">Generate QR &amp; publish →</button>
-            </div>
+            <div class="form-row" style="display:none" id="ndUrlRow"><label>OR paste an existing public .glb URL</label><input type="text" id="ndGlb" placeholder="https://…/dish.glb" /></div>
+            <div style="text-align:center;margin:-4px 0 14px"><a id="ndToggleUrl" style="color:var(--ink-faint);font-size:11px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.1em;cursor:pointer">or use a hosted URL instead</a></div>
+            <div class="form-row"><label>.usdz for iPhone (auto-generated on save)</label><input type="text" id="ndUsdz" placeholder="Auto-generated — or paste a custom URL" /></div>
+            <div class="form-row"><label>Thumbnail URL (optional)</label><input type="text" id="ndThumb" placeholder="https://…/dish.jpg" /></div>
+            <button class="btn" id="ndSubmit" style="width:100%;justify-content:center;padding:14px">Publish dish →</button>
           </div>
           <div>
-            <div class="preview-box">
-              <model-viewer
-                src="https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Avocado/glTF-Binary/Avocado.glb"
-                alt="Preview" auto-rotate camera-controls
-                shadow-intensity="1.4" exposure="1.05"
-                camera-orbit="0deg 70deg 0.4m" interaction-prompt="none">
-              </model-viewer>
-            </div>
-            <div style="margin-top:14px;color:var(--ink-faint);font-size:12px;text-align:center;font-family:var(--mono);text-transform:uppercase;letter-spacing:.12em">Diners see exactly this</div>
+            <div class="preview-box empty" id="ndPreview">Paste a .glb URL to preview</div>
+            <div style="margin-top:14px;color:var(--ink-faint);font-size:12px;text-align:center;font-family:var(--mono);text-transform:uppercase;letter-spacing:.12em">This is what diners see</div>
           </div>
         </div>
-      </div>
-    </div>
-
-    <!-- REPORTS VIEW -->
-    <div class="view" id="view-reports">
-      <div class="topbar">
-        <div><h1><b>Monthly reports</b></h1><div class="sub">One-tap branded PDF per client.</div></div>
-        <span class="pill">April 2026</span>
-      </div>
-      <div class="card">
-        <table>
-          <thead><tr><th>Restaurant</th><th>Period</th><th>Dishes</th><th>Scans</th><th></th></tr></thead>
-          <tbody id="reportsBody"></tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- BILLING VIEW -->
-    <div class="view" id="view-billing">
-      <div class="topbar"><div><h1><b>Billing</b></h1><div class="sub">Invoice status by client.</div></div></div>
-      <div class="card">
-        <table>
-          <thead><tr><th>Restaurant</th><th>Plan</th><th>Monthly</th><th>Last invoice</th><th>Status</th></tr></thead>
-          <tbody id="billingBody"></tbody>
-        </table>
       </div>
     </div>
 
   </main>
 </div>
 
-<script>
-  // Mock data — replaced by live /api/clients on deploy
-  const CLIENTS = [
-    {slug:'spur-sandton',  name:'Spur Sandton',           plan:'Restaurant',mrr:1500,dishes:14,scans:3482,status:'live',   av:'SP',avc:''},
-    {slug:'ocean-basket',  name:'Ocean Basket Rosebank',  plan:'Restaurant',mrr:1500,dishes:11,scans:2901,status:'live',   av:'OB',avc:'alt4'},
-    {slug:'kauai-melrose', name:'Kauai Melrose',          plan:'Starter',   mrr: 800,dishes: 9,scans:1845,status:'live',   av:'KA',avc:'alt2'},
-    {slug:'rocomamas',     name:'RocoMamas Fourways',     plan:'Starter',   mrr: 800,dishes: 6,scans:1220,status:'pending',av:'RC',avc:'alt'},
-    {slug:'tashas-vanda',  name:'Tashas V&A',             plan:'Restaurant',mrr:1500,dishes:12,scans:2015,status:'live',   av:'TA',avc:'alt3'},
-    {slug:'colcacchio',    name:'Col\'Cacchio Sea Point', plan:'Starter',   mrr: 800,dishes: 7,scans:1456,status:'live',   av:'CC',avc:''},
-    {slug:'hussar-grill',  name:'Hussar Grill Camps Bay', plan:'Chain',     mrr:3500,dishes:14,scans:1362,status:'live',   av:'HG',avc:'alt'}
-  ];
+<div class="toast" id="toast"></div>
 
-  const DISHES = {
-    'spur-sandton':[
-      {name:'Gold Burger',scans:847,img:'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&q=80&auto=format'},
-      {name:'Cheese & Bacon Stack',scans:612,img:'https://images.unsplash.com/photo-1551782450-a2132b4ba21d?w=400&q=80&auto=format'},
-      {name:'Spur Ribs Full Rack',scans:543,img:'https://images.unsplash.com/photo-1546964124-0cce460f38ef?w=400&q=80&auto=format'},
-      {name:'Chicken Schnitzel',scans:391,img:'https://images.unsplash.com/photo-1604908554007-0876f292d09a?w=400&q=80&auto=format'},
-      {name:'Onion Rings Side',scans:289,img:'https://images.unsplash.com/photo-1639024471283-03518883512d?w=400&q=80&auto=format'},
-      {name:'Spur Sundae',scans:267,img:'https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=400&q=80&auto=format'},
-    ],
-    'ocean-basket':[
-      {name:'Calamari Lemon & Herb',scans:801,img:'https://images.unsplash.com/photo-1559339352-11d035aa65de?w=400&q=80&auto=format'},
-      {name:'Fish & Calamari Combo',scans:643,img:'https://images.unsplash.com/photo-1580959375944-abd7e991f971?w=400&q=80&auto=format'},
-      {name:'Greek Salad',scans:412,img:'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=80&auto=format'},
-      {name:'Prawn Platter',scans:387,img:'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=400&q=80&auto=format'}
-    ],
-    'kauai-melrose':[
-      {name:'Buddha Bowl',scans:521,img:'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=80&auto=format'},
-      {name:'Power Smoothie',scans:398,img:'https://images.unsplash.com/photo-1610970881699-44a5587cabec?w=400&q=80&auto=format'}
-    ],
-    'rocomamas':[
-      {name:'Cheese Smash',scans:521,img:'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&q=80&auto=format'}
-    ],
-    'tashas-vanda':[
-      {name:'Chocolate Fondant',scans:612,img:'https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=400&q=80&auto=format'},
-      {name:'Eggs Benedict',scans:489,img:'https://images.unsplash.com/photo-1592861956120-e524fc739696?w=400&q=80&auto=format'}
-    ],
-    'colcacchio':[
-      {name:'Margherita Pizza',scans:632,img:'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400&q=80&auto=format'}
-    ],
-    'hussar-grill':[
-      {name:'Ribeye 350g',scans:721,img:'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400&q=80&auto=format'}
-    ]
+<script>
+  const SECRET_KEY = 'armenu_admin_secret';
+  let SECRET = sessionStorage.getItem(SECRET_KEY);
+
+  const $ = id => document.getElementById(id);
+  const toast = (msg, kind='ok') => {
+    const t = $('toast');
+    t.textContent = msg; t.className = 'toast show ' + kind;
+    setTimeout(() => t.classList.remove('show'), 3200);
   };
 
-  // Render clients tables
-  function renderClients(targetId,full){
-    const tbody=document.getElementById(targetId);if(!tbody)return;
-    tbody.innerHTML=CLIENTS.map(c=>`
-      <tr onclick="openClient('${c.slug}')">
-        <td><div class="client-cell"><div class="avatar ${c.avc}">${c.av}</div><div><div class="client-name">${c.name}</div><div class="client-slug">armenu.co.za/r/${c.slug}</div></div></div></td>
-        <td>${c.dishes}</td>
-        <td>${c.scans.toLocaleString()}</td>
-        ${full?`<td>R ${c.mrr.toLocaleString()}</td>`:''}
-        <td>${c.plan}</td>
-        <td><span class="status ${c.status}">${c.status}</span></td>
-      </tr>
-    `).join('');
-  }
-
-  // Reports table
-  function renderReports(){
-    const tbody=document.getElementById('reportsBody');if(!tbody)return;
-    tbody.innerHTML=CLIENTS.map(c=>`
-      <tr>
-        <td><div class="client-cell"><div class="avatar ${c.avc}">${c.av}</div><div class="client-name">${c.name}</div></div></td>
-        <td>April 2026</td>
-        <td>${c.dishes}</td>
-        <td>${c.scans.toLocaleString()}</td>
-        <td><button class="btn-ghost btn" onclick="event.stopPropagation();alert('Generates branded PDF — /api/report/${c.slug}/2026-04')">⬇ Generate PDF</button></td>
-      </tr>
-    `).join('');
-  }
-
-  // Billing
-  function renderBilling(){
-    const tbody=document.getElementById('billingBody');if(!tbody)return;
-    tbody.innerHTML=CLIENTS.map(c=>`
-      <tr>
-        <td><div class="client-cell"><div class="avatar ${c.avc}">${c.av}</div><div class="client-name">${c.name}</div></div></td>
-        <td>${c.plan}</td>
-        <td>R ${c.mrr.toLocaleString()}</td>
-        <td>2026-04-01</td>
-        <td><span class="status live">paid</span></td>
-      </tr>
-    `).join('');
-  }
-
-  // Restaurant select
-  function renderVenueSelect(){
-    const sel=document.getElementById('dishVenue');
-    sel.innerHTML=CLIENTS.map(c=>`<option value="${c.slug}">${c.name}</option>`).join('');
-  }
-
-  // Open a client drill-down
-  function openClient(slug){
-    const c=CLIENTS.find(x=>x.slug===slug);if(!c)return;
-    document.getElementById('crumbName').textContent=c.name;
-    document.getElementById('cName').innerHTML=`<b>${c.name}</b>`;
-    document.getElementById('cSlug').textContent=`armenu.co.za/r/${c.slug}`;
-    document.getElementById('cPlan').textContent=c.plan;
-    document.getElementById('cStatus').innerHTML=`<span class="status ${c.status}">${c.status}</span>`;
-    document.getElementById('cAvatar').textContent=c.av;
-    document.getElementById('cAvatar').className='avatar '+c.avc;
-    document.getElementById('msDishes').textContent=c.dishes;
-    document.getElementById('msScans').textContent=c.scans.toLocaleString();
-    const dishes=DISHES[slug]||[];
-    if(dishes.length){
-      document.getElementById('msBest').textContent=dishes[0].name;
+  async function api(path, opts = {}) {
+    const res = await fetch(path, {
+      ...opts,
+      headers: {
+        'content-type': 'application/json',
+        'x-admin-secret': SECRET || '',
+        ...(opts.headers || {})
+      }
+    });
+    if (res.status === 401) {
+      sessionStorage.removeItem(SECRET_KEY);
+      SECRET = null;
+      $('login').style.display = 'grid';
+      throw new Error('unauth');
     }
-    document.getElementById('dishesGrid').innerHTML=dishes.map(d=>`
-      <div class="dish-tile">
-        <div class="thumb" style="background-image:url('${d.img}')">
-          <span class="scans">${d.scans} scans</span>
-        </div>
-        <div class="info">
-          <div class="name">${d.name}</div>
-          <div class="lbl">${d.scans} scans · 30d</div>
-        </div>
-      </div>
-    `).join('');
-    switchView('client');
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Request failed');
+    return data;
   }
 
-  // View switcher
-  function switchView(v){
-    document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
-    document.getElementById('view-'+v).classList.add('active');
-    document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-    const navEl=document.querySelector(`.nav-item[data-view="${v==='client'?'clients':v}"]`);
-    if(navEl) navEl.classList.add('active');
-    window.scrollTo(0,0);
+  // Generates USDZ from a hosted GLB using model-viewer's built-in exporter,
+  // then uploads to Supabase Storage. Runs in the browser where all APIs exist.
+  // Returns the public USDZ URL, or null if generation/upload fails.
+  async function generateAndUploadUSDZ(glbUrl) {
+    await customElements.whenDefined('model-viewer');
+    const mv = document.createElement('model-viewer');
+    Object.assign(mv.style, {
+      position:'absolute', left:'-9999px', top:'-9999px',
+      width:'1px', height:'1px', opacity:'0', pointerEvents:'none'
+    });
+    document.body.appendChild(mv);
+    try {
+      await Promise.race([
+        new Promise((res, rej) => {
+          mv.addEventListener('load', res, { once: true });
+          mv.addEventListener('error', rej, { once: true });
+          mv.src = glbUrl;
+        }),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 30000))
+      ]);
+      if (typeof mv.generateUSDZ !== 'function') return null;
+      const blob = await mv.generateUSDZ();
+      const sign = await api('/api/admin/upload-url', {
+        method: 'POST',
+        body: JSON.stringify({ filename: 'dish.usdz' })
+      });
+      const up = await fetch(sign.signed_url, {
+        method: 'PUT',
+        headers: {
+          'content-type': 'model/vnd.usdz+zip',
+          'cache-control': 'max-age=31536000',
+          'x-upsert': 'false'
+        },
+        body: blob
+      });
+      return up.ok ? sign.public_url : null;
+    } finally {
+      document.body.removeChild(mv);
+    }
   }
-  document.querySelectorAll('.nav-item[data-view]').forEach(el=>{
-    el.addEventListener('click',()=>switchView(el.dataset.view));
+
+  // ===== LOGIN =====
+  async function attemptLogin() {
+    const pw = $('loginPass').value.trim();
+    if (!pw) return;
+    SECRET = pw;
+    sessionStorage.setItem(SECRET_KEY, pw);
+    $('loginErr').textContent = '';
+    try {
+      await api('/api/admin/overview');
+      $('login').style.display = 'none';
+      boot();
+    } catch (e) {
+      sessionStorage.removeItem(SECRET_KEY);
+      SECRET = null;
+      $('loginErr').textContent = 'Wrong password.';
+    }
+  }
+  $('loginBtn').addEventListener('click', attemptLogin);
+  $('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') attemptLogin(); });
+  $('signOut').addEventListener('click', () => {
+    sessionStorage.removeItem(SECRET_KEY);
+    SECRET = null;
+    location.reload();
   });
 
-  // File drop
-  const drop=document.getElementById('drop');const file=document.getElementById('file');
-  drop.addEventListener('click',()=>file.click());
-  ['dragenter','dragover'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add('over')}));
-  ['dragleave','drop'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove('over')}));
-  drop.addEventListener('drop',ev=>{if(ev.dataTransfer.files[0])file.files=ev.dataTransfer.files;updateDrop()});
-  file.addEventListener('change',updateDrop);
-  function updateDrop(){if(file.files[0])drop.querySelector('p').innerHTML='<strong>'+file.files[0].name+'</strong> ready to upload'}
+  // ===== VIEW SWITCHING =====
+  function go(v) {
+    document.querySelectorAll('.view').forEach(x => x.classList.remove('active'));
+    $('view-' + v).classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    const navEl = document.querySelector(`.nav-item[data-view="${v === 'client' ? 'clients' : v}"]`);
+    if (navEl) navEl.classList.add('active');
+    window.scrollTo(0, 0);
+    if (v === 'dashboard') { loadOverview(); loadPending(); }
+    if (v === 'clients') loadOverview();
+    if (v === 'pending') loadPending();
+    if (v === 'add-dish') loadVenuesIntoSelect();
+    if (v === 'add-client') loadPending();
+  }
+  document.querySelectorAll('.nav-item[data-view]').forEach(el => el.addEventListener('click', () => go(el.dataset.view)));
+  document.body.addEventListener('click', e => { const t = e.target.closest('[data-go]'); if (t) go(t.dataset.go); });
 
-  // Init
-  renderClients('clientsBody',false);
-  renderClients('clientsBody2',true);
-  renderReports();
-  renderBilling();
-  renderVenueSelect();
+  // ===== AVATAR / RENDERING =====
+  function avatarFor(name) {
+    return (name || '?').split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
+  }
+  function clientRow(c) {
+    return `<tr data-slug="${c.slug}">
+      <td><div class="client-cell"><div class="avatar">${avatarFor(c.name)}</div>
+        <div><div class="client-name">${c.name}</div><div class="client-slug">/r/${c.slug}</div></div></div></td>
+      <td>${c.dishes}</td>
+      <td>${c.scans_30d.toLocaleString()}</td>
+      <td><span class="status">live</span></td>
+    </tr>`;
+  }
+  function tableShell(rows) {
+    return `<table><thead><tr><th>Restaurant</th><th>Dishes</th><th>Scans (30d)</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
+  function emptyClients() {
+    return `<div class="empty-state"><h3>No restaurants yet.</h3><p>Add your first restaurant to start. The manager will be able to log into the portal with the email you set.</p><button class="btn" data-go="add-client">+ Add restaurant</button></div>`;
+  }
+
+  // ===== DASHBOARD / CLIENTS =====
+  async function loadOverview() {
+    try {
+      const o = await api('/api/admin/overview');
+      $('t-restaurants').textContent = o.totals.restaurants;
+      $('t-dishes').textContent = o.totals.dishes_live;
+      $('t-scans').textContent = o.totals.scans_30d.toLocaleString();
+      const html = o.clients.length ? tableShell(o.clients.map(clientRow)) : emptyClients();
+      $('dashClientsWrap').innerHTML = html;
+      $('clientsWrap').innerHTML = html;
+      document.querySelectorAll('tr[data-slug]').forEach(tr => tr.addEventListener('click', () => openClient(tr.dataset.slug)));
+    } catch (e) { if (e.message !== 'unauth') toast(e.message, 'err'); }
+  }
+
+  // ===== CLIENT DRILL-DOWN =====
+  let currentClientSlug = null;
+  async function openClient(slug) {
+    try {
+      const c = await api('/api/admin/client?slug=' + encodeURIComponent(slug));
+      currentClientSlug = slug;
+      const r = c.restaurant;
+      $('crumbName').textContent = r.name;
+      $('cName').innerHTML = `<b>${r.name}</b>`;
+      $('cSlug').textContent = `/r/${r.slug}`;
+      $('cEmail').textContent = r.email;
+      $('cAvatar').textContent = avatarFor(r.name);
+      $('ms-dishes').textContent = c.dishes.length;
+      $('ms-scans').textContent = c.total_scans_30d.toLocaleString();
+      const pending = c.requests.filter(req => req.status === 'pending').length;
+      $('ms-requests').textContent = pending;
+
+      $('clientDishesWrap').innerHTML = c.dishes.length
+        ? `<div class="dishes-grid">${c.dishes.map(d => `
+            <div class="dish-tile">
+              <div class="thumb" ${d.thumb_url ? `style="background-image:url('${d.thumb_url}')"` : ''}>
+                ${d.thumb_url ? '' : '<span class="thumb-fallback">' + d.name[0] + '</span>'}
+                <span class="scans">${d.scans_30d} scans</span>
+              </div>
+              <div class="info">
+                <div class="name">${d.name}</div>
+                <div class="lbl">${d.price || '—'} · ${d.active ? 'live' : 'inactive'}</div>
+              </div>
+              <a href="/view.html?r=${r.slug}&d=${d.slug}" target="_blank">Open AR page →</a>
+            </div>`).join('')}</div>`
+        : `<div class="empty-state"><h3>No dishes yet.</h3><p>Add this restaurant's first dish to publish its AR page.</p><button class="btn" data-go="add-dish">+ Add dish</button></div>`;
+
+      $('clientRequestsWrap').innerHTML = c.requests.length
+        ? `<table><thead><tr><th>Date</th><th>Message</th><th>Status</th></tr></thead><tbody>${
+            c.requests.map(req => `<tr><td style="font-family:var(--mono);font-size:12px;color:var(--ink-dim)">${new Date(req.created_at).toLocaleDateString()}</td><td>${req.message}</td><td><span class="status">${req.status}</span></td></tr>`).join('')
+          }</tbody></table>`
+        : `<div class="empty-state"><p style="margin:0">No requests yet.</p></div>`;
+
+      go('client');
+    } catch (e) { if (e.message !== 'unauth') toast(e.message, 'err'); }
+  }
+
+  $('cDeleteBtn').addEventListener('click', async () => {
+    if (!currentClientSlug) return;
+    if (!confirm('Delete this restaurant and ALL its dishes? This cannot be undone.')) return;
+    try {
+      await api('/api/admin/client?slug=' + encodeURIComponent(currentClientSlug), { method: 'DELETE' });
+      toast('Restaurant deleted', 'ok');
+      go('clients');
+    } catch (e) { toast(e.message, 'err'); }
+  });
+
+  // ===== ADD CLIENT =====
+  $('ncSubmit').addEventListener('click', async () => {
+    const name = $('ncName').value.trim();
+    const slug = $('ncSlug').value.trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-');
+    const email = $('ncEmail').value.trim().toLowerCase();
+    if (!name || !slug || !email) return toast('Fill in all 3 fields', 'err');
+    try {
+      await api('/api/admin/clients', { method: 'POST', body: JSON.stringify({ name, slug, email }) });
+      $('ncName').value = $('ncSlug').value = $('ncEmail').value = '';
+      toast('Restaurant created — tell the manager to sign up at /portal/ with ' + email, 'ok');
+      go('clients');
+    } catch (e) { toast(e.message, 'err'); }
+  });
+
+  // Auto-slug from name
+  $('ncName').addEventListener('input', () => {
+    if (!$('ncSlug').dataset.touched) {
+      $('ncSlug').value = $('ncName').value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    }
+  });
+  $('ncSlug').addEventListener('input', () => { $('ncSlug').dataset.touched = '1'; });
+
+  // ===== ADD DISH =====
+  async function loadVenuesIntoSelect() {
+    try {
+      const o = await api('/api/admin/overview');
+      const sel = $('ndVenue');
+      if (!o.clients.length) {
+        sel.innerHTML = '<option value="">No restaurants — add one first</option>';
+        return;
+      }
+      sel.innerHTML = o.clients.map(c => `<option value="${c.slug}">${c.name}</option>`).join('');
+    } catch (e) { if (e.message !== 'unauth') toast(e.message, 'err'); }
+  }
+
+  // ===== File picker / drag-drop / preview =====
+  let pickedFile = null;     // File object selected by user
+  let pickedFileUrl = null;  // local blob URL for preview
+
+  function showPreviewFromUrl(url) {
+    const box = $('ndPreview');
+    if (url) {
+      box.classList.remove('empty');
+      box.innerHTML = `<model-viewer src="${url}" alt="Preview" auto-rotate camera-controls shadow-intensity="1.4" exposure="1.05" interaction-prompt="none"></model-viewer>`;
+    } else {
+      box.classList.add('empty');
+      box.textContent = 'Pick a .glb to preview';
+    }
+  }
+
+  function onFilePicked(file) {
+    if (!file) return;
+    if (!/\.glb$/i.test(file.name)) { toast('Please pick a .glb file', 'err'); return; }
+    pickedFile = file;
+    if (pickedFileUrl) URL.revokeObjectURL(pickedFileUrl);
+    pickedFileUrl = URL.createObjectURL(file);
+    const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+    $('ndDropMsg').innerHTML = `<strong>${file.name}</strong> · ${sizeMb} MB ready`;
+    $('ndDrop').style.borderColor = 'rgba(255,87,34,.4)';
+    showPreviewFromUrl(pickedFileUrl);
+  }
+
+  $('ndDrop').addEventListener('click', () => $('ndFile').click());
+  $('ndFile').addEventListener('change', e => onFilePicked(e.target.files[0]));
+  ['dragenter', 'dragover'].forEach(ev => $('ndDrop').addEventListener(ev, e => {
+    e.preventDefault(); $('ndDrop').style.borderColor = 'rgba(255,87,34,.6)';
+  }));
+  ['dragleave', 'drop'].forEach(ev => $('ndDrop').addEventListener(ev, e => {
+    e.preventDefault(); $('ndDrop').style.borderColor = 'var(--line)';
+  }));
+  $('ndDrop').addEventListener('drop', e => onFilePicked(e.dataTransfer.files[0]));
+
+  // URL fallback toggle
+  $('ndToggleUrl').addEventListener('click', () => {
+    const row = $('ndUrlRow');
+    const visible = row.style.display !== 'none';
+    row.style.display = visible ? 'none' : 'flex';
+    $('ndToggleUrl').textContent = visible ? 'or use a hosted URL instead' : 'hide URL field';
+  });
+  $('ndGlb').addEventListener('input', () => {
+    const url = $('ndGlb').value.trim();
+    if (url && !pickedFile) showPreviewFromUrl(url);
+  });
+
+  $('ndSubmit').addEventListener('click', async () => {
+    const restaurant_slug = $('ndVenue').value;
+    const name = $('ndName').value.trim();
+    let glb_url = $('ndGlb').value.trim();
+
+    if (!restaurant_slug || !name) return toast('Restaurant and dish name are required', 'err');
+    if (!pickedFile && !glb_url) return toast('Pick a .glb file (or paste a URL)', 'err');
+
+    const btn = $('ndSubmit');
+    btn.disabled = true;
+    const origLabel = btn.textContent;
+    try {
+      // STEP 1 — direct upload to Supabase Storage via signed URL (raw PUT, no SDK)
+      if (pickedFile) {
+        btn.textContent = 'Uploading 3D model…';
+        const sign = await api('/api/admin/upload-url', {
+          method: 'POST',
+          body: JSON.stringify({ filename: pickedFile.name })
+        });
+
+        const upRes = await fetch(sign.signed_url, {
+          method: 'PUT',
+          headers: {
+            'content-type': 'model/gltf-binary',
+            'cache-control': 'max-age=31536000',
+            'x-upsert': 'false'
+          },
+          body: pickedFile
+        });
+        if (!upRes.ok) {
+          const txt = await upRes.text().catch(() => '');
+          throw new Error(`Upload failed (HTTP ${upRes.status}). ${txt.slice(0, 200)} Make sure the "dishes" bucket exists in Supabase Storage and is set to PUBLIC.`);
+        }
+        glb_url = sign.public_url;
+      }
+
+      // STEP 2 — re-host through our bucket (and auto-optimise when available)
+      btn.textContent = 'Processing 3D model…';
+      const comp = await api('/api/admin/compress', {
+        method: 'POST',
+        body: JSON.stringify({ glb_url })
+      });
+      glb_url = comp.url; // canonical hosted URL
+      if (comp.saved_pct > 0) {
+        const before = (comp.original_size / (1024 * 1024)).toFixed(1);
+        const after  = (comp.compressed_size / (1024 * 1024)).toFixed(1);
+        toast(`Optimised: ${before} MB → ${after} MB (${comp.saved_pct}% smaller)`, 'ok');
+      }
+
+      // STEP 2.5 — auto-generate USDZ for iOS AR if not already provided
+      if (!$('ndUsdz').value.trim()) {
+        btn.textContent = 'Generating iOS model…';
+        const autoUsdz = await generateAndUploadUSDZ(glb_url).catch(() => null);
+        if (autoUsdz) $('ndUsdz').value = autoUsdz;
+      }
+
+      // STEP 3 — save the dish record using the optimised URL
+      btn.textContent = 'Publishing…';
+      await api('/api/admin/dishes', {
+        method: 'POST',
+        body: JSON.stringify({
+          restaurant_slug, name,
+          price: $('ndPrice').value.trim() || null,
+          glb_url,
+          usdz_url: $('ndUsdz').value.trim() || null,
+          thumb_url: $('ndThumb').value.trim() || null
+        })
+      });
+
+      // Reset form
+      $('ndName').value = $('ndPrice').value = $('ndGlb').value = $('ndUsdz').value = $('ndThumb').value = '';
+      $('ndFile').value = '';
+      pickedFile = null;
+      if (pickedFileUrl) { URL.revokeObjectURL(pickedFileUrl); pickedFileUrl = null; }
+      $('ndDropMsg').innerHTML = '<strong>Click to select</strong> or drag your .glb here';
+      $('ndDrop').style.borderColor = 'var(--line)';
+      $('ndPreview').classList.add('empty');
+      $('ndPreview').textContent = 'Pick a .glb to preview';
+
+      toast('Dish published ✓', 'ok');
+      go('clients');
+    } catch (e) {
+      toast(e.message, 'err');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = origLabel;
+    }
+  });
+
+  // ===== PENDING SIGN-UPS =====
+  async function loadPending() {
+    try {
+      const list = await api('/api/admin/pending');
+      const badge = $('pendingBadge');
+      if (list.length) { badge.textContent = list.length; badge.style.display = 'inline-block'; }
+      else { badge.style.display = 'none'; }
+
+      const wrap = $('pendingWrap');
+      if (!wrap) return;
+      if (!list.length) {
+        wrap.innerHTML = `<div class="empty-state"><h3>Nothing pending.</h3><p>When someone signs up at /portal/ with an email that doesn't match any restaurant, they'll show here.</p></div>`;
+        return;
+      }
+      wrap.innerHTML = `<table>
+        <thead><tr><th>Date</th><th>Restaurant</th><th>Email</th><th>Phone</th><th>Message</th><th></th></tr></thead>
+        <tbody>${list.map(p => `
+          <tr>
+            <td style="font-family:var(--mono);font-size:12px;color:var(--ink-dim)">${new Date(p.created_at).toLocaleDateString()}</td>
+            <td><strong>${p.restaurant_name || '—'}</strong></td>
+            <td style="font-family:var(--mono);font-size:12px">${p.email}</td>
+            <td>${p.phone || '—'}</td>
+            <td style="max-width:240px;color:var(--ink-dim);font-size:13px">${p.message || '—'}</td>
+            <td style="text-align:right;display:flex;gap:6px;justify-content:flex-end">
+              <button class="btn-ghost btn" data-action="link" data-email="${p.email}" data-name="${(p.restaurant_name || '').replace(/"/g,'&quot;')}">+ Create restaurant</button>
+              <button class="btn-ghost btn" data-action="dismiss" data-id="${p.id}">Dismiss</button>
+            </td>
+          </tr>`).join('')}</tbody></table>`;
+
+      wrap.querySelectorAll('[data-action]').forEach(b => b.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const action = b.dataset.action;
+        if (action === 'dismiss') {
+          if (!confirm('Dismiss this sign-up?')) return;
+          await api('/api/admin/pending?id=' + b.dataset.id, { method: 'DELETE' });
+          loadPending();
+        }
+        if (action === 'link') {
+          // Pre-fill the Add Restaurant form with their email + name
+          go('add-client');
+          $('ncEmail').value = b.dataset.email;
+          $('ncName').value = b.dataset.name || '';
+          $('ncSlug').value = (b.dataset.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+          $('ncName').focus();
+        }
+      }));
+    } catch (e) { if (e.message !== 'unauth') toast(e.message, 'err'); }
+  }
+
+  // After successful "Create restaurant", auto-dismiss matching pending sign-up
+  const _origCreate = $('ncSubmit').onclick;
+
+  // ===== BOOT =====
+  function boot() {
+    loadOverview();
+    loadPending();
+  }
+
+  // Try silent auth on page load if password already in sessionStorage
+  (async () => {
+    if (SECRET) {
+      try {
+        await api('/api/admin/overview');
+        $('login').style.display = 'none';
+        boot();
+      } catch { /* login stays visible */ }
+    }
+  })();
 </script>
 </body>
 </html>

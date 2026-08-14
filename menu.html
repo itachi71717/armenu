@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0a0806" />
+<title>Menu — AR Menu</title>
+<meta name="description" content="Browse this restaurant's menu and see every dish in augmented reality on your table." />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#0a0806;--ink:#f5efe6;--ink-dim:#9a9388;--ink-faint:#564f45;
+    --accent:#ff5722;--accent-2:#ffb066;--line:rgba(255,239,220,.08);
+    --serif:'Instrument Serif',serif;--mono:'JetBrains Mono',monospace;
+  }
+  html{-webkit-font-smoothing:antialiased;scroll-behavior:smooth}
+  body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;-webkit-font-smoothing:antialiased;padding-bottom:60px}
+  ::selection{background:var(--accent);color:#0a0806}
+
+  /* Header */
+  header{
+    position:sticky;top:0;z-index:10;
+    background:rgba(10,8,6,.85);backdrop-filter:blur(18px) saturate(1.4);
+    border-bottom:1px solid var(--line);
+    padding:18px 22px;display:flex;justify-content:space-between;align-items:center;
+  }
+  .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:13px;letter-spacing:.06em;text-transform:uppercase}
+  .brand .mark{
+    width:24px;height:24px;border-radius:7px;
+    background:linear-gradient(135deg,#ff5722,#ffb066);position:relative;
+    box-shadow:0 4px 12px rgba(255,87,34,.4),inset 0 1px 0 rgba(255,255,255,.3);
+  }
+  .brand .mark::after{content:"";position:absolute;inset:5px;border-radius:3px;background:#0a0806;box-shadow:inset 0 0 0 2px rgba(255,87,34,.6)}
+  .brand b{font-weight:800}.brand i{font-style:normal;color:var(--ink-dim);font-weight:500;margin-left:3px}
+
+  .venue-pill{
+    font-size:11px;font-weight:600;color:var(--ink);letter-spacing:.08em;text-transform:uppercase;
+    padding:6px 12px;border-radius:999px;
+    background:rgba(255,239,220,.06);border:1px solid var(--line);max-width:180px;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+
+  /* Hero / restaurant title */
+  .hero{
+    text-align:center;padding:48px 24px 28px;
+    background:radial-gradient(ellipse 120% 80% at 50% 0%,rgba(255,87,34,.12),transparent 60%);
+  }
+  .hero .pre{
+    display:inline-block;font-family:var(--mono);font-size:10px;
+    color:var(--accent);letter-spacing:.22em;text-transform:uppercase;
+    margin-bottom:10px;
+  }
+  .hero h1{
+    font-family:var(--serif);font-style:italic;font-size:clamp(38px,9vw,58px);
+    font-weight:400;letter-spacing:-.02em;line-height:1;
+    background:linear-gradient(180deg,#fff 0%,#ffb066 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .hero .sub{
+    color:var(--ink-dim);font-size:14px;margin-top:14px;max-width:380px;margin-left:auto;margin-right:auto;line-height:1.5;
+  }
+  .hero .sub em{font-family:var(--serif);font-style:italic;color:var(--accent-2)}
+
+  /* Menu list */
+  main{max-width:720px;margin:0 auto;padding:14px 16px}
+  .section-label{
+    font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.22em;
+    color:var(--ink-faint);margin:24px 6px 14px;
+    display:flex;align-items:center;gap:12px;
+  }
+  .section-label::before,.section-label::after{
+    content:"";flex:1;height:1px;background:var(--line);
+  }
+
+  .dishes{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+  .dish{
+    border-radius:18px;border:1px solid var(--line);overflow:hidden;
+    background:linear-gradient(180deg,rgba(255,239,220,.025),rgba(255,239,220,.005));
+    cursor:pointer;text-decoration:none;color:inherit;
+    display:flex;flex-direction:column;
+    transition:border-color .2s,transform .2s;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .dish:active{transform:scale(.98)}
+  .dish:hover{border-color:rgba(255,87,34,.3)}
+  .dish .thumb{
+    aspect-ratio:4/3;background:#1a1410;background-size:cover;background-position:center;
+    position:relative;display:grid;place-items:center;
+  }
+  .dish .thumb-fallback{
+    font-family:var(--serif);font-style:italic;font-size:48px;color:var(--ink-faint);
+  }
+  .dish .ar-tag{
+    position:absolute;top:12px;right:12px;z-index:1;
+    padding:4px 10px;border-radius:999px;font-family:var(--mono);font-size:10px;font-weight:600;
+    background:linear-gradient(135deg,#ff5722,#c93d00);color:#fff;letter-spacing:.08em;text-transform:uppercase;
+    box-shadow:0 4px 12px rgba(255,87,34,.4);
+  }
+  .dish .info{padding:16px 18px 18px;display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex:1}
+  .dish .name{font-weight:600;font-size:16px;letter-spacing:-.01em;line-height:1.2;margin-bottom:6px}
+  .dish .lbl{font-family:var(--mono);font-size:10px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.12em}
+  .dish .price{
+    color:var(--accent);font-size:15px;font-weight:700;letter-spacing:-.01em;white-space:nowrap;
+  }
+
+  /* Empty / loading / error */
+  .state{padding:80px 24px;text-align:center;color:var(--ink-dim)}
+  .state h2{font-family:var(--serif);font-style:italic;font-size:28px;color:var(--ink);margin-bottom:8px;font-weight:400}
+  .state p{font-size:14px;max-width:340px;margin:0 auto}
+  .spinner{
+    width:42px;height:42px;border-radius:50%;
+    border:2px solid rgba(255,239,220,.08);border-top-color:var(--accent);
+    animation:spin 1s linear infinite;margin:0 auto 16px;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* Footer hint */
+  .foot-hint{
+    text-align:center;padding:32px 24px 0;color:var(--ink-faint);font-size:12px;line-height:1.6;
+  }
+  .foot-hint em{font-family:var(--serif);font-style:italic;color:var(--ink-dim);font-size:13px}
+  .foot-hint .powered{
+    margin-top:18px;padding-top:18px;border-top:1px solid var(--line);
+    font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);
+  }
+  .foot-hint .powered a{color:var(--accent-2);text-decoration:none}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand"><span class="mark"></span><b>AR</b><i>Menu</i></div>
+  <div class="venue-pill" id="navVenue">Loading…</div>
+</header>
+
+<div id="content">
+  <div class="state">
+    <div class="spinner"></div>
+    <p>Loading the menu…</p>
+  </div>
+</div>
+
+<script>
+  const params = new URLSearchParams(location.search);
+  const r = params.get('r');
+  const $ = id => document.getElementById(id);
+
+  async function loadMenu() {
+    if (!r) return showError('No restaurant specified.', 'Add ?r=restaurant-slug to the URL.');
+    try {
+      const res = await fetch(`/api/dish?r=${encodeURIComponent(r)}`);
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        return showError("Restaurant not found.", d.error || 'Check the QR code with the restaurant.');
+      }
+      const data = await res.json();
+      render(data);
+    } catch (e) {
+      showError('Could not load menu.', 'Check your internet and try again.');
+    }
+  }
+
+  function showError(title, sub) {
+    $('content').innerHTML = `<div class="state"><h2>${title}</h2><p>${sub}</p></div>`;
+  }
+
+  function render(data) {
+    document.title = `${data.restaurant.name} · Menu`;
+    $('navVenue').textContent = data.restaurant.name;
+
+    if (!data.dishes.length) {
+      $('content').innerHTML = `
+        <section class="hero">
+          <div class="pre">AR Menu</div>
+          <h1>${escapeHTML(data.restaurant.name)}</h1>
+          <p class="sub">No dishes are live yet. <em>Check back soon.</em></p>
+        </section>`;
+      return;
+    }
+
+    const dishesHtml = data.dishes.map(d => `
+      <a class="dish" href="/view.html?r=${encodeURIComponent(r)}&d=${encodeURIComponent(d.slug)}">
+        <div class="thumb" ${d.thumb ? `style="background-image:url('${d.thumb}')"` : ''}>
+          ${d.thumb ? '' : `<span class="thumb-fallback">${escapeHTML(d.name[0] || '?')}</span>`}
+          <span class="ar-tag">View in AR</span>
+        </div>
+        <div class="info">
+          <div>
+            <div class="name">${escapeHTML(d.name)}</div>
+            <div class="lbl">Tap to see in 3D</div>
+          </div>
+          ${d.price ? `<div class="price">${escapeHTML(d.price)}</div>` : ''}
+        </div>
+      </a>`).join('');
+
+    $('content').innerHTML = `
+      <section class="hero">
+        <div class="pre">AR Menu</div>
+        <h1>${escapeHTML(data.restaurant.name)}</h1>
+        <p class="sub">Tap any dish to see it <em>life-size on your table</em>.</p>
+      </section>
+      <main>
+        <div class="section-label">Menu · ${data.dishes.length} dish${data.dishes.length === 1 ? '' : 'es'}</div>
+        <div class="dishes">${dishesHtml}</div>
+        <div class="foot-hint">
+          Point your phone at the table after tapping a dish — <em>your meal will appear at real size</em>.
+          <div class="powered">Powered by <a href="https://armenu.co.za" target="_blank" rel="noopener">AR Menu</a></div>
+        </div>
+      </main>`;
+  }
+
+  function escapeHTML(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  loadMenu();
+</script>
+</body>
+</html>

@@ -139,6 +139,58 @@
   .err.show{display:grid}
   .err h2{font-family:'Instrument Serif',serif;font-style:italic;font-size:32px;margin-bottom:10px}
   .err p{color:#9a9388;font-size:14px;max-width:300px}
+
+  /* Hide UI when in error state */
+  body.has-error .header,
+  body.has-error .panel,
+  body.has-error model-viewer,
+  body.has-error .loading{display:none !important}
+
+  /* AR-unsupported fallback hint */
+  .ar-hint{
+    position:fixed;left:0;right:0;bottom:120px;text-align:center;z-index:8;
+    color:#9a9388;font-size:12px;letter-spacing:.04em;padding:0 24px;display:none;
+  }
+  .ar-hint.show{display:block}
+  .ar-hint em{font-family:'Instrument Serif',serif;font-style:italic;color:#ffb066;font-size:13px}
+
+  /* iOS non-Safari nag overlay */
+  .safari-nag{
+    position:fixed;inset:0;z-index:50;
+    background:rgba(10,8,6,.94);backdrop-filter:blur(24px);
+    display:none;place-items:center;padding:28px;
+  }
+  .safari-nag.show{display:grid}
+  .safari-nag-card{
+    max-width:340px;width:100%;
+    background:rgba(255,239,220,.04);border:1px solid rgba(255,239,220,.1);
+    border-radius:24px;padding:36px 28px;text-align:center;
+  }
+  .nag-icon{font-size:44px;margin-bottom:18px;line-height:1}
+  .safari-nag-card h2{font-family:'Instrument Serif',serif;font-size:28px;font-weight:400;letter-spacing:-.02em;margin-bottom:10px}
+  .safari-nag-card p{color:#9a9388;font-size:14px;line-height:1.65;margin-bottom:24px}
+  .nag-share-btn{
+    width:100%;padding:18px;border-radius:14px;border:none;cursor:pointer;
+    background:linear-gradient(135deg,#ff5722,#c93d00);
+    color:#fff;font-family:inherit;font-weight:700;font-size:16px;
+    box-shadow:0 10px 24px rgba(255,87,34,.4),inset 0 1px 0 rgba(255,255,255,.2);
+    margin-bottom:14px;
+  }
+  .nag-url{
+    font-size:11px;color:#9a9388;
+    background:rgba(255,239,220,.04);border:1px solid rgba(255,239,220,.08);
+    border-radius:8px;padding:10px 12px;word-break:break-all;margin-bottom:16px;
+    cursor:pointer;letter-spacing:.01em;
+  }
+  .nag-url.copied{color:#7dd87d;border-color:rgba(125,216,125,.2)}
+  .nag-close{background:none;border:none;color:#564f45;font-size:11px;cursor:pointer;letter-spacing:.08em;text-transform:uppercase;font-family:inherit}
+  .nag-hint{font-size:12px;color:#7dd87d;min-height:18px;margin-top:10px;letter-spacing:.01em;transition:opacity .3s}
+  .nag-share-btn.secondary{background:rgba(255,239,220,.07);box-shadow:none;color:#f5efe6;margin-top:8px}
+  .nag-share-btn.secondary:hover{background:rgba(255,239,220,.12)}
+
+  /* Android Chrome nag */
+  .chrome-nag{position:fixed;inset:0;z-index:50;background:rgba(10,8,6,.94);backdrop-filter:blur(24px);display:none;place-items:center;padding:28px}
+  .chrome-nag.show{display:grid}
 </style>
 </head>
 <body>
@@ -153,7 +205,7 @@
   <model-viewer id="mv"
     alt="3D dish"
     ar
-    ar-modes="webxr scene-viewer quick-look"
+    ar-modes="webxr quick-look"
     ar-scale="fixed"
     ar-placement="floor"
     auto-rotate
@@ -173,8 +225,34 @@
   </div>
 </div>
 
+<div class="ar-hint" id="arHint"><em>Your device doesn't support live AR.</em><br/>You can still <strong>drag to rotate</strong> and <strong>pinch to zoom</strong> the 3D model above.</div>
+
+<div class="safari-nag" id="safariNag">
+  <div class="safari-nag-card">
+    <div class="nag-icon">🍎</div>
+    <h2>AR needs Safari</h2>
+    <p>Apple AR Quick Look only works in Safari on iPhone. Open this page in Safari to see your meal appear right on your table.</p>
+    <button class="nag-share-btn" id="nagShare">Open in Safari →</button>
+    <div class="nag-hint" id="nagHint"></div>
+    <div class="nag-url" id="nagUrl" title="Tap to copy"></div>
+    <button class="nag-close" id="nagClose">✕ close</button>
+  </div>
+</div>
+
+<div class="chrome-nag" id="chromeNag">
+  <div class="safari-nag-card">
+    <div class="nag-icon">🤖</div>
+    <h2>AR needs Chrome</h2>
+    <p>Augmented reality on Android works through Chrome. Tap below to open this page in Chrome and see your meal on the table.</p>
+    <button class="nag-share-btn" id="nagChromeOpen">Open in Chrome →</button>
+    <button class="nag-share-btn secondary" id="nag3D">View 3D model instead</button>
+    <button class="nag-close" id="nagChromeClose">✕ close</button>
+  </div>
+</div>
+
 <div class="header">
   <div class="brand"><span class="mark"></span><b>AR</b><i>Menu</i></div>
+  <a id="backLink" href="#" style="display:none;font-size:11px;font-weight:600;color:#f5efe6;letter-spacing:.08em;text-transform:uppercase;padding:6px 12px;border-radius:999px;background:rgba(255,239,220,.06);border:1px solid rgba(255,239,220,.1);backdrop-filter:blur(10px);text-decoration:none;align-items:center;gap:6px">← Menu</a>
   <div class="venue-pill" id="venue">Restaurant</div>
 </div>
 
@@ -215,17 +293,29 @@
     let meal=null;
     try{
       // Try live API first (works once backend is deployed)
-      const res = await fetch(`/api/dish/${encodeURIComponent(r)}/${encodeURIComponent(d)}`);
+      const res = await fetch(`/api/dish?r=${encodeURIComponent(r)}&d=${encodeURIComponent(d)}`);
       if(res.ok){ meal = await res.json(); }
     }catch(e){ /* offline / not deployed yet */ }
 
     if(!meal) meal = REGISTRY[`${r}/${d}`];
-    if(!meal){ document.getElementById('err').classList.add('show'); document.getElementById('loader').classList.add('gone'); return; }
+    if(!meal){
+      document.body.classList.add('has-error');
+      document.getElementById('err').classList.add('show');
+      document.getElementById('loader').classList.add('gone');
+      return;
+    }
 
     document.getElementById('dish').textContent = meal.dish;
     document.getElementById('venue').textContent = meal.venue;
     document.getElementById('venue2').textContent = meal.venue;
     document.getElementById('price').textContent = meal.price || '';
+
+    // Show "Back to menu" link if the diner came from the master menu page
+    const backLink = document.getElementById('backLink');
+    if (backLink) {
+      backLink.href = `/menu.html?r=${encodeURIComponent(r)}`;
+      backLink.style.display = (document.referrer && document.referrer.includes('/menu.html')) ? 'inline-flex' : 'none';
+    }
 
     const mv = document.getElementById('mv');
     mv.setAttribute('src', meal.glb);
@@ -243,10 +333,160 @@
   }
   loadDish();
 
-  document.getElementById('arBtn').addEventListener('click', ()=>{
-    const mv = document.getElementById('mv');
-    if (mv.canActivateAR) mv.activateAR();
-    else alert('AR is not supported on this device. You can still rotate and zoom the 3D model above.');
+  // iOS detection — covers iPadOS (reports MacIntel + touch)
+  function isIOS() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+           (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  }
+
+  // Capability-based check: only Safari on iOS returns true for a.relList.supports('ar').
+  // Chrome, Firefox, Brave, Edge on iOS all return false — no UA sniffing needed.
+  function supportsQuickLook() {
+    const a = document.createElement('a');
+    return !!(a.relList && a.relList.supports && a.relList.supports('ar'));
+  }
+
+  function isAndroid() {
+    return /Android/.test(navigator.userAgent);
+  }
+
+  const arBtn = document.getElementById('arBtn');
+  const arHint = document.getElementById('arHint');
+  const mv    = document.getElementById('mv');
+  const ios   = isIOS();
+
+  const arBtnActiveHTML   = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> See my meal`;
+  const arBtnFallbackHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 010 20M12 2a15 15 0 000 20"/></svg> Rotate the 3D model`;
+
+  // iOS Safari blocks anchor.click() that happens asynchronously inside a click
+  // handler (popup-blocker rules). model-viewer's activateAR() generates the USDZ
+  // blob inside the tap — too slow, Safari kills it. Fix: pre-generate the blob
+  // when the model loads (outside any user gesture), store the object URL, then
+  // launch Quick Look synchronously in the tap handler.
+  let iosBlobUrl = null;
+
+  function launchQuickLook(url) {
+    const a = document.createElement('a');
+    a.setAttribute('rel', 'ar');
+    a.appendChild(document.createElement('img')); // required child per Quick Look spec
+    a.href = url;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  function updateArSupport() {
+    // Keep "See my meal" button on iOS and Android — they get guided popups on tap.
+    // Only switch to fallback on desktop where no popup guidance applies.
+    if (mv.canActivateAR || ios || isAndroid()) {
+      arBtn.innerHTML = arBtnActiveHTML;
+      arHint.classList.remove('show');
+    } else {
+      arBtn.innerHTML = arBtnFallbackHTML;
+      arHint.classList.add('show');
+    }
+  }
+
+  mv.addEventListener('load', async () => {
+    updateArSupport();
+    // Pre-generate USDZ only on iOS Safari (Quick Look supported).
+    // No point generating it on Chrome/Brave/etc — they'll get the nag instead.
+    if (ios && supportsQuickLook() && typeof mv.generateUSDZ === 'function') {
+      try {
+        const blob = await mv.generateUSDZ();
+        iosBlobUrl = URL.createObjectURL(blob);
+      } catch (e) { /* fall back to mv.activateAR() on tap */ }
+    }
+  });
+  setTimeout(updateArSupport, 1500);
+
+  mv.addEventListener('ar-status', (e) => {
+    if (e.detail.status === 'failed') {
+      arBtn.innerHTML = arBtnFallbackHTML;
+      arHint.classList.add('show');
+    }
+  });
+
+  arBtn.addEventListener('click', () => {
+    if (ios) {
+      // iOS non-Safari: Quick Look not supported → guide them to Safari
+      if (!supportsQuickLook()) { showSafariNag(); return; }
+      // iOS Safari: launch Quick Look (synchronous blob URL bypasses popup-blocker)
+      if (iosBlobUrl) { launchQuickLook(iosBlobUrl); } else { mv.activateAR(); }
+      return;
+    }
+    if (mv.canActivateAR) { mv.activateAR(); return; }
+    // Android without WebXR → guide to Chrome
+    if (isAndroid()) { showChromeNag(); return; }
+    // Desktop fallback
+    mv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    arHint.classList.add('show');
+  });
+
+  // ── iOS Safari nag ──────────────────────────────────────────────
+  function showSafariNag() {
+    const urlEl = document.getElementById('nagUrl');
+    if (urlEl) urlEl.textContent = location.href;
+    document.getElementById('safariNag').classList.add('show');
+  }
+
+  document.getElementById('nagClose').addEventListener('click', () => {
+    document.getElementById('safariNag').classList.remove('show');
+  });
+
+  document.getElementById('nagShare').addEventListener('click', async () => {
+    const url = location.href;
+    const hint = document.getElementById('nagHint');
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: document.title, url });
+        if (hint) {
+          hint.textContent = "In the menu, tap 'Open in Safari'";
+          setTimeout(() => { hint.textContent = ''; }, 7000);
+        }
+      } catch(e) {}
+    } else {
+      try {
+        await navigator.clipboard.writeText(url);
+        const btn = document.getElementById('nagShare');
+        btn.textContent = 'Copied — paste in Safari';
+        setTimeout(() => { btn.textContent = 'Open in Safari →'; }, 3000);
+      } catch(e) {}
+    }
+  });
+
+  document.getElementById('nagUrl').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(location.href);
+      const el = document.getElementById('nagUrl');
+      el.textContent = 'Copied!';
+      el.classList.add('copied');
+      setTimeout(() => { el.textContent = location.href; el.classList.remove('copied'); }, 2000);
+    } catch(e) {}
+  });
+
+  // ── Android Chrome nag ──────────────────────────────────────────
+  function showChromeNag() {
+    document.getElementById('chromeNag').classList.add('show');
+  }
+
+  document.getElementById('nagChromeClose').addEventListener('click', () => {
+    document.getElementById('chromeNag').classList.remove('show');
+  });
+
+  document.getElementById('nag3D').addEventListener('click', () => {
+    document.getElementById('chromeNag').classList.remove('show');
+    mv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    arHint.classList.add('show');
+  });
+
+  document.getElementById('nagChromeOpen').addEventListener('click', () => {
+    // Android intent URI — opens the current URL directly in Chrome.
+    // If Chrome isn't installed, Android falls back to the plain https URL.
+    const fallback = encodeURIComponent(location.href);
+    const intentUrl = 'intent://' + location.host + location.pathname + location.search +
+      '#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=' + fallback + ';end';
+    window.location.href = intentUrl;
   });
 </script>
 </body>

@@ -135,10 +135,18 @@
     transition:transform .25s cubic-bezier(.2,.9,.2,1),background .25s;
   }
   .btn:hover{transform:translateY(-2px);background:var(--accent-2)}
-  .btn-primary{background:linear-gradient(135deg,#ff5722,#ffb066);color:#0a0806}
-  .btn-primary:hover{background:linear-gradient(135deg,#ffb066,#ff5722);color:#0a0806}
+  .btn-primary{
+    background:linear-gradient(135deg,#ff5722,#c93d00);color:#fff;
+    box-shadow:0 4px 20px rgba(255,87,34,.55),0 0 0 1px rgba(255,87,34,.3),inset 0 1px 0 rgba(255,255,255,.18);
+  }
+  .btn-primary:hover{
+    background:linear-gradient(135deg,#ff6b35,#ff5722);color:#fff;
+    box-shadow:0 8px 32px rgba(255,87,34,.65),0 0 0 1px rgba(255,87,34,.4),inset 0 1px 0 rgba(255,255,255,.22);
+  }
   .btn-ghost{background:transparent;border:1px solid var(--line);color:var(--ink)}
   .btn-ghost:hover{background:rgba(255,239,220,.06)}
+  nav .btn-primary{background:rgba(255,239,220,.92);color:#c93d00;box-shadow:0 4px 16px rgba(255,87,34,.2),0 0 0 1px rgba(255,87,34,.15)}
+  nav .btn-primary:hover{background:#fff;color:#ff5722;transform:translateY(-2px);box-shadow:0 8px 24px rgba(255,87,34,.28),0 0 0 1px rgba(255,87,34,.25)}
   @media(max-width:760px){.nav-links a:not(.btn){display:none}}
 
   /* ============ HERO ============ */
@@ -157,8 +165,8 @@
   .hero-bg::after{
     content:"";position:absolute;inset:0;
     background:
-      radial-gradient(ellipse 70% 55% at 50% 50%,rgba(10,8,6,.55) 0%,rgba(10,8,6,.78) 60%,rgba(10,8,6,.97) 100%),
-      linear-gradient(180deg,rgba(10,8,6,.55) 0%,rgba(10,8,6,.25) 30%,rgba(10,8,6,.25) 70%,rgba(10,8,6,.97) 100%);
+      radial-gradient(ellipse 70% 55% at 50% 50%,rgba(10,8,6,.3) 0%,rgba(10,8,6,.55) 60%,rgba(10,8,6,.88) 100%),
+      linear-gradient(180deg,rgba(10,8,6,.4) 0%,rgba(10,8,6,.12) 30%,rgba(10,8,6,.12) 70%,rgba(10,8,6,.88) 100%);
   }
   .hero-content{
     position:relative;z-index:2;text-align:center;
@@ -486,13 +494,13 @@
 
 <!-- NAV -->
 <nav id="nav">
-  <div class="logo"><span class="mark"></span><b>AR</b><i>Menu</i></div>
+  <a href="/" class="logo"><span class="mark"></span><b>AR</b><i>Menu</i></a>
   <div class="nav-links">
-    <a href="#how">How</a>
-    <a href="#dishes">Dishes</a>
-    <a href="#why">Why</a>
-    <a href="#faq">FAQ</a>
-    <a href="#contact" class="btn btn-primary">Book a demo</a>
+    <a href="/how">How</a>
+    <a href="/dishes">Dishes</a>
+    <a href="/why">Why</a>
+    <a href="/faq">FAQ</a>
+    <a href="/portal/" class="btn btn-primary">Restaurant login →</a>
   </div>
 </nav>
 
@@ -515,8 +523,8 @@
       AR Menu puts photo-real, life-size meals on your diner's table — straight from a printed QR code. No app. No wait. No surprises when the plate arrives.
     </p>
     <div class="hero-cta">
-      <a href="#contact" class="btn btn-primary">Book a free demo →</a>
-      <a href="#how" class="btn btn-ghost">See how it works</a>
+      <a href="/portal/" class="btn btn-primary">Restaurant login →</a>
+      <a href="/how" class="btn btn-ghost">See how it works</a>
     </div>
   </div>
 
@@ -550,7 +558,6 @@
     <div class="reveal">
       <span class="eyebrow">How it works</span>
       <h2>From <span class="ital">curious</span> to <span class="strong">ordered</span><br/>in two seconds.</h2>
-      <p class="lead">Diners use the camera they already open every day. No new app to download. No new behaviour to teach. No friction at the table.</p>
     </div>
 
     <div class="frames reveal-stagger">
@@ -600,7 +607,6 @@
     <div class="reveal">
       <span class="eyebrow">What you can show</span>
       <h2>Every dish, <span class="ital">on every table.</span></h2>
-      <p class="lead">From a flagship burger to a delicate plated dessert — anything you serve can be scanned, modelled, and shown in AR. Real plating. Real garnish. Real size.</p>
     </div>
   </div>
 
@@ -638,71 +644,6 @@
   </div>
 </section>
 
-<!-- WHY -->
-<section id="why" class="why">
-  <div class="reveal">
-    <span class="eyebrow">Why restaurants love it</span>
-    <h2>Sell more. <span class="ital">Refund less.</span><br/>Be unforgettable.</h2>
-  </div>
-
-  <div class="why-grid">
-    <div class="why-list reveal-stagger">
-      <div class="why-item">
-        <span class="num">i</span>
-        <div>
-          <h4>Higher average order value</h4>
-          <p>Diners who see the dish at real size are 30%+ more likely to upgrade portion size, add a side, or pick the premium option. Confidence converts.</p>
-        </div>
-      </div>
-      <div class="why-item">
-        <span class="num">ii</span>
-        <div>
-          <h4>Fewer returned plates</h4>
-          <p>"It looked smaller in the photo" disappears. They saw the real thing, life-size, before they ordered. Front-of-house breathes again.</p>
-        </div>
-      </div>
-      <div class="why-item">
-        <span class="num">iii</span>
-        <div>
-          <h4>Built-in social moment</h4>
-          <p>Diners film the AR meal. They post it. Every scan is potential free marketing — at zero acquisition cost. The product sells the restaurant.</p>
-        </div>
-      </div>
-      <div class="why-item">
-        <span class="num">iv</span>
-        <div>
-          <h4>Real data on what's working</h4>
-          <p>We deliver a private monthly performance report — which dishes pull attention, which fall flat, when the rush hits. Guide menu decisions with evidence.</p>
-        </div>
-      </div>
-    </div>
-
-    <div class="why-aside reveal">
-      <div class="img"></div>
-      <div class="quote">
-        <p>"In the first month we ran AR Menu, our signature ribeye orders were up 41%. Diners stopped second-guessing."</p>
-        <div class="src">— Pilot Restaurant · Sandton · 2026</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- FAQ -->
-<section id="faq" class="faq-wrap">
-  <div class="reveal">
-    <span class="eyebrow">FAQ</span>
-    <h2>Questions, <span class="ital">answered.</span></h2>
-  </div>
-  <div class="faq">
-    <details class="reveal"><summary>Does the diner need to download an app?</summary><p>No. The QR opens in their phone's native camera and loads our AR page in any browser. Zero installs, zero accounts, zero friction.</p></details>
-    <details class="reveal"><summary>Will it work on every phone?</summary><p>Every iPhone from 2017 onwards and almost every Android from 2018 onwards. Older devices still see a 3D model they can rotate with their finger — nobody hits a broken page.</p></details>
-    <details class="reveal"><summary>How accurate is the portion size?</summary><p>Each dish is captured with a calibrated reference object so the AR model appears at exact real-world size. What the diner sees is what they get.</p></details>
-    <details class="reveal"><summary>How long does setup take?</summary><p>About one week from signing. We come to your kitchen, capture your top dishes, deliver printed QR codes, and you're live.</p></details>
-    <details class="reveal"><summary>Can I add new dishes later?</summary><p>Yes. We handle the scanning, modelling, and QR generation end-to-end. Pricing for additional dishes is discussed in person.</p></details>
-    <details class="reveal"><summary>How do I know it's working?</summary><p>You receive a private monthly performance report with scan counts per dish, peak times, and trends — designed to guide your menu decisions.</p></details>
-  </div>
-</section>
-
 <!-- FINAL CTA -->
 <section id="contact" class="final">
   <div class="bg" id="finalBg"></div>
@@ -710,20 +651,26 @@
     <span class="eyebrow" style="justify-content:center;display:flex">Ready to be the first?</span>
     <h2>Put your menu<br/><span class="ital">on the table.</span></h2>
     <p class="sub" style="margin-top:32px;margin-bottom:36px;color:var(--ink)">We're onboarding pilot restaurants across South Africa. Within a week, your most-ordered dish is in AR on every diner's table.</p>
-    <a href="https://wa.me/27000000000?text=Hi%2C%20I%27d%20like%20a%20demo%20of%20AR%20Menu%20for%20my%20restaurant" target="_blank" rel="noopener" class="btn btn-primary">Book a free demo →</a>
+    <a href="/portal/" class="btn btn-primary">Restaurant login →</a>
   </div>
 </section>
 
 <footer>
   <div>
-    <div class="logo" style="margin-bottom:14px"><span class="mark"></span><b>AR</b><i>Menu</i></div>
+    <a href="/" class="logo" style="margin-bottom:14px"><span class="mark"></span><b>AR</b><i>Menu</i></a>
     <p style="color:var(--ink-faint);font-size:13px;max-width:280px;line-height:1.55">South Africa's first augmented-reality menu platform. Made in Cape Town, served everywhere.</p>
+  </div>
+  <div>
+    <h5>Navigate</h5>
+    <a href="/how">How it works</a>
+    <a href="/dishes">Dishes</a>
+    <a href="/why">Why it works</a>
+    <a href="/faq">FAQ</a>
   </div>
   <div>
     <h5>Contact</h5>
     <a href="mailto:hello@armenu.co.za">hello@armenu.co.za</a>
-    <a href="#contact">Book a demo</a>
-    <a href="#faq">FAQ</a>
+    <a href="/portal/">Restaurant login</a>
   </div>
   <div>
     <h5>Follow</h5>
