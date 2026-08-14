@@ -269,7 +269,7 @@
             </div>
             <div class="form-row" style="display:none" id="ndUrlRow"><label>OR paste an existing public .glb URL</label><input type="text" id="ndGlb" placeholder="https://…/dish.glb" /></div>
             <div style="text-align:center;margin:-4px 0 14px"><a id="ndToggleUrl" style="color:var(--ink-faint);font-size:11px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.1em;cursor:pointer">or use a hosted URL instead</a></div>
-            <div class="form-row"><label>.usdz for iPhone (auto-generated on save)</label><input type="text" id="ndUsdz" placeholder="Auto-generated — or paste a custom URL" /></div>
+            <div class="form-row"><label>.usdz for iPhone (optional — no auto-generation available)</label><input type="text" id="ndUsdz" placeholder="Paste a hosted .usdz URL — without one, iPhone shows the 3D view only, not full AR" /></div>
             <div class="form-row"><label>Thumbnail URL (optional)</label><input type="text" id="ndThumb" placeholder="https://…/dish.jpg" /></div>
             <button class="btn" id="ndSubmit" style="width:100%;justify-content:center;padding:14px">Publish dish →</button>
           </div>
@@ -315,47 +315,6 @@
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || 'Request failed');
     return data;
-  }
-
-  // Generates USDZ from a hosted GLB using model-viewer's built-in exporter,
-  // then uploads to Supabase Storage. Runs in the browser where all APIs exist.
-  // Returns the public USDZ URL, or null if generation/upload fails.
-  async function generateAndUploadUSDZ(glbUrl) {
-    await customElements.whenDefined('model-viewer');
-    const mv = document.createElement('model-viewer');
-    Object.assign(mv.style, {
-      position:'absolute', left:'-9999px', top:'-9999px',
-      width:'1px', height:'1px', opacity:'0', pointerEvents:'none'
-    });
-    document.body.appendChild(mv);
-    try {
-      await Promise.race([
-        new Promise((res, rej) => {
-          mv.addEventListener('load', res, { once: true });
-          mv.addEventListener('error', rej, { once: true });
-          mv.src = glbUrl;
-        }),
-        new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 30000))
-      ]);
-      if (typeof mv.generateUSDZ !== 'function') return null;
-      const blob = await mv.generateUSDZ();
-      const sign = await api('/api/admin/upload-url', {
-        method: 'POST',
-        body: JSON.stringify({ filename: 'dish.usdz' })
-      });
-      const up = await fetch(sign.signed_url, {
-        method: 'PUT',
-        headers: {
-          'content-type': 'model/vnd.usdz+zip',
-          'cache-control': 'max-age=31536000',
-          'x-upsert': 'false'
-        },
-        body: blob
-      });
-      return up.ok ? sign.public_url : null;
-    } finally {
-      document.body.removeChild(mv);
-    }
   }
 
   // ===== LOGIN =====
@@ -685,12 +644,6 @@
         toast('Warning: could not verify this model sits correctly in AR — check it manually', 'err');
       }
 
-      // STEP 2.5 — auto-generate USDZ for iOS AR if not already provided
-      if (!$('ndUsdz').value.trim()) {
-        btn.textContent = 'Generating iOS model…';
-        const autoUsdz = await generateAndUploadUSDZ(glb_url).catch(() => null);
-        if (autoUsdz) $('ndUsdz').value = autoUsdz;
-      }
 
       // STEP 3 — save the dish record using the optimised URL
       btn.textContent = 'Publishing…';

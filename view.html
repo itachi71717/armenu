@@ -358,13 +358,9 @@
   const arBtnActiveHTML   = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> See my meal`;
   const arBtnFallbackHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 010 20M12 2a15 15 0 000 20"/></svg> Rotate the 3D model`;
 
-  // iOS Safari blocks anchor.click() that happens asynchronously inside a click
-  // handler (popup-blocker rules). model-viewer's activateAR() generates the USDZ
-  // blob inside the tap — too slow, Safari kills it. Fix: pre-generate the blob
-  // when the model loads (outside any user gesture), store the object URL, then
-  // launch Quick Look synchronously in the tap handler.
-  let iosBlobUrl = null;
-
+  // Launches Apple Quick Look via the documented rel="ar" anchor trick, given
+  // a real, already-hosted .usdz URL (never a client-generated one — see
+  // iosArReady() below for why that's not possible).
   function launchQuickLook(url) {
     const a = document.createElement('a');
     a.setAttribute('rel', 'ar');
@@ -375,10 +371,22 @@
     document.body.removeChild(a);
   }
 
+  // iOS Quick Look needs an actual .usdz file — there is no reliable way to
+  // generate one from a .glb in the browser (model-viewer has no public API
+  // for this; an earlier version of this codebase assumed a generateUSDZ()
+  // method that has never existed in the library). Room-scale AR on iPhone
+  // is only available for dishes that have a real usdz set; everything else
+  // correctly falls back to the interactive 3D view instead of a button that
+  // silently fails when tapped.
+  function iosArReady() {
+    return ios && supportsQuickLook() && !!mv.getAttribute('ios-src');
+  }
+
   function updateArSupport() {
-    // Keep "See my meal" button on iOS and Android — they get guided popups on tap.
-    // Only switch to fallback on desktop where no popup guidance applies.
-    if (mv.canActivateAR || ios || isAndroid()) {
+    // Android gets the guided "open in Chrome" popup on tap even before
+    // canActivateAR resolves — scene-viewer works directly from the .glb,
+    // no separate file needed, unlike iOS.
+    if (mv.canActivateAR || iosArReady() || isAndroid()) {
       arBtn.innerHTML = arBtnActiveHTML;
       arHint.classList.remove('show');
     } else {
@@ -387,17 +395,7 @@
     }
   }
 
-  mv.addEventListener('load', async () => {
-    updateArSupport();
-    // Pre-generate USDZ only on iOS Safari (Quick Look supported).
-    // No point generating it on Chrome/Brave/etc — they'll get the nag instead.
-    if (ios && supportsQuickLook() && typeof mv.generateUSDZ === 'function') {
-      try {
-        const blob = await mv.generateUSDZ();
-        iosBlobUrl = URL.createObjectURL(blob);
-      } catch (e) { /* fall back to mv.activateAR() on tap */ }
-    }
-  });
+  mv.addEventListener('load', () => updateArSupport());
   setTimeout(updateArSupport, 1500);
 
   mv.addEventListener('ar-status', (e) => {
@@ -411,8 +409,12 @@
     if (ios) {
       // iOS non-Safari: Quick Look not supported → guide them to Safari
       if (!supportsQuickLook()) { showSafariNag(); return; }
-      // iOS Safari: launch Quick Look (synchronous blob URL bypasses popup-blocker)
-      if (iosBlobUrl) { launchQuickLook(iosBlobUrl); } else { mv.activateAR(); }
+      const usdzUrl = mv.getAttribute('ios-src');
+      if (usdzUrl) { launchQuickLook(usdzUrl); return; }
+      // No real .usdz for this dish yet — show the 3D view instead of
+      // silently failing (there's nothing valid for Quick Look to open).
+      mv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      arHint.classList.add('show');
       return;
     }
     if (mv.canActivateAR) { mv.activateAR(); return; }
