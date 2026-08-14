@@ -10,6 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
 <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 
 <style>
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -97,6 +98,12 @@
   .dish-tile .name{font-weight:600;font-size:15px;letter-spacing:-.01em;margin-bottom:3px}
   .dish-tile .lbl{font-family:var(--mono);font-size:10px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.12em}
   .dish-tile a{display:block;padding:8px 12px;font-family:var(--mono);font-size:10px;color:var(--accent);text-transform:uppercase;letter-spacing:.1em;border-top:1px solid var(--line);text-align:center}
+  .dish-tile .qr-row{display:flex;align-items:center;gap:10px;padding:12px 14px;border-top:1px solid var(--line)}
+  .dish-tile .qr-box{width:56px;height:56px;flex-shrink:0;background:#fff;border-radius:6px;padding:4px;display:grid;place-items:center}
+  .dish-tile .qr-box canvas{width:100%;height:100%;display:block}
+  .dish-tile .qr-links{display:flex;flex-direction:column;gap:2px;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em}
+  .dish-tile .qr-links a{padding:0;border:none;text-align:left;color:var(--accent)}
+  .dish-tile .qr-links a:hover{color:var(--accent-2)}
 
   .form-row{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
   .form-row label{font-family:var(--mono);font-size:10px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.14em;font-weight:500}
@@ -427,6 +434,26 @@
     } catch (e) { if (e.message !== 'unauth') toast(e.message, 'err'); }
   }
 
+  // ===== DISH QR CODES =====
+  function renderDishQRCodes() {
+    document.querySelectorAll('canvas[data-qr-url]').forEach(canvas => {
+      const url = canvas.dataset.qrUrl;
+      QRCode.toCanvas(canvas, url, { width: 120, margin: 1 }, err => { if (err) console.error('QR render failed', err); });
+    });
+    document.querySelectorAll('a[data-qr-download]').forEach(link => {
+      link.addEventListener('click', e => {
+        e.preventDefault();
+        const tile = link.closest('.dish-tile');
+        const canvas = tile.querySelector('canvas[data-qr-url]');
+        if (!canvas) return;
+        const a = document.createElement('a');
+        a.href = canvas.toDataURL('image/png');
+        a.download = `qr-${link.dataset.qrDownload}.png`;
+        a.click();
+      });
+    });
+  }
+
   // ===== CLIENT DRILL-DOWN =====
   let currentClientSlug = null;
   async function openClient(slug) {
@@ -455,9 +482,17 @@
                 <div class="name">${d.name}</div>
                 <div class="lbl">${d.price || '—'} · ${d.active ? 'live' : 'inactive'}</div>
               </div>
-              <a href="/view.html?r=${r.slug}&d=${d.slug}" target="_blank">Open AR page →</a>
+              <div class="qr-row">
+                <div class="qr-box"><canvas data-qr-url="${location.origin}/view.html?r=${r.slug}&d=${d.slug}"></canvas></div>
+                <div class="qr-links">
+                  <a href="/view.html?r=${r.slug}&d=${d.slug}" target="_blank">Open AR page →</a>
+                  <a data-qr-download="${d.slug}" href="#">Download QR ↓</a>
+                </div>
+              </div>
             </div>`).join('')}</div>`
         : `<div class="empty-state"><h3>No dishes yet.</h3><p>Add this restaurant's first dish to publish its AR page.</p><button class="btn" data-go="add-dish">+ Add dish</button></div>`;
+
+      renderDishQRCodes();
 
       $('clientRequestsWrap').innerHTML = c.requests.length
         ? `<table><thead><tr><th>Date</th><th>Message</th><th>Status</th></tr></thead><tbody>${
