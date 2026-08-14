@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
 <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script src="/vendor/qrcode.min.js"></script>
 
 <style>
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -438,7 +438,17 @@
   function renderDishQRCodes() {
     document.querySelectorAll('canvas[data-qr-url]').forEach(canvas => {
       const url = canvas.dataset.qrUrl;
-      QRCode.toCanvas(canvas, url, { width: 120, margin: 1 }, err => { if (err) console.error('QR render failed', err); });
+      if (typeof QRCode === 'undefined') {
+        console.error('QRCode library not loaded — cannot render QR for', url);
+        toast('QR codes failed to load — refresh the page and try again', 'err');
+        return;
+      }
+      QRCode.toCanvas(canvas, url, { width: 120, margin: 1 }, err => {
+        if (err) {
+          console.error('QR render failed', err);
+          toast('A QR code failed to render — refresh the page and try again', 'err');
+        }
+      });
     });
     document.querySelectorAll('a[data-qr-download]').forEach(link => {
       link.addEventListener('click', e => {
