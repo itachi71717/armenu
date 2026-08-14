@@ -18,12 +18,16 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'restaurant_slug, name, and glb_url required' });
   }
 
-  const { data: restaurant } = await supabaseAdmin
+  const { data: restaurant, error: restErr } = await supabaseAdmin
     .from('restaurants')
     .select('id')
     .eq('slug', restaurant_slug)
     .single();
 
+  if (restErr && restErr.code !== 'PGRST116') {
+    console.error('admin/dishes.js restaurant lookup failed:', restErr);
+    return res.status(502).json({ error: 'Backend temporarily unavailable' });
+  }
   if (!restaurant) return res.status(404).json({ error: 'Restaurant not found' });
 
   const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');

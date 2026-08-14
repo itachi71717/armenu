@@ -11,12 +11,16 @@ export default async function handler(req, res) {
   const slug = req.query.slug;
   if (!slug) return res.status(400).json({ error: 'slug required' });
 
-  const { data: restaurant } = await supabaseAdmin
+  const { data: restaurant, error: restErr } = await supabaseAdmin
     .from('restaurants')
     .select('id, slug, name, email, created_at')
     .eq('slug', slug)
     .maybeSingle();
 
+  if (restErr) {
+    console.error('admin/client.js restaurant lookup failed:', restErr);
+    return res.status(502).json({ error: 'Backend temporarily unavailable' });
+  }
   if (!restaurant) return res.status(404).json({ error: 'Not found' });
 
   if (req.method === 'DELETE') {

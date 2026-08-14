@@ -19,11 +19,16 @@ export default async function handler(req, res) {
 
   // Manual upsert (avoids depending on a specific unique-constraint name)
   const email = auth.email.toLowerCase();
-  const { data: existing } = await supabaseAdmin
+  const { data: existing, error: lookupErr } = await supabaseAdmin
     .from('pending_signups')
     .select('id')
     .ilike('email', email)
     .maybeSingle();
+
+  if (lookupErr) {
+    console.error('portal/pending-signup.js lookup failed:', lookupErr);
+    return res.status(502).json({ error: 'Backend temporarily unavailable' });
+  }
 
   if (existing) {
     const { error } = await supabaseAdmin

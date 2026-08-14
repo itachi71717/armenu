@@ -14,12 +14,16 @@ export default async function handler(req, res) {
   const message = (body.message || '').trim();
   if (!message) return res.status(400).json({ error: 'Message required' });
 
-  const { data: restaurant } = await supabaseAdmin
+  const { data: restaurant, error: restErr } = await supabaseAdmin
     .from('restaurants')
     .select('id')
     .ilike('email', auth.email)
     .maybeSingle();
 
+  if (restErr) {
+    console.error('portal/request.js restaurant lookup failed:', restErr);
+    return res.status(502).json({ error: 'Backend temporarily unavailable' });
+  }
   if (!restaurant) return res.status(404).json({ error: 'no_restaurant_linked' });
 
   const { error } = await supabaseAdmin.from('requests').insert({
