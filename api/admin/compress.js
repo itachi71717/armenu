@@ -2,7 +2,10 @@
 // Downloads a .glb from a public URL, grounds it (shifts geometry so the
 // model's base sits at Y=0, since AR anchors a model's local origin to the
 // detected surface — an ungrounded scan floats or sinks instead of sitting
-// flush), and re-uploads it to Supabase Storage (the "dishes" bucket) so we
+// flush), generates a real .usdz for Apple Quick Look (iPhone AR — see
+// ../_usdz.js for why this needs Three.js's actual exporter, not the
+// nonexistent model-viewer generateUSDZ() this app used to assume existed),
+// and re-uploads everything to Supabase Storage (the "dishes" bucket) so we
 // control the asset lifecycle.
 //
 // NOTE: Heavier geometry/texture optimisation (Draco, quantize) is still
@@ -15,6 +18,7 @@ import { supabaseAdmin } from '../_db.js';
 import { requireAdmin } from '../_auth.js';
 import { NodeIO } from '@gltf-transform/core';
 import { getBounds } from '@gltf-transform/functions';
+import { glbToUsdz } from '../_usdz.js';
 
 const BUCKET = 'dishes';
 
@@ -109,6 +113,32 @@ export default async function handler(req, res) {
     }
 
     const { data: pub } = supabaseAdmin.storage.from(BUCKET).getPublicUrl(filename);
+
+    // Best-effort: a dish is still fully usable on Android/desktop without a
+    // .usdz, so a conversion failure here should not fail the whole upload —
+    // just come back with usdz_url: null and a warning the admin can see.
+    let usdz_url = null;
+    let usdzWarning = null;
+    try {
+      const usdzBuffer = await glbToUsdz(groundedBytes);
+      const usdzFilename = `usdz/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.usdz`;
+      const { error: usdzUpErr } = await supabaseAdmin.storage
+        .from(BUCKET)
+        .upload(usdzFilename, usdzBuffer, {
+          contentType: 'model/vnd.usdz+zip',
+          cacheControl: '31536000',
+          upsert: false
+        });
+      if (usdzUpErr) {
+        usdzWarning = `Generated the iPhone AR file but couldn't upload it: ${usdzUpErr.message}`;
+      } else {
+        usdz_url = supabaseAdmin.storage.from(BUCKET).getPublicUrl(usdzFilename).data.publicUrl;
+      }
+    } catch (e) {
+      console.error('glbToUsdz failed:', e);
+      usdzWarning = `Could not generate an iPhone AR file for this model (${e.message}). It'll still show a 3D view on iPhone, just not full room-scale AR.`;
+    }
+
     return res.status(200).json({
       url: pub.publicUrl,
       original_size: originalSize,
@@ -116,7 +146,9 @@ export default async function handler(req, res) {
       saved_pct: 0,
       grounded,
       dimensions,
-      sizeWarning
+      sizeWarning,
+      usdz_url,
+      usdzWarning
     });
   } catch (e) {
     console.error('compress failed:', e);

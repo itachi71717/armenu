@@ -269,7 +269,7 @@
             </div>
             <div class="form-row" style="display:none" id="ndUrlRow"><label>OR paste an existing public .glb URL</label><input type="text" id="ndGlb" placeholder="https://…/dish.glb" /></div>
             <div style="text-align:center;margin:-4px 0 14px"><a id="ndToggleUrl" style="color:var(--ink-faint);font-size:11px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.1em;cursor:pointer">or use a hosted URL instead</a></div>
-            <div class="form-row"><label>.usdz for iPhone (optional — no auto-generation available)</label><input type="text" id="ndUsdz" placeholder="Paste a hosted .usdz URL — without one, iPhone shows the 3D view only, not full AR" /></div>
+            <div class="form-row"><label>.usdz for iPhone (auto-generated on save)</label><input type="text" id="ndUsdz" placeholder="Auto-generated on the server — or paste a custom URL to override" /></div>
             <div class="form-row"><label>Thumbnail URL (optional)</label><input type="text" id="ndThumb" placeholder="https://…/dish.jpg" /></div>
             <button class="btn" id="ndSubmit" style="width:100%;justify-content:center;padding:14px">Publish dish →</button>
           </div>
@@ -644,6 +644,13 @@
         toast('Warning: could not verify this model sits correctly in AR — check it manually', 'err');
       }
 
+      // The server generates a real .usdz automatically (via Three.js's
+      // actual exporter — see api/_usdz.js) so iPhone gets full room-scale
+      // AR, not just the 3D view. A manually-pasted URL in the form still
+      // takes priority if you have one.
+      const usdz_url = $('ndUsdz').value.trim() || comp.usdz_url || null;
+      if (comp.usdzWarning) toast(comp.usdzWarning, 'err');
+      else if (comp.usdz_url) toast('iPhone AR file generated ✓', 'ok');
 
       // STEP 3 — save the dish record using the optimised URL
       btn.textContent = 'Publishing…';
@@ -653,7 +660,7 @@
           restaurant_slug, name,
           price: $('ndPrice').value.trim() || null,
           glb_url,
-          usdz_url: $('ndUsdz').value.trim() || null,
+          usdz_url,
           thumb_url: $('ndThumb').value.trim() || null
         })
       });
