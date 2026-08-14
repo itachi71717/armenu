@@ -262,6 +262,17 @@
     return QRCode.toDataURL(targetUrl, { width: size, margin: 2 });
   }
 
+  // Many mobile browsers (Android Chrome, Samsung Internet especially) don't
+  // reliably honor the `download` attribute on a data: URI — instead of
+  // saving a file, they just open/display the image. blob: URLs are handled
+  // far more consistently for actual "save to device" behaviour, so we
+  // convert before setting up any download link.
+  async function qrBlobUrl(targetUrl, size = 800) {
+    const dataUrl = await qrDataUrl(targetUrl, size);
+    const blob = await (await fetch(dataUrl)).blob();
+    return URL.createObjectURL(blob);
+  }
+
   const clerk = new Clerk(PUBLISHABLE_KEY);
   await clerk.load({ });
 
@@ -415,11 +426,13 @@
   // nothing at all).
   async function openQr(dishSlug, dishName) {
     try {
-      const dataUrl = await qrDataUrl(dishTargetUrl(CURRENT.restaurant.slug, dishSlug));
+      const targetUrl = dishTargetUrl(CURRENT.restaurant.slug, dishSlug);
+      const dataUrl = await qrDataUrl(targetUrl);
+      const blobUrl = await qrBlobUrl(targetUrl);
       $('qrTitle').textContent = dishName;
       $('qrSub').textContent = 'Print this next to the dish on your menu. Diners scan it and the dish appears on their table in AR.';
       $('qrImg').src = dataUrl;
-      $('qrDownload').href = dataUrl;
+      $('qrDownload').href = blobUrl;
       $('qrDownload').setAttribute('download', `armenu-qr-${dishSlug}.png`);
       $('qrModal').classList.add('show');
     } catch (e) {
@@ -434,11 +447,13 @@
   $('masterQrAction').addEventListener('click', async () => {
     if (!CURRENT?.restaurant?.slug) return toast('Loading…', 'err');
     try {
-      const dataUrl = await qrDataUrl(menuTargetUrl(CURRENT.restaurant.slug));
+      const targetUrl = menuTargetUrl(CURRENT.restaurant.slug);
+      const dataUrl = await qrDataUrl(targetUrl);
+      const blobUrl = await qrBlobUrl(targetUrl);
       $('qrTitle').textContent = `${CURRENT.restaurant.name} · Whole menu`;
       $('qrSub').textContent = 'Place this on every table (tent card / sticker). Diners scan it once and tap any dish to see it in AR.';
       $('qrImg').src = dataUrl;
-      $('qrDownload').href = dataUrl;
+      $('qrDownload').href = blobUrl;
       $('qrDownload').setAttribute('download', `armenu-menu-${CURRENT.restaurant.slug}.png`);
       $('qrModal').classList.add('show');
     } catch (e) {
@@ -447,17 +462,18 @@
     }
   });
 
-  // Download all QRs — triggers each as a data: URI download (no third-party
-  // service, no cross-origin download-attribute issue)
+  // Download all QRs — each as a blob: URL download (no third-party service,
+  // no cross-origin download-attribute issue, and reliable on mobile browsers
+  // where data: URI downloads often just open/display the image instead)
   $('dlAllAction').addEventListener('click', async () => {
     if (!CURRENT?.dishes?.length) return toast('No dishes to download yet', 'err');
     toast(`Downloading ${CURRENT.dishes.length} QR codes…`, 'ok');
     try {
       for (let i = 0; i < CURRENT.dishes.length; i++) {
         const d = CURRENT.dishes[i];
-        const dataUrl = await qrDataUrl(dishTargetUrl(CURRENT.restaurant.slug, d.slug));
+        const blobUrl = await qrBlobUrl(dishTargetUrl(CURRENT.restaurant.slug, d.slug));
         const a = document.createElement('a');
-        a.href = dataUrl;
+        a.href = blobUrl;
         a.download = `armenu-qr-${d.slug}.png`;
         document.body.appendChild(a); a.click(); a.remove();
       }

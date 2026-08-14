@@ -456,10 +456,19 @@
         const tile = link.closest('.dish-tile');
         const canvas = tile.querySelector('canvas[data-qr-url]');
         if (!canvas) return;
-        const a = document.createElement('a');
-        a.href = canvas.toDataURL('image/png');
-        a.download = `qr-${link.dataset.qrDownload}.png`;
-        a.click();
+        // blob: URL, not canvas.toDataURL() directly — mobile browsers
+        // (Android Chrome, Samsung Internet) don't reliably honor the
+        // download attribute on a data: URI and often just display the
+        // image instead of saving it. blob: URLs save correctly.
+        canvas.toBlob(blob => {
+          if (!blob) { toast('Could not generate QR download — try again', 'err'); return; }
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `qr-${link.dataset.qrDownload}.png`;
+          a.click();
+          setTimeout(() => URL.revokeObjectURL(url), 5000);
+        }, 'image/png');
       });
     });
   }
