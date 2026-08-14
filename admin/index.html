@@ -647,6 +647,25 @@
         toast(`Optimised: ${before} MB → ${after} MB (${comp.saved_pct}% smaller)`, 'ok');
       }
 
+      // Every upload is auto-grounded (base shifted to sit flush on the
+      // detected surface). Absolute real-world scale can't be auto-corrected
+      // without a reference measurement, so a scan the server thinks is an
+      // implausible size for a dish is surfaced HERE, before it ever reaches
+      // a diner's phone — not discovered only after a customer scans a QR.
+      if (comp.sizeWarning) {
+        const proceed = confirm(
+          `⚠️ Scale problem detected:\n\n${comp.sizeWarning}\n\nPublish anyway? (Not recommended — diners will see it at the wrong size.)`
+        );
+        if (!proceed) {
+          toast('Publish cancelled — re-scan with a proper scale reference and try again', 'err');
+          btn.disabled = false;
+          btn.textContent = origLabel;
+          return;
+        }
+      } else if (comp.grounded === false) {
+        toast('Warning: could not verify this model sits correctly in AR — check it manually', 'err');
+      }
+
       // STEP 2.5 — auto-generate USDZ for iOS AR if not already provided
       if (!$('ndUsdz').value.trim()) {
         btn.textContent = 'Generating iOS model…';

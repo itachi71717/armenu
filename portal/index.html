@@ -232,7 +232,12 @@
 
   const PUBLISHABLE_KEY = 'pk_test_c3Ryb25nLWZvYWwtMzAuY2xlcmsuYWNjb3VudHMuZGV2JA';
   const SUPPORT_WHATSAPP = '27676257818';
-  const SITE_ORIGIN = location.origin;
+  // Hardcoded, not location.origin: if this page is ever opened via a
+  // Vercel preview/deployment URL instead of the custom domain, a
+  // location.origin-based QR would encode that URL — which Vercel gates
+  // behind a login page — sending diners/managers to a login wall instead
+  // of the AR viewer.
+  const SITE_ORIGIN = 'https://armenu.co.za';
 
   const $ = id => document.getElementById(id);
   const toast = (msg, kind='ok') => {
