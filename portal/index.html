@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 
 <style>
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -246,14 +247,19 @@
     setTimeout(() => t.classList.remove('show'), 3500);
   };
 
-  function qrUrl(slug, dishSlug, size = 800) {
-    const target = `${SITE_ORIGIN}/view.html?r=${encodeURIComponent(slug)}&d=${encodeURIComponent(dishSlug)}`;
-    return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&margin=20&data=${encodeURIComponent(target)}`;
+  // Generated locally (via the qrcode library) as a data: URI, not fetched from
+  // a third-party service. This matters for the download button: browsers
+  // silently ignore the `download` attribute on cross-origin links (like the
+  // old api.qrserver.com URL) and just navigate there instead of downloading —
+  // a data: URI is same-origin by definition, so download always works.
+  function dishTargetUrl(slug, dishSlug) {
+    return `${SITE_ORIGIN}/view.html?r=${encodeURIComponent(slug)}&d=${encodeURIComponent(dishSlug)}`;
   }
-
-  function masterMenuQrUrl(slug, size = 800) {
-    const target = `${SITE_ORIGIN}/menu.html?r=${encodeURIComponent(slug)}`;
-    return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&margin=20&data=${encodeURIComponent(target)}`;
+  function menuTargetUrl(slug) {
+    return `${SITE_ORIGIN}/menu.html?r=${encodeURIComponent(slug)}`;
+  }
+  function qrDataUrl(targetUrl, size = 800) {
+    return QRCode.toDataURL(targetUrl, { width: size, margin: 2 });
   }
 
   const clerk = new Clerk(PUBLISHABLE_KEY);
@@ -404,12 +410,12 @@
   }
 
   // QR Modal
-  function openQr(dishSlug, dishName) {
-    const url = qrUrl(CURRENT.restaurant.slug, dishSlug);
+  async function openQr(dishSlug, dishName) {
+    const dataUrl = await qrDataUrl(dishTargetUrl(CURRENT.restaurant.slug, dishSlug));
     $('qrTitle').textContent = dishName;
     $('qrSub').textContent = 'Print this next to the dish on your menu. Diners scan it and the dish appears on their table in AR.';
-    $('qrImg').src = url;
-    $('qrDownload').href = url;
+    $('qrImg').src = dataUrl;
+    $('qrDownload').href = dataUrl;
     $('qrDownload').setAttribute('download', `armenu-qr-${dishSlug}.png`);
     $('qrModal').classList.add('show');
   }
@@ -417,31 +423,30 @@
   $('qrModal').addEventListener('click', e => { if (e.target === $('qrModal')) $('qrModal').classList.remove('show'); });
 
   // Master menu QR — opens modal with the single whole-menu QR
-  $('masterQrAction').addEventListener('click', () => {
+  $('masterQrAction').addEventListener('click', async () => {
     if (!CURRENT?.restaurant?.slug) return toast('Loading…', 'err');
-    const url = masterMenuQrUrl(CURRENT.restaurant.slug);
+    const dataUrl = await qrDataUrl(menuTargetUrl(CURRENT.restaurant.slug));
     $('qrTitle').textContent = `${CURRENT.restaurant.name} · Whole menu`;
     $('qrSub').textContent = 'Place this on every table (tent card / sticker). Diners scan it once and tap any dish to see it in AR.';
-    $('qrImg').src = url;
-    $('qrDownload').href = url;
+    $('qrImg').src = dataUrl;
+    $('qrDownload').href = dataUrl;
     $('qrDownload').setAttribute('download', `armenu-menu-${CURRENT.restaurant.slug}.png`);
     $('qrModal').classList.add('show');
   });
 
-  // Download all QRs — opens each one in a new tab as PNG download
-  $('dlAllAction').addEventListener('click', () => {
+  // Download all QRs — triggers each as a data: URI download (no third-party
+  // service, no cross-origin download-attribute issue)
+  $('dlAllAction').addEventListener('click', async () => {
     if (!CURRENT?.dishes?.length) return toast('No dishes to download yet', 'err');
-    toast(`Opening ${CURRENT.dishes.length} QR codes — save each one`, 'ok');
-    CURRENT.dishes.forEach((d, i) => {
-      setTimeout(() => {
-        const a = document.createElement('a');
-        a.href = qrUrl(CURRENT.restaurant.slug, d.slug);
-        a.download = `armenu-qr-${d.slug}.png`;
-        a.target = '_blank';
-        a.rel = 'noopener';
-        document.body.appendChild(a); a.click(); a.remove();
-      }, i * 400);
-    });
+    toast(`Downloading ${CURRENT.dishes.length} QR codes…`, 'ok');
+    for (let i = 0; i < CURRENT.dishes.length; i++) {
+      const d = CURRENT.dishes[i];
+      const dataUrl = await qrDataUrl(dishTargetUrl(CURRENT.restaurant.slug, d.slug));
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = `armenu-qr-${d.slug}.png`;
+      document.body.appendChild(a); a.click(); a.remove();
+    }
   });
 
   $('reqBtn').addEventListener('click', async () => {
