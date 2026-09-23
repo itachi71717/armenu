@@ -32,8 +32,8 @@ export default async function handler(req, res) {
   if (!r) return res.status(400).json({ error: 'Missing r (restaurant) param', query: req.query, url: req.url });
 
   const { data: restaurant, error: restErr } = await supabase
-    .from('restaurants').select('id, name, slug').eq('slug', r).maybeSingle();
-  if (restErr) return res.status(502).json({ error: 'Backend temporarily unavailable', debug: restErr.message, code: restErr.code });
+    .from('restaurants').select('id, name, slug').eq('slug', r).single();
+  if (restErr && restErr.code !== 'PGRST116') return res.status(502).json({ error: 'Backend temporarily unavailable', debug: restErr.message, code: restErr.code, name: restErr.name });
   if (!restaurant) return res.status(404).json({ error: 'Restaurant not found' });
 
   // === SINGLE DISH ===
