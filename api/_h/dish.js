@@ -29,7 +29,7 @@ function nowInWindow(schedule, now) {
 
 export default async function handler(req, res) {
   const { r, d } = req.query;
-  if (!r) return res.status(400).json({ error: 'Missing r (restaurant) param' });
+  if (!r) return res.status(400).json({ error: 'Missing r (restaurant) param', query: req.query, url: req.url });
 
   const { data: restaurant, error: restErr } = await supabase
     .from('restaurants').select('id, name, slug').eq('slug', r).maybeSingle();
