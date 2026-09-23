@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Legal — AR Menu</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+<style>
+  body{font-family:'Inter',system-ui,sans-serif;background:#0a0806;color:#f5efe6;margin:0;line-height:1.6;-webkit-font-smoothing:antialiased}
+  a{color:#ffb066}
+  header{padding:20px 32px;border-bottom:1px solid rgba(255,239,220,.08);display:flex;justify-content:space-between;align-items:center}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:800;text-decoration:none;color:inherit}
+  .brand .mark{width:24px;height:24px;border-radius:7px;background:linear-gradient(135deg,#ff5722,#ffb066)}
+  main{max-width:760px;margin:0 auto;padding:60px 24px}
+  h1{font-family:'Instrument Serif',serif;font-style:italic;font-size:44px;font-weight:400;margin-bottom:6px;background:linear-gradient(180deg,#fff,#ffb066);-webkit-background-clip:text;color:transparent}
+  h2{font-size:22px;margin:40px 0 12px;color:#ff5722}
+  h3{font-size:16px;margin:24px 0 8px}
+  p,li{color:#c8bfae;font-size:15px;margin-bottom:12px}
+  ul{padding-left:22px}
+  .nav-anchor{display:flex;gap:16px;padding:12px 0 20px;border-bottom:1px solid rgba(255,239,220,.08);margin-bottom:30px;flex-wrap:wrap}
+  .nav-anchor a{color:#9a9388;font-size:13px;text-decoration:none;padding:6px 12px;border-radius:8px;background:rgba(255,239,220,.03);border:1px solid rgba(255,239,220,.08)}
+  .nav-anchor a:hover{color:#ff5722;border-color:rgba(255,87,34,.3)}
+  .updated{font-family:'JetBrains Mono',monospace;font-size:11px;color:#564f45;text-transform:uppercase;letter-spacing:.14em}
+</style>
+</head>
+<body>
+<header>
+  <a class="brand" href="/"><span class="mark"></span><span>AR&nbsp;Menu</span></a>
+  <a href="/" style="color:#9a9388;text-decoration:none;font-size:13px">← Home</a>
+</header>
+<main>
+  <h1>Legal</h1>
+  <div class="updated">Last updated 23 Sep 2026</div>
+
+  <div class="nav-anchor">
+    <a href="#terms">Terms of Service</a>
+    <a href="#privacy">Privacy Policy</a>
+    <a href="#refund">Refund Policy</a>
+    <a href="#cookies">Cookies</a>
+  </div>
+
+  <h2 id="terms">Terms of Service</h2>
+  <p>By using AR Menu ("the Service") you agree to these terms. AR Menu is operated from South Africa and governed by South African law.</p>
+  <h3>Accounts</h3>
+  <p>You are responsible for keeping your credentials safe. One account per restaurant unless purchased as multi-site.</p>
+  <h3>Acceptable use</h3>
+  <p>Do not upload illegal, infringing, or offensive 3D models or content. We may remove content and terminate accounts that violate this without notice.</p>
+  <h3>Availability</h3>
+  <p>We aim for 99.5% uptime but do not warrant uninterrupted service. Planned maintenance is announced when possible.</p>
+  <h3>Liability</h3>
+  <p>Our aggregate liability is capped at the fees you paid us in the twelve months preceding a claim.</p>
+
+  <h2 id="privacy">Privacy Policy</h2>
+  <p>We collect only what we need to run your menu.</p>
+  <h3>What we collect</h3>
+  <ul>
+    <li>Owner &amp; staff: email, name, hashed PIN, login timestamps.</li>
+    <li>Diners: no personal data. We log scan events (hashed IP, user agent, country) for analytics.</li>
+    <li>Orders &amp; reviews: contents entered by the diner, optionally with a table label.</li>
+  </ul>
+  <h3>Where it lives</h3>
+  <p>PostgreSQL on Supabase (EU region). Files (.glb / .usdz) on Supabase Storage. Hosting on Vercel. Payments handled by Paddle (Merchant of Record — subject to Paddle's own privacy policy).</p>
+  <h3>Your rights</h3>
+  <p>Email <a href="mailto:privacy@armenu.co.za">privacy@armenu.co.za</a> to access, correct or delete your data. We comply with the POPI Act (South Africa) and GDPR where applicable.</p>
+
+  <h2 id="refund">Refund Policy</h2>
+  <p>Every plan starts with a 7-day free trial. During the trial you can cancel at any time with no charge. After the trial:</p>
+  <ul>
+    <li>Monthly plans: cancel anytime; you keep access to the end of the paid month; no partial refund.</li>
+    <li>Yearly plans: cancel within 14 days of purchase for a full refund; after 14 days, pro-rated on a case-by-case basis.</li>
+    <li>Chargebacks or disputes must first be raised with us at <a href="mailto:billing@armenu.co.za">billing@armenu.co.za</a>.</li>
+  </ul>
+
+  <h2 id="cookies">Cookies</h2>
+  <p>The marketing site does not set tracking cookies. The admin/portal use a session cookie for authentication. The diner-facing menu uses only technical storage (local cart) that never leaves the device.</p>
+</main>
+</body>
+</html>

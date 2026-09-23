@@ -175,6 +175,7 @@ function signOut() {
   localStorage.removeItem('armenu_staff_session');
   session = null;
   if (poll) clearInterval(poll);
+  try { es?.close(); } catch {}
   $('login').style.display = 'grid';
 }
 $('signout').onclick = signOut;
@@ -183,7 +184,17 @@ function onLoggedIn() {
   $('login').style.display = 'none';
   $('whoami').textContent = `${session.staff.name} · ${session.restaurant.name}`;
   refresh();
-  poll = setInterval(refresh, 5000);
+  poll = setInterval(refresh, 15000);   // fallback poll — SSE handles instant updates
+  startSSE();
+}
+
+let es = null;
+function startSSE() {
+  try { es?.close(); } catch {}
+  es = new EventSource('/api/events?token=' + encodeURIComponent(session.token));
+  es.addEventListener('orders', () => refresh());
+  es.addEventListener('calls', () => refresh());
+  es.onerror = () => { try { es.close(); } catch {} setTimeout(startSSE, 4000); };
 }
 
 // ============ TABS ============

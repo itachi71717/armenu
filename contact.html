@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Contact — AR Menu</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{--bg:#0a0806;--ink:#f5efe6;--ink-dim:#9a9388;--ink-faint:#564f45;--accent:#ff5722;--accent-2:#ffb066;--line:rgba(255,239,220,.08);--serif:'Instrument Serif',serif;--mono:'JetBrains Mono',monospace}
+  body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
+  a{color:inherit;text-decoration:none}
+  header{padding:20px 32px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line)}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:13px;letter-spacing:.06em;text-transform:uppercase}
+  .brand .mark{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,var(--accent),var(--accent-2))}
+  .brand b{font-weight:800}.brand i{font-style:normal;color:var(--ink-dim);font-weight:500;margin-left:3px}
+  nav a{margin:0 12px;font-size:14px;color:var(--ink-dim)}
+  main{max-width:640px;margin:0 auto;padding:60px 24px}
+  h1{font-family:var(--serif);font-style:italic;font-size:clamp(38px,7vw,58px);font-weight:400;margin-bottom:12px;background:linear-gradient(180deg,#fff,var(--accent-2));-webkit-background-clip:text;color:transparent}
+  .kicker{font-family:var(--mono);font-size:11px;color:var(--accent);letter-spacing:.22em;text-transform:uppercase;margin-bottom:12px}
+  .lead{color:var(--ink-dim);font-size:16px;line-height:1.5;margin-bottom:36px}
+  .tabs{display:flex;gap:8px;margin-bottom:28px;flex-wrap:wrap}
+  .tab{padding:9px 14px;border-radius:10px;background:rgba(255,239,220,.04);border:1px solid var(--line);color:var(--ink-dim);font-size:13px;cursor:pointer}
+  .tab.on{background:rgba(255,87,34,.14);color:var(--accent);border-color:rgba(255,87,34,.28)}
+  .row{margin-bottom:14px}
+  .row label{display:block;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--ink-faint);margin-bottom:6px}
+  .row input,.row textarea{width:100%;padding:12px 14px;border-radius:10px;background:rgba(255,239,220,.03);border:1px solid var(--line);font-size:14px;color:var(--ink);font-family:inherit}
+  .btn{padding:14px 24px;border-radius:12px;background:linear-gradient(135deg,var(--accent),#c93d00);color:#fff;font-weight:700;font-size:14px;border:none;cursor:pointer}
+  .ok{color:#7dd87d;font-size:14px;margin-top:12px}
+  .contact-info{margin-top:40px;padding-top:24px;border-top:1px solid var(--line);color:var(--ink-dim);font-size:13px;line-height:1.7}
+  .contact-info strong{color:var(--ink)}
+</style>
+</head>
+<body>
+<header>
+  <a class="brand" href="/"><span class="mark"></span><b>AR</b><i>Menu</i></a>
+  <nav><a href="/how">How</a><a href="/plans">Pricing</a><a href="/faq">FAQs</a></nav>
+</header>
+<main>
+  <div class="kicker" id="kicker">Contact</div>
+  <h1 id="pageTitle">Talk to us.</h1>
+  <p class="lead" id="pageLead">Setup takes minutes and we'll walk your first restaurant through it live if you want.</p>
+
+  <div class="tabs">
+    <div class="tab on" data-type="general">General enquiry</div>
+    <div class="tab" data-type="billing">Support / billing</div>
+    <div class="tab" data-type="enterprise">Enterprise</div>
+  </div>
+
+  <form id="contactForm">
+    <div class="row"><label>Your name</label><input required id="name" /></div>
+    <div class="row"><label>Email</label><input required type="email" id="email" /></div>
+    <div class="row"><label>Restaurant / venue</label><input id="restaurant" /></div>
+    <div class="row"><label>Message</label><textarea required id="message" rows="5"></textarea></div>
+    <input type="hidden" id="type" value="general" />
+    <button class="btn" type="submit">Send →</button>
+    <div class="ok" id="ok" style="display:none">✓ Thanks — we'll be in touch within a business day.</div>
+  </form>
+
+  <div class="contact-info">
+    <strong>Email:</strong> hello@armenu.co.za<br>
+    <strong>WhatsApp:</strong> +27 —<br>
+    <strong>Address:</strong> Johannesburg, South Africa
+  </div>
+</main>
+<script>
+  const p = new URLSearchParams(location.search);
+  const type = p.get('type') || 'general';
+  document.querySelectorAll('.tab').forEach(t => {
+    t.onclick = () => {
+      document.querySelectorAll('.tab').forEach(x => x.classList.remove('on'));
+      t.classList.add('on');
+      document.getElementById('type').value = t.dataset.type;
+      updateHeader(t.dataset.type);
+    };
+    if (t.dataset.type === type) t.click();
+  });
+  function updateHeader(t) {
+    const cfg = { general: ['Contact', 'Talk to us.', "Setup takes minutes and we'll walk your first restaurant through it live if you want."], billing: ['Support', "We're here to help.", 'Send us your restaurant slug + a description and we\'ll respond within a business day.'], enterprise: ['Enterprise', "Let's build it together.", 'For chains, hotel groups & luxury venues. Custom animation, unlimited seats, dedicated support.'] }[t] || [];
+    if (cfg[0]) { document.getElementById('kicker').textContent = cfg[0]; document.getElementById('pageTitle').textContent = cfg[1]; document.getElementById('pageLead').textContent = cfg[2]; }
+  }
+  document.getElementById('contactForm').onsubmit = async (e) => {
+    e.preventDefault();
+    const body = { name: name.value, email: email.value, restaurant: restaurant.value, message: message.value, type: document.getElementById('type').value };
+    // Fire-and-forget: attempts a serverless endpoint if you add one; else falls back to mailto.
+    try {
+      const r = await fetch('/api/portal/pending-signup', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: body.email, restaurant_name: body.restaurant, phone: '', message: `[${body.type}] ${body.name}: ${body.message}` }) });
+      if (r.ok) { document.getElementById('ok').style.display = 'block'; e.target.reset(); return; }
+    } catch {}
+    location.href = `mailto:hello@armenu.co.za?subject=${encodeURIComponent('[' + body.type + '] ' + body.name)}&body=${encodeURIComponent(body.message + '\n\n— ' + body.name + ' (' + body.email + ') · ' + body.restaurant)}`;
+  };
+</script>
+</body>
+</html>
