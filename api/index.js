@@ -1,93 +1,52 @@
-// Single catch-all dispatcher — consolidates every /api/* route into ONE
-// Vercel serverless function so we stay under the Hobby-plan 12-function cap.
-// Handlers live in api/_h/ (Vercel ignores _-prefixed paths). This file just
-// maps URL → handler module and calls its default export.
-//
-// Route table below; add a new endpoint by dropping a file in api/_h/ and
-// adding one line here.
-import dish        from './_h/dish.js';
-import scan        from './_h/scan.js';
-import settings    from './_h/settings.js';
-import order       from './_h/order.js';
-import waiterCall  from './_h/waiter-call.js';
-import review      from './_h/review.js';
-import events      from './_h/events.js';
-
-import adminSettings   from './_h/admin/settings.js';
-import adminCategories from './_h/admin/categories.js';
-import adminTables     from './_h/admin/tables.js';
-import adminStaff      from './_h/admin/staff.js';
-import adminOrders     from './_h/admin/orders.js';
-import adminCalls      from './_h/admin/waiter-calls.js';
-import adminReviews    from './_h/admin/reviews.js';
-import adminOffers     from './_h/admin/offers.js';
-import adminAnalytics  from './_h/admin/analytics.js';
-import adminAiGenerate from './_h/admin/ai-generate.js';
-import adminAiReader   from './_h/admin/ai-menu-reader.js';
-import adminBilling    from './_h/admin/billing.js';
-import adminClient     from './_h/admin/client.js';
-import adminClients    from './_h/admin/clients.js';
-import adminCompress   from './_h/admin/compress.js';
-import adminDishes     from './_h/admin/dishes.js';
-import adminOverview   from './_h/admin/overview.js';
-import adminPending    from './_h/admin/pending.js';
-import adminUploadUrl  from './_h/admin/upload-url.js';
-
-import staffLogin   from './_h/staff/login.js';
-import staffOrders  from './_h/staff/orders.js';
-import staffTables  from './_h/staff/tables.js';
-import staffCalls   from './_h/staff/calls.js';
-
-import portalMe          from './_h/portal/me.js';
-import portalPending     from './_h/portal/pending-signup.js';
-import portalRequest     from './_h/portal/request.js';
-
-import paddleWebhook from './_h/paddle/webhook.js';
-
-// URL suffix (after /api/) → handler
+// Single catch-all API dispatcher.
+// Uses DYNAMIC imports so a heavy handler (image processing, PDF, etc.) does
+// not slow down cold-start for a lightweight one like /api/dish or /api/settings.
+// Each URL suffix → the module path under _h/ to load on demand.
 const ROUTES = {
-  'dish':          dish,
-  'scan':          scan,
-  'settings':      settings,
-  'order':         order,
-  'waiter-call':   waiterCall,
-  'review':        review,
-  'events':        events,
+  'dish':         'dish',
+  'scan':         'scan',
+  'settings':     'settings',
+  'order':        'order',
+  'waiter-call':  'waiter-call',
+  'review':       'review',
+  'events':       'events',
 
-  'admin/settings':     adminSettings,
-  'admin/categories':   adminCategories,
-  'admin/tables':       adminTables,
-  'admin/staff':        adminStaff,
-  'admin/orders':       adminOrders,
-  'admin/waiter-calls': adminCalls,
-  'admin/reviews':      adminReviews,
-  'admin/offers':       adminOffers,
-  'admin/analytics':    adminAnalytics,
-  'admin/ai-generate':  adminAiGenerate,
-  'admin/ai-menu-reader': adminAiReader,
-  'admin/billing':      adminBilling,
-  'admin/client':       adminClient,
-  'admin/clients':      adminClients,
-  'admin/compress':     adminCompress,
-  'admin/dishes':       adminDishes,
-  'admin/overview':     adminOverview,
-  'admin/pending':      adminPending,
-  'admin/upload-url':   adminUploadUrl,
+  'admin/settings':      'admin/settings',
+  'admin/categories':    'admin/categories',
+  'admin/tables':        'admin/tables',
+  'admin/staff':         'admin/staff',
+  'admin/orders':        'admin/orders',
+  'admin/waiter-calls':  'admin/waiter-calls',
+  'admin/reviews':       'admin/reviews',
+  'admin/offers':        'admin/offers',
+  'admin/analytics':     'admin/analytics',
+  'admin/ai-generate':   'admin/ai-generate',
+  'admin/ai-menu-reader':'admin/ai-menu-reader',
+  'admin/billing':       'admin/billing',
+  'admin/client':        'admin/client',
+  'admin/clients':       'admin/clients',
+  'admin/compress':      'admin/compress',
+  'admin/dishes':        'admin/dishes',
+  'admin/overview':      'admin/overview',
+  'admin/pending':       'admin/pending',
+  'admin/upload-url':    'admin/upload-url',
 
-  'staff/login':  staffLogin,
-  'staff/orders': staffOrders,
-  'staff/tables': staffTables,
-  'staff/calls':  staffCalls,
+  'staff/login':  'staff/login',
+  'staff/orders': 'staff/orders',
+  'staff/tables': 'staff/tables',
+  'staff/calls':  'staff/calls',
 
-  'portal/me':               portalMe,
-  'portal/pending-signup':   portalPending,
-  'portal/request':          portalRequest,
+  'portal/me':             'portal/me',
+  'portal/pending-signup': 'portal/pending-signup',
+  'portal/request':        'portal/request',
 
-  'paddle/webhook': paddleWebhook
+  'paddle/webhook': 'paddle/webhook'
 };
 
+const cache = {};
+
 export default async function handler(req, res) {
-  // Prefer Vercel's [...path] param; fall back to parsing req.url directly.
+  // Resolve URL path — either from Vercel [...path] or from req.url directly
   let key = '';
   if (Array.isArray(req.query.path)) key = req.query.path.join('/');
   else if (req.query.path) key = String(req.query.path);
@@ -95,7 +54,20 @@ export default async function handler(req, res) {
     const pathname = (req.url || '').split('?')[0];
     key = pathname.replace(/^\/api\/?/, '').replace(/\/+$/, '');
   }
-  const fn = ROUTES[key];
-  if (!fn) return res.status(404).json({ error: 'not found: /api/' + key });
-  return fn(req, res);
+  const modPath = ROUTES[key];
+  if (!modPath) return res.status(404).json({ error: 'not found: /api/' + key });
+
+  try {
+    let mod = cache[modPath];
+    if (!mod) {
+      mod = await import('./_h/' + modPath + '.js');
+      cache[modPath] = mod;
+    }
+    const fn = mod.default;
+    if (!fn) return res.status(500).json({ error: 'Handler has no default export: ' + modPath });
+    return fn(req, res);
+  } catch (e) {
+    console.error('Dispatcher error for', key, e);
+    return res.status(500).json({ error: 'Handler load failed', debug: e.message });
+  }
 }
