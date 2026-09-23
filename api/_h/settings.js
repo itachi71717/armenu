@@ -1,8 +1,13 @@
 // GET /api/settings?r=<restaurant-slug>
-// Public — used by the guest menu to know which optional modules are enabled
-// (orders, waiter-call, reviews, tables), plus branding + currency + languages.
-
+// Public — features + branding + locale for the guest menu.
+// Degrades gracefully when restaurant_settings hasn't been migrated yet
+// (returns safe defaults so the AR menu still works).
 import { supabase } from '../_db.js';
+
+const isMissingTable = err => {
+  const msg = String(err?.message || '');
+  return /relation .* does not exist/i.test(msg) || err?.code === '42P01';
+};
 
 export default async function handler(req, res) {
   const { r } = req.query;
@@ -12,34 +17,35 @@ export default async function handler(req, res) {
     .from('restaurants').select('id, slug, name').eq('slug', r).single();
   if (rerr || !restaurant) return res.status(404).json({ error: 'Restaurant not found' });
 
-  const { data: s } = await supabase
-    .from('restaurant_settings').select('*').eq('restaurant_id', restaurant.id).maybeSingle();
+  let s = {};
+  try {
+    const q = await supabase.from('restaurant_settings').select('*').eq('restaurant_id', restaurant.id).maybeSingle();
+    if (!isMissingTable(q.error)) s = q.data || {};
+  } catch {}
 
-  // Fall back to defaults if no row (older restaurants)
-  const settings = s || {};
   return res.status(200).json({
     restaurant: { slug: restaurant.slug, name: restaurant.name },
     features: {
-      orders:       !!settings.orders_enabled,
-      waiter_call:  !!settings.waiter_call_enabled,
-      reviews:      settings.reviews_enabled !== false,
-      tables:       !!settings.tables_enabled,
-      kitchen:      !!settings.kitchen_display
+      orders:      !!s.orders_enabled,
+      waiter_call: !!s.waiter_call_enabled,
+      reviews:     s.reviews_enabled !== false,
+      tables:      !!s.tables_enabled,
+      kitchen:     !!s.kitchen_display
     },
     branding: {
-      logo:    settings.logo_url || null,
-      cover:   settings.cover_url || null,
-      primary: settings.theme_primary || '#ff5722',
-      bg:      settings.theme_bg || '#0a0806',
-      tagline: settings.tagline || null
+      logo:    s.logo_url || null,
+      cover:   s.cover_url || null,
+      primary: s.theme_primary || '#ff5722',
+      bg:      s.theme_bg || '#0a0806',
+      tagline: s.tagline || null
     },
     locale: {
-      currency:        settings.default_currency || 'ZAR',
-      currency_symbol: settings.currency_symbol || 'R',
-      default_lang:    settings.default_language || 'en',
-      languages:       settings.enabled_languages || ['en']
+      currency:        s.default_currency || 'ZAR',
+      currency_symbol: s.currency_symbol || 'R',
+      default_lang:    s.default_language || 'en',
+      languages:       s.enabled_languages || ['en']
     },
-    google_review_url: settings.google_review_url || null,
-    plan:              settings.plan || 'starter'
+    google_review_url: s.google_review_url || null,
+    plan:              s.plan || 'starter'
   });
 }
