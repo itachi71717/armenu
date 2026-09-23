@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>QR sheet · AR Menu</title>
+<script src="/vendor/qrcode.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',system-ui,sans-serif;background:#f4efe6;color:#0a0806;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .toolbar{position:sticky;top:0;background:#0a0806;color:#f5efe6;padding:16px 24px;display:flex;justify-content:space-between;align-items:center;gap:12px;box-shadow:0 6px 20px rgba(0,0,0,.15);z-index:10}
+  .toolbar h1{font-family:'Instrument Serif',serif;font-style:italic;font-size:22px;font-weight:400}
+  .toolbar button{padding:12px 22px;border-radius:10px;border:none;background:linear-gradient(135deg,#ff5722,#c93d00);color:#fff;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit}
+  .toolbar .layout-picker{display:flex;gap:6px}
+  .toolbar .layout-picker button{padding:8px 14px;background:rgba(255,255,255,.08);font-weight:500}
+  .toolbar .layout-picker button.on{background:#ff5722}
+  main{padding:20mm 15mm;max-width:210mm;margin:0 auto}
+  .sheet{display:grid;grid-template-columns:repeat(2,1fr);gap:12mm;page-break-after:always}
+  .sheet.four{grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(2,1fr);height:calc(297mm - 40mm)}
+  .sheet.six{grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(3,1fr);height:calc(297mm - 40mm)}
+  .sheet.nine{grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);height:calc(297mm - 40mm)}
+  .qr-card{border:1.5px solid #0a0806;border-radius:16px;padding:20px 16px;text-align:center;display:flex;flex-direction:column;justify-content:space-between;background:#fff;break-inside:avoid;position:relative}
+  .qr-card .brand{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:#ff5722;margin-bottom:8px;font-weight:700}
+  .qr-card .title{font-family:'Instrument Serif',serif;font-style:italic;font-size:22px;margin-bottom:2px;line-height:1.1}
+  .qr-card .subtitle{font-size:11px;color:#666;margin-bottom:14px}
+  .qr-card .qr-holder{margin:8px auto;padding:8px;background:#fff;border-radius:8px;display:inline-block}
+  .qr-card .qr-holder canvas{display:block}
+  .qr-card .cta{margin-top:14px;font-size:14px;font-weight:700;letter-spacing:.02em}
+  .qr-card .cta em{font-style:normal;color:#ff5722}
+  .qr-card .foot{font-family:'JetBrains Mono',monospace;font-size:8.5px;color:#888;letter-spacing:.1em;text-transform:uppercase;margin-top:10px}
+  .msg{padding:60px 20px;text-align:center;color:#666}
+  @media print{.toolbar{display:none}main{padding:15mm 12mm}}
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <h1>QR sheet — <span id="restName">…</span></h1>
+  <div style="display:flex;gap:12px;align-items:center">
+    <div class="layout-picker">
+      <button data-layout="four" class="on">4/page</button>
+      <button data-layout="six">6/page</button>
+      <button data-layout="nine">9/page</button>
+    </div>
+    <button onclick="window.print()">🖨 Print</button>
+  </div>
+</div>
+<main id="root"><div class="msg">Loading…</div></main>
+
+<script>
+const params = new URLSearchParams(location.search);
+const slug = params.get('r');
+const type = params.get('type') || 'tables';  // tables | dishes | menu
+const SECRET_KEY = 'armenu_admin_secret';
+const SECRET = sessionStorage.getItem(SECRET_KEY) || prompt('Admin password:') || '';
+if (SECRET && !sessionStorage.getItem(SECRET_KEY)) sessionStorage.setItem(SECRET_KEY, SECRET);
+
+let layout = 'four';
+document.querySelectorAll('[data-layout]').forEach(b => b.onclick = () => {
+  document.querySelectorAll('[data-layout]').forEach(x => x.classList.remove('on'));
+  b.classList.add('on');
+  layout = b.dataset.layout;
+  render(cachedItems);
+});
+
+async function api(path) {
+  const r = await fetch(path, { headers: { 'x-admin-secret': SECRET } });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+let cachedItems = [];
+async function load() {
+  if (!slug) return document.getElementById('root').innerHTML = '<div class="msg">Missing ?r=&lt;restaurant-slug&gt;</div>';
+  try {
+    const client = await api('/api/admin/client?slug=' + slug);
+    document.getElementById('restName').textContent = client.restaurant.name;
+
+    if (type === 'tables') {
+      const t = await api('/api/admin/tables?slug=' + slug);
+      cachedItems = (t.tables || []).map(x => ({
+        title: 'Table ' + x.label,
+        subtitle: (x.seats || 2) + ' seat' + (x.seats === 1 ? '' : 's'),
+        url: `${location.origin}/t/${slug}/${encodeURIComponent(x.label)}`,
+        code: x.label
+      }));
+    } else if (type === 'dishes') {
+      cachedItems = (client.dishes || []).map(x => ({
+        title: x.name,
+        subtitle: x.price || '',
+        url: `${location.origin}/view.html?r=${slug}&d=${x.slug}`,
+        code: x.slug
+      }));
+    } else {
+      cachedItems = [{
+        title: client.restaurant.name,
+        subtitle: 'Full menu · AR-enabled',
+        url: `${location.origin}/m/${slug}`,
+        code: 'menu'
+      }];
+    }
+    render(cachedItems);
+  } catch (e) {
+    document.getElementById('root').innerHTML = '<div class="msg">Could not load: ' + e.message + '</div>';
+  }
+}
+
+function render(items) {
+  if (!items.length) {
+    document.getElementById('root').innerHTML = '<div class="msg">Nothing to print. Add ' + type + ' first.</div>';
+    return;
+  }
+  const perPage = { four: 4, six: 6, nine: 9 }[layout];
+  let html = '';
+  for (let i = 0; i < items.length; i += perPage) {
+    const page = items.slice(i, i + perPage);
+    html += `<div class="sheet ${layout}">${page.map(it => `
+      <div class="qr-card">
+        <div>
+          <div class="brand">AR · Menu</div>
+          <div class="title">${escapeHTML(it.title)}</div>
+          ${it.subtitle ? `<div class="subtitle">${escapeHTML(it.subtitle)}</div>` : ''}
+        </div>
+        <div class="qr-holder"><canvas data-qr="${escapeHTML(it.url)}"></canvas></div>
+        <div>
+          <div class="cta">Scan · <em>See in AR</em></div>
+          <div class="foot">${escapeHTML(it.url.replace(/^https?:\/\//, ''))}</div>
+        </div>
+      </div>`).join('')}</div>`;
+  }
+  document.getElementById('root').innerHTML = html;
+  // Render QR canvases
+  const size = layout === 'nine' ? 140 : layout === 'six' ? 180 : 220;
+  document.querySelectorAll('canvas[data-qr]').forEach(c => {
+    QRCode.toCanvas(c, c.dataset.qr, { width: size, margin: 1, color: { dark: '#0a0806', light: '#ffffff' } });
+  });
+}
+
+function escapeHTML(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+load();
+</script>
+</body>
+</html>

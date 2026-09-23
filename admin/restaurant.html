@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
+<script src="/vendor/qrcode.min.js"></script>
 <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
 <style>
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -193,7 +194,16 @@
       <button class="btn" id="tbl_add">+ Add</button>
     </div>
   </div>
-  <div class="card"><h2>Tables</h2><div class="sub">Each table's QR opens the menu pinned to that table. Print and place on the table.</div><div id="tbl_list"></div></div>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:10px">
+      <div><h2 style="margin:0">Tables</h2><div class="sub" style="margin:2px 0 0">Each table's QR opens the menu pinned to that table.</div></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <a class="btn-ghost btn" id="tbl_print_menu" target="_blank">🖨 Print master QR</a>
+        <a class="btn btn-p btn" id="tbl_print_all" target="_blank" style="background:linear-gradient(135deg,var(--accent),#c93d00);color:#fff">🖨 Print all table QRs →</a>
+      </div>
+    </div>
+    <div id="tbl_list"></div>
+  </div>
 </div>
 
 <!-- STAFF -->
@@ -304,12 +314,13 @@
       </div>
     </div>
 
-    <div id="ars-step4" style="display:none;text-align:center;padding:40px 20px">
-      <div style="font-size:60px;margin-bottom:14px">✨</div>
-      <h3 style="font-family:var(--serif);font-style:italic;font-size:28px;margin-bottom:8px">Dish published!</h3>
-      <div class="sub" id="ars_done_msg" style="max-width:500px;margin:0 auto 20px">Life-size AR is ready. Print the QR from the Tables tab or share the link with diners.</div>
+    <div id="ars-step4" style="display:none;text-align:center;padding:30px 20px">
+      <div style="font-size:56px;margin-bottom:8px">✨</div>
+      <h3 style="font-family:var(--serif);font-style:italic;font-size:26px;margin-bottom:6px">Dish published!</h3>
+      <div class="sub" id="ars_done_msg" style="max-width:500px;margin:0 auto 16px">Life-size AR is ready. Scan the QR below on your phone to test it.</div>
+      <div style="background:#fff;padding:14px;border-radius:14px;display:inline-block;margin-bottom:16px"><canvas id="ars_done_qr" width="180" height="180"></canvas></div>
       <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
-        <a class="btn" id="ars_view_dish" target="_blank">See it in AR →</a>
+        <a class="btn" id="ars_view_dish" target="_blank">Open on this device →</a>
         <button class="btn-ghost btn" id="ars_another">Generate another dish</button>
       </div>
     </div>
@@ -333,8 +344,10 @@
 <!-- DISHES (edit + resize + toggle + delete) -->
 <div class="view" id="view-dishes">
   <div class="card">
-    <h2>Dishes</h2>
-    <div class="sub">Manage every dish on this restaurant's menu. Click a row to edit; drag the size slider to tune the AR scale.</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:10px">
+      <div><h2 style="margin:0">Dishes</h2><div class="sub" style="margin:2px 0 0">Drag the size slider to tune the AR scale — auto-saved.</div></div>
+      <a class="btn" id="dish_print" target="_blank" style="text-decoration:none">🖨 Print QR sheet</a>
+    </div>
     <div id="dish_list"></div>
   </div>
 </div>
@@ -458,6 +471,8 @@ async function load(tab) {
       wireList('[data-del-cat]', async id => { if (confirm('Delete category?')) { await api('/api/admin/categories?id=' + id, { method: 'DELETE' }); load('categories'); } });
     }
     if (tab === 'tables') {
+      $('tbl_print_all').href = '/qr-print.html?r=' + slug + '&type=tables';
+      $('tbl_print_menu').href = '/qr-print.html?r=' + slug + '&type=menu';
       const { tables } = await api('/api/admin/tables?slug=' + slug);
       $('tbl_list').innerHTML = tables.length
         ? `<table><thead><tr><th>Label</th><th>Seats</th><th>Status</th><th>QR link</th><th></th></tr></thead><tbody>${tables.map(t => `<tr><td><strong>${escapeHTML(t.label)}</strong></td><td>${t.seats}</td><td><span class="status-pill">${t.status}</span></td><td style="font-family:var(--mono);font-size:11px"><a href="/menu.html?r=${slug}&t=${encodeURIComponent(t.label)}" target="_blank">/menu?r=${slug}&t=${escapeHTML(t.label)}</a></td><td style="text-align:right"><button class="btn-err btn" data-del-tbl="${t.id}">✕</button></td></tr>`).join('')}</tbody></table>`
@@ -729,13 +744,16 @@ $('ars_publish').onclick = async () => {
     }
     $('ars-step3').style.display = 'none'; $('ars-step4').style.display = '';
     const dishSlug = ($('ars_name').value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-'));
-    $('ars_view_dish').href = `/view.html?r=${slug}&d=${dishSlug}`;
+    const url = `${location.origin}/view.html?r=${slug}&d=${dishSlug}`;
+    $('ars_view_dish').href = url;
+    if (window.QRCode) QRCode.toCanvas($('ars_done_qr'), url, { width: 180, margin: 1, color: { dark: '#0a0806', light: '#ffffff' } });
     toast('Dish published ✓', 'ok');
   } catch (e) { toast(e.message, 'err'); btn.disabled = false; btn.textContent = '✓ Publish as new dish'; }
 };
 
 // ===== DISHES tab (edit + resize + delete existing dishes) =====
 async function loadDishes() {
+  $('dish_print').href = '/qr-print.html?r=' + slug + '&type=dishes';
   const c = await api('/api/admin/client?slug=' + slug);
   const dishes = c.dishes || [];
   if (!dishes.length) return $('dish_list').innerHTML = '<div class="empty"><h3>No dishes yet</h3><p>Use AR Studio to create your first dish.</p></div>';
