@@ -14,6 +14,8 @@
     { "source": "/privacy", "destination": "/legal.html" },
     { "source": "/staff",   "destination": "/staff/index.html" },
     { "source": "/staff/",  "destination": "/staff/index.html" },
+    { "source": "/kitchen",  "destination": "/kitchen/index.html" },
+    { "source": "/kitchen/", "destination": "/kitchen/index.html" },
     { "source": "/m/:slug", "destination": "/menu.html?r=:slug" },
     { "source": "/t/:slug/:table", "destination": "/menu.html?r=:slug&t=:table" }
   ],

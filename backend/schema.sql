@@ -77,6 +77,8 @@ alter table dishes add column if not exists sort_order   int default 0;
 alter table dishes add column if not exists allergens    text;                    -- comma-sep e.g. "gluten,dairy"
 alter table dishes add column if not exists translations jsonb default '{}'::jsonb; -- { "de": {"name": "...", "description": "..."}, "af": {...} }
 alter table dishes add column if not exists price_cents  int;                     -- normalised (currency held on restaurant_settings)
+alter table dishes add column if not exists scale        real default 1.0;         -- real-world scale multiplier for AR (1.0 = as-generated; owner adjusts in AR Studio)
+alter table dishes add column if not exists ar_source    text;                     -- 'upload' | 'ai' | 'manual' — used to enable "regenerate" only for AI dishes
 
 create index if not exists dishes_category on dishes(category_id);
 
@@ -104,8 +106,7 @@ create table if not exists restaurant_settings (
   google_review_url   text,
   -- Plan / billing
   plan                text default 'starter',       -- starter | pro | premium | enterprise
-  subscription_status text default 'trial',         -- trial | active | past_due | cancelled
-  trial_ends_at       timestamptz default (now() + interval '7 days'),
+  subscription_status text default 'inactive',      -- inactive | active | past_due | cancelled
   paddle_subscription_id text,
   -- Meta
   updated_at          timestamptz default now()

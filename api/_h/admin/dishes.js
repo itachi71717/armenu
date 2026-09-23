@@ -1,53 +1,62 @@
-// POST /api/admin/dishes
-// You upload a dish (glb URL, name, price) and it goes live immediately
+// POST   /api/admin/dishes                    → create dish
+// PATCH  /api/admin/dishes?id=<id>            → { name?, price?, scale?, active?, thumb_url?, glb_url?, usdz_url?, description?, category_id?, camera_orbit? }
+// DELETE /api/admin/dishes?id=<id>
+import { supabase, supabaseAdmin } from '../../_db.js';
+import { requireAdmin } from '../../_auth.js';
 
-import { supabaseAdmin } from '../../_db.js';
-
-function isAdmin(req) {
-  return req.headers['x-admin-secret'] === process.env.ADMIN_SECRET;
-}
+const slugify = s => String(s || 'dish').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50) || 'dish';
+const parseCents = s => {
+  if (!s) return null;
+  const n = parseFloat(String(s).replace(/[^0-9.]/g, ''));
+  return Number.isFinite(n) ? Math.round(n * 100) : null;
+};
 
 export default async function handler(req, res) {
-  if (!isAdmin(req)) return res.status(401).json({ error: 'Unauthorized' });
-  if (req.method !== 'POST') return res.status(405).end();
+  if (!requireAdmin(req)) return res.status(401).json({ error: 'Unauthorized' });
 
-  const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-  const { restaurant_slug, name, price, glb_url, usdz_url, thumb_url, camera_orbit } = body;
+  if (req.method === 'POST') {
+    let body = {};
+    try { body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body; } catch {}
+    const { restaurant_slug, name, price, glb_url, usdz_url, thumb_url, camera_orbit, description, scale, ar_source } = body;
+    if (!restaurant_slug || !name || !glb_url) return res.status(400).json({ error: 'restaurant_slug, name, and glb_url required' });
 
-  if (!restaurant_slug || !name || !glb_url) {
-    return res.status(400).json({ error: 'restaurant_slug, name, and glb_url required' });
-  }
+    const { data: restaurant } = await supabase.from('restaurants').select('id').eq('slug', restaurant_slug).single();
+    if (!restaurant) return res.status(404).json({ error: 'Restaurant not found' });
 
-  const { data: restaurant, error: restErr } = await supabaseAdmin
-    .from('restaurants')
-    .select('id')
-    .eq('slug', restaurant_slug)
-    .single();
-
-  if (restErr && restErr.code !== 'PGRST116') {
-    console.error('admin/dishes.js restaurant lookup failed:', restErr);
-    return res.status(502).json({ error: 'Backend temporarily unavailable' });
-  }
-  if (!restaurant) return res.status(404).json({ error: 'Restaurant not found' });
-
-  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-
-  const { data, error } = await supabaseAdmin
-    .from('dishes')
-    .insert({
+    const { data, error } = await supabaseAdmin.from('dishes').insert({
       restaurant_id: restaurant.id,
-      slug,
+      slug: slugify(name),
       name,
       price: price || null,
-      glb_url,
-      usdz_url: usdz_url || null,
-      thumb_url: thumb_url || null,
-      camera_orbit: camera_orbit || null,
+      price_cents: parseCents(price),
+      description: description || null,
+      glb_url, usdz_url: usdz_url || null, thumb_url: thumb_url || null, camera_orbit: camera_orbit || null,
+      scale: scale != null ? parseFloat(scale) : 1,
+      ar_source: ar_source || 'upload',
       active: true
-    })
-    .select()
-    .single();
+    }).select().single();
+    if (error) return res.status(400).json({ error: error.message });
+    return res.status(201).json(data);
+  }
 
-  if (error) return res.status(400).json({ error: error.message });
-  return res.status(201).json(data);
+  if (req.method === 'PATCH') {
+    const { id } = req.query;
+    let body = {};
+    try { body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body; } catch {}
+    const patch = {};
+    for (const k of ['name','price','description','glb_url','usdz_url','thumb_url','camera_orbit','active','category_id','allergens']) {
+      if (k in body) patch[k] = body[k];
+    }
+    if ('price' in body) patch.price_cents = parseCents(body.price);
+    if ('scale' in body) patch.scale = Math.max(0.1, Math.min(5, parseFloat(body.scale) || 1));
+    await supabaseAdmin.from('dishes').update(patch).eq('id', id);
+    return res.status(200).json({ ok: true });
+  }
+
+  if (req.method === 'DELETE') {
+    const { id } = req.query;
+    await supabaseAdmin.from('dishes').delete().eq('id', id);
+    return res.status(200).json({ ok: true });
+  }
+  return res.status(405).end();
 }

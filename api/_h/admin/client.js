@@ -32,7 +32,7 @@ export default async function handler(req, res) {
   const [{ data: dishes = [] }, { data: scans = [] }, { data: requests = [] }] = await Promise.all([
     supabaseAdmin
       .from('dishes')
-      .select('id, slug, name, price, glb_url, thumb_url, active, created_at')
+      .select('id, slug, name, price, glb_url, thumb_url, active, created_at, scale, ar_source, description')
       .eq('restaurant_id', restaurant.id)
       .order('created_at', { ascending: false }),
     supabaseAdmin

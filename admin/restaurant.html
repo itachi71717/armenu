@@ -7,6 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
+<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
 <style>
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
   :root{
@@ -115,7 +117,8 @@
   <button class="tab" data-tab="offers">Happy hour</button>
   <button class="tab" data-tab="analytics">Analytics</button>
   <button class="tab" data-tab="ai-reader">AI Menu Reader</button>
-  <button class="tab" data-tab="ai-generate">AI Dish Generator</button>
+  <button class="tab" data-tab="ai-generate">AR Studio</button>
+  <button class="tab" data-tab="dishes">Dishes</button>
   <button class="tab" data-tab="billing">Billing</button>
 </nav>
 
@@ -242,14 +245,74 @@
   </div>
 </div>
 
-<!-- AI DISH GENERATOR -->
+<!-- AR STUDIO -->
 <div class="view" id="view-ai-generate">
   <div class="card">
-    <h2>AI Dish Generator</h2>
-    <div class="sub">Give it a photo of one dish — Meshy AI turns it into a 3D .glb model in ~1-3 min. Copy the .glb URL to Add Dish.</div>
-    <div class="row"><label>Photo URL (public JPG/PNG, well-lit, top-ish angle)</label><input id="aig_url" placeholder="https://…/dish.jpg" /></div>
-    <button class="btn" id="aig_go">Generate →</button>
-    <div id="aig_status" style="margin-top:20px"></div>
+    <h2>AR Studio</h2>
+    <div class="sub">Turn a photo of a dish into a life-size AR-ready 3D model. Upload → preview → adjust the scale → publish. Not happy with the result? Retry with one tap.</div>
+
+    <div id="ars-step1">
+      <div class="row"><label>Dish name (used for the file + record)</label><input id="ars_name" placeholder="Signature Avocado" /></div>
+      <div class="row"><label>Price (optional)</label><input id="ars_price" placeholder="R 89" /></div>
+      <div class="row">
+        <label>Photo of the dish — well-lit, top-down or ¾ angle works best</label>
+        <div id="ars_drop" style="border:2px dashed var(--line);border-radius:14px;padding:32px;text-align:center;cursor:pointer;transition:all .2s">
+          <div id="ars_drop_msg" style="color:var(--ink-dim);font-size:14px"><strong>Click to select</strong> or drag a photo here</div>
+          <small style="color:var(--ink-faint);font-size:11px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.12em;display:block;margin-top:8px">JPG or PNG · &lt; 8 MB</small>
+        </div>
+        <input type="file" id="ars_file" accept="image/*" style="display:none" />
+      </div>
+      <button class="btn" id="ars_go" disabled style="opacity:.55">Generate 3D model →</button>
+      <div class="sub" style="margin-top:12px;font-size:12px">Generation takes 1–3 minutes. You'll see a preview when it's ready.</div>
+    </div>
+
+    <div id="ars-step2" style="display:none">
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:center;margin-bottom:16px">
+        <div id="ars_spinner" style="width:38px;height:38px;border-radius:50%;border:3px solid rgba(255,239,220,.1);border-top-color:var(--accent);animation:spin 1s linear infinite"></div>
+        <div><strong id="ars_stage">Uploading photo…</strong><div style="font-size:12px;color:var(--ink-dim);margin-top:2px" id="ars_progress">Getting started</div></div>
+      </div>
+      <div style="width:100%;height:4px;border-radius:2px;background:rgba(255,239,220,.06);overflow:hidden;margin-bottom:12px"><div id="ars_bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent-2));transition:width .3s"></div></div>
+    </div>
+
+    <div id="ars-step3" style="display:none">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px" id="ars_preview_grid">
+        <div>
+          <div style="aspect-ratio:1/1;border-radius:16px;overflow:hidden;background:radial-gradient(circle at 50% 50%,rgba(255,87,34,.1),transparent 60%);border:1px solid var(--line)">
+            <model-viewer id="ars_preview" style="width:100%;height:100%;background:transparent" alt="Generated dish" auto-rotate camera-controls shadow-intensity="1.4" exposure="1.05" interaction-prompt="none"></model-viewer>
+          </div>
+          <div style="margin-top:12px;color:var(--ink-faint);font-size:12px;text-align:center;font-family:var(--mono);text-transform:uppercase;letter-spacing:.12em">Preview — this is what diners see</div>
+        </div>
+        <div>
+          <h3 style="margin-bottom:6px;font-size:18px">Adjust the size</h3>
+          <div class="sub" style="margin-bottom:14px">Slide until the plate looks life-size on the table. AR will show it at exactly this size.</div>
+          <div class="row">
+            <label>Scale (<span id="ars_scale_val">1.00</span>×)</label>
+            <input type="range" id="ars_scale" min="0.2" max="3" step="0.05" value="1" style="width:100%" />
+            <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--ink-faint);margin-top:2px"><span>0.2×</span><span>1×</span><span>3×</span></div>
+          </div>
+          <div style="display:flex;gap:8px;margin:12px 0">
+            <button class="btn-ghost btn" data-preset="0.7">Smaller</button>
+            <button class="btn-ghost btn" data-preset="1">Normal</button>
+            <button class="btn-ghost btn" data-preset="1.5">Bigger</button>
+          </div>
+          <div style="margin-top:20px;display:flex;flex-direction:column;gap:8px">
+            <button class="btn" id="ars_publish" style="padding:14px">✓ Publish as new dish</button>
+            <button class="btn-ghost btn" id="ars_retry" style="padding:14px">↻ Retry — not quite right</button>
+            <button class="btn-ghost btn" id="ars_start_over" style="padding:14px">Start over with a different photo</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="ars-step4" style="display:none;text-align:center;padding:40px 20px">
+      <div style="font-size:60px;margin-bottom:14px">✨</div>
+      <h3 style="font-family:var(--serif);font-style:italic;font-size:28px;margin-bottom:8px">Dish published!</h3>
+      <div class="sub" id="ars_done_msg" style="max-width:500px;margin:0 auto 20px">Life-size AR is ready. Print the QR from the Tables tab or share the link with diners.</div>
+      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+        <a class="btn" id="ars_view_dish" target="_blank">See it in AR →</a>
+        <button class="btn-ghost btn" id="ars_another">Generate another dish</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -264,6 +327,15 @@
       <button class="btn-ghost btn" data-buy="premium">Buy Premium</button>
     </div>
     <div class="sub" style="margin-top:16px">Checkout is powered by Paddle (handles global VAT + card processing). The webhook updates this restaurant's plan automatically on payment.</div>
+  </div>
+</div>
+
+<!-- DISHES (edit + resize + toggle + delete) -->
+<div class="view" id="view-dishes">
+  <div class="card">
+    <h2>Dishes</h2>
+    <div class="sub">Manage every dish on this restaurant's menu. Click a row to edit; drag the size slider to tune the AR scale.</div>
+    <div id="dish_list"></div>
   </div>
 </div>
 
@@ -420,7 +492,8 @@ async function load(tab) {
     }
     if (tab === 'analytics') await loadAnalytics();
     if (tab === 'ai-reader') { /* passive */ }
-    if (tab === 'ai-generate') { /* passive */ }
+    if (tab === 'ai-generate') { arsReset(); }
+    if (tab === 'dishes') await loadDishes();
     if (tab === 'billing') await loadBilling();
     if (tab === 'offers') {
       const { offers } = await api('/api/admin/offers?slug=' + slug);
@@ -543,45 +616,172 @@ $('air_scan').onclick = async () => {
   finally { btn.disabled = false; btn.textContent = 'Scan menu →'; }
 };
 
-// ===== AI DISH GENERATOR =====
-$('aig_go').onclick = async () => {
-  const image_url = $('aig_url').value.trim();
-  if (!image_url) return toast('Paste an image URL', 'err');
-  const btn = $('aig_go'); btn.disabled = true; btn.textContent = 'Starting job…';
-  $('aig_status').innerHTML = '<div style="color:var(--ink-dim)">Submitting to Meshy…</div>';
+// ===== AR STUDIO =====
+const ars = { file: null, imageUrl: null, jobId: null, previewGlb: null, scale: 1, timer: null };
+
+function arsReset() {
+  ars.file = null; ars.imageUrl = null; ars.jobId = null; ars.previewGlb = null; ars.scale = 1;
+  if (ars.timer) { clearInterval(ars.timer); ars.timer = null; }
+  $('ars-step1').style.display = ''; $('ars-step2').style.display = 'none'; $('ars-step3').style.display = 'none'; $('ars-step4').style.display = 'none';
+  $('ars_name').value = ''; $('ars_price').value = ''; $('ars_file').value = '';
+  $('ars_drop_msg').innerHTML = '<strong>Click to select</strong> or drag a photo here';
+  $('ars_drop').style.borderColor = 'var(--line)';
+  $('ars_go').disabled = true; $('ars_go').style.opacity = '.55';
+  $('ars_scale').value = 1; $('ars_scale_val').textContent = '1.00';
+}
+function arsSetStage(msg, sub, pct) {
+  $('ars_stage').textContent = msg;
+  $('ars_progress').textContent = sub || '';
+  if (pct != null) $('ars_bar').style.width = pct + '%';
+}
+function pickFile(f) {
+  if (!f) return;
+  if (!f.type.startsWith('image/')) return toast('Please pick an image', 'err');
+  if (f.size > 8 * 1024 * 1024) return toast('Image too big (8 MB max)', 'err');
+  ars.file = f;
+  const sizeKb = (f.size / 1024).toFixed(0);
+  $('ars_drop_msg').innerHTML = `<strong>${escapeHTML(f.name)}</strong> · ${sizeKb} KB ready`;
+  $('ars_drop').style.borderColor = 'rgba(255,87,34,.4)';
+  if ($('ars_name').value.trim()) { $('ars_go').disabled = false; $('ars_go').style.opacity = '1'; }
+}
+$('ars_drop').onclick = () => $('ars_file').click();
+$('ars_file').onchange = e => pickFile(e.target.files[0]);
+$('ars_name').oninput = () => { if (ars.file && $('ars_name').value.trim()) { $('ars_go').disabled = false; $('ars_go').style.opacity = '1'; } };
+['dragenter','dragover'].forEach(ev => $('ars_drop').addEventListener(ev, e => { e.preventDefault(); $('ars_drop').style.borderColor = 'rgba(255,87,34,.6)'; }));
+['dragleave','drop'].forEach(ev => $('ars_drop').addEventListener(ev, e => { e.preventDefault(); if (ev === 'drop') pickFile(e.dataTransfer.files[0]); else $('ars_drop').style.borderColor = 'var(--line)'; }));
+
+async function uploadPhoto() {
+  arsSetStage('Uploading photo…', 'Getting a secure upload URL', 10);
+  const sign = await api('/api/admin/upload-url', { method: 'POST', body: JSON.stringify({ filename: 'photo-' + Date.now() + '.' + (ars.file.name.split('.').pop() || 'jpg') }) });
+  arsSetStage('Uploading photo…', 'Sending your image', 25);
+  const up = await fetch(sign.signed_url, { method: 'PUT', headers: { 'content-type': ars.file.type, 'x-upsert': 'false' }, body: ars.file });
+  if (!up.ok) throw new Error('Photo upload failed (' + up.status + ')');
+  ars.imageUrl = sign.public_url;
+}
+
+$('ars_go').onclick = async () => {
+  if (!ars.file || !$('ars_name').value.trim()) return;
+  $('ars-step1').style.display = 'none'; $('ars-step2').style.display = '';
   try {
-    const d = await api('/api/admin/ai-generate', { method: 'POST', body: JSON.stringify({ image_url }) });
-    const task = d.task_id;
-    let attempts = 0;
-    const poll = setInterval(async () => {
-      attempts++;
-      const s = await api('/api/admin/ai-generate?task=' + task);
-      $('aig_status').innerHTML = `<div>Status: <strong>${s.status}</strong> · ${s.progress}% · attempt ${attempts}</div>`;
-      if (s.status === 'SUCCEEDED') {
-        clearInterval(poll);
-        $('aig_status').innerHTML = `<div style="color:var(--ok)">✓ Done! Copy this .glb URL into <em>Add dish</em>:</div><input readonly value="${s.glb}" style="width:100%;padding:10px;border-radius:8px;background:rgba(255,239,220,.03);border:1px solid var(--line);margin-top:8px;font-family:monospace;font-size:11px" onclick="this.select()" />${s.usdz ? `<div style="margin-top:8px;color:var(--ok)">And .usdz:</div><input readonly value="${s.usdz}" style="width:100%;padding:10px;border-radius:8px;background:rgba(255,239,220,.03);border:1px solid var(--line);margin-top:4px;font-family:monospace;font-size:11px" onclick="this.select()" />` : ''}${s.thumbnail ? `<img src="${s.thumbnail}" style="max-width:200px;border-radius:12px;margin-top:12px" />` : ''}`;
-        btn.disabled = false; btn.textContent = 'Generate →';
-      } else if (s.status === 'FAILED') {
-        clearInterval(poll);
-        $('aig_status').innerHTML = `<div style="color:var(--err)">✕ ${escapeHTML(s.error || 'Job failed')}</div>`;
-        btn.disabled = false; btn.textContent = 'Generate →';
-      }
-      if (attempts > 60) { clearInterval(poll); btn.disabled = false; btn.textContent = 'Generate →'; }
+    await uploadPhoto();
+    arsSetStage('Generating 3D model…', 'This takes 1–3 minutes', 35);
+    const submit = await api('/api/admin/ai-generate', { method: 'POST', body: JSON.stringify({ image_url: ars.imageUrl, restaurant_slug: slug }) });
+    ars.jobId = submit.job_id;
+    let ticks = 0;
+    ars.timer = setInterval(async () => {
+      ticks++;
+      try {
+        const s = await api('/api/admin/ai-generate?job=' + ars.jobId);
+        const pct = 35 + Math.min(55, s.progress * 0.55);
+        arsSetStage('Generating 3D model…', s.status === 'IN_PROGRESS' ? `Rendering — ${s.progress}%` : `Queued (${s.status.toLowerCase()})`, pct);
+        if (s.canFinalize) { clearInterval(ars.timer); ars.timer = null; showPreview(s.previewGlb); }
+        if (s.status === 'FAILED') { clearInterval(ars.timer); ars.timer = null; toast(s.error || 'Generation failed', 'err'); arsReset(); }
+      } catch (e) {}
+      if (ticks > 60) { clearInterval(ars.timer); ars.timer = null; toast('Timed out — please try again', 'err'); arsReset(); }
     }, 5000);
-  } catch (e) { $('aig_status').innerHTML = `<div style="color:var(--err)">${escapeHTML(e.message)}</div>`; btn.disabled = false; btn.textContent = 'Generate →'; }
+  } catch (e) { toast(e.message, 'err'); arsReset(); }
 };
+
+function showPreview(glbUrl) {
+  ars.previewGlb = glbUrl;
+  $('ars-step2').style.display = 'none'; $('ars-step3').style.display = '';
+  const mv = $('ars_preview'); mv.setAttribute('src', glbUrl);
+  applyScale();
+}
+function applyScale() {
+  const v = parseFloat($('ars_scale').value);
+  ars.scale = v;
+  $('ars_scale_val').textContent = v.toFixed(2);
+  const mv = $('ars_preview'); if (mv) mv.setAttribute('scale', `${v} ${v} ${v}`);
+}
+$('ars_scale').oninput = applyScale;
+document.querySelectorAll('#view-ai-generate [data-preset]').forEach(b => b.onclick = () => { $('ars_scale').value = b.dataset.preset; applyScale(); });
+
+$('ars_retry').onclick = async () => {
+  try {
+    $('ars-step3').style.display = 'none'; $('ars-step2').style.display = '';
+    arsSetStage('Retrying…', 'Same photo, fresh generation', 20);
+    const d = await api('/api/admin/ai-generate', { method: 'POST', body: JSON.stringify({ retry: true, previous_job_id: ars.jobId }) });
+    ars.jobId = d.job_id;
+    let ticks = 0;
+    ars.timer = setInterval(async () => {
+      ticks++;
+      const s = await api('/api/admin/ai-generate?job=' + ars.jobId);
+      arsSetStage('Regenerating…', `${s.progress}%`, 20 + s.progress * 0.7);
+      if (s.canFinalize) { clearInterval(ars.timer); ars.timer = null; showPreview(s.previewGlb); }
+      if (s.status === 'FAILED' || ticks > 60) { clearInterval(ars.timer); ars.timer = null; toast('Retry failed', 'err'); arsReset(); }
+    }, 5000);
+  } catch (e) { toast(e.message, 'err'); }
+};
+$('ars_start_over').onclick = () => arsReset();
+$('ars_another').onclick = () => arsReset();
+
+$('ars_publish').onclick = async () => {
+  const btn = $('ars_publish'); btn.disabled = true; btn.textContent = 'Publishing…';
+  try {
+    const d = await api('/api/admin/ai-generate', {
+      method: 'POST',
+      body: JSON.stringify({ finalize: true, job_id: ars.jobId, restaurant_slug: slug, name: $('ars_name').value.trim(), price: $('ars_price').value.trim() })
+    });
+    // Save scale via dishes PATCH
+    if (d.dish_id && ars.scale !== 1) {
+      await api('/api/admin/dishes?id=' + d.dish_id, { method: 'PATCH', body: JSON.stringify({ scale: ars.scale }) });
+    }
+    $('ars-step3').style.display = 'none'; $('ars-step4').style.display = '';
+    const dishSlug = ($('ars_name').value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-'));
+    $('ars_view_dish').href = `/view.html?r=${slug}&d=${dishSlug}`;
+    toast('Dish published ✓', 'ok');
+  } catch (e) { toast(e.message, 'err'); btn.disabled = false; btn.textContent = '✓ Publish as new dish'; }
+};
+
+// ===== DISHES tab (edit + resize + delete existing dishes) =====
+async function loadDishes() {
+  const c = await api('/api/admin/client?slug=' + slug);
+  const dishes = c.dishes || [];
+  if (!dishes.length) return $('dish_list').innerHTML = '<div class="empty"><h3>No dishes yet</h3><p>Use AR Studio to create your first dish.</p></div>';
+  $('dish_list').innerHTML = dishes.map(d => `
+    <div class="card" style="margin-bottom:10px;padding:14px 16px;display:grid;grid-template-columns:60px 1fr auto;gap:14px;align-items:center">
+      <div style="width:60px;height:60px;border-radius:10px;background:${d.thumb_url ? `url('${d.thumb_url}') center/cover` : '#1a1410'};display:grid;place-items:center;color:var(--ink-faint);font-family:var(--serif);font-style:italic;font-size:22px">${d.thumb_url ? '' : (d.name[0] || '?')}</div>
+      <div>
+        <div style="font-weight:600;font-size:15px">${escapeHTML(d.name)}</div>
+        <div style="font-family:var(--mono);font-size:11px;color:var(--ink-dim);margin-top:2px">${escapeHTML(d.price || '')} · ${d.scans_30d || 0} scans (30d) · ${d.active ? 'live' : 'hidden'}</div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:10px">
+          <span style="font-family:var(--mono);font-size:10px;color:var(--ink-faint);letter-spacing:.14em;text-transform:uppercase">Size</span>
+          <input type="range" min="0.2" max="3" step="0.05" value="${d.scale || 1}" data-scale="${d.id}" style="flex:1;max-width:280px" />
+          <span data-scaleval="${d.id}" style="font-family:var(--mono);font-size:11px;color:var(--accent-2);min-width:44px">${(d.scale || 1).toFixed(2)}×</span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <a class="btn-ghost btn" href="/view.html?r=${slug}&d=${d.slug}" target="_blank" style="text-decoration:none;text-align:center">Open AR</a>
+        <button class="btn-ghost btn" data-toggle-dish="${d.id}:${!d.active}">${d.active ? 'Hide' : 'Show'}</button>
+        <button class="btn-err btn" data-del-dish="${d.id}">✕ Delete</button>
+      </div>
+    </div>`).join('');
+
+  // Debounced scale save
+  document.querySelectorAll('[data-scale]').forEach(input => {
+    let t;
+    input.oninput = () => {
+      document.querySelector(`[data-scaleval="${input.dataset.scale}"]`).textContent = (+input.value).toFixed(2) + '×';
+      clearTimeout(t);
+      t = setTimeout(async () => {
+        try { await api('/api/admin/dishes?id=' + input.dataset.scale, { method: 'PATCH', body: JSON.stringify({ scale: +input.value }) }); toast('Size saved ✓', 'ok'); }
+        catch (e) { toast(e.message, 'err'); }
+      }, 500);
+    };
+  });
+  wireList('[data-toggle-dish]', async v => { const [id, active] = v.split(':'); await api('/api/admin/dishes?id=' + id, { method: 'PATCH', body: JSON.stringify({ active: active === 'true' }) }); loadDishes(); });
+  wireList('[data-del-dish]', async id => { if (confirm('Delete this dish?')) { await api('/api/admin/dishes?id=' + id, { method: 'DELETE' }); loadDishes(); } });
+}
 
 // ===== BILLING =====
 async function loadBilling() {
   const { settings: s } = await api('/api/admin/settings?slug=' + slug);
-  const status = s.subscription_status || 'trial';
-  const trial = s.trial_ends_at ? new Date(s.trial_ends_at) : null;
-  const daysLeft = trial ? Math.max(0, Math.ceil((trial - Date.now()) / 86400000)) : null;
+  const status = s.subscription_status || 'inactive';
   $('b_summary').innerHTML = `
     <div style="display:flex;gap:20px;flex-wrap:wrap;font-size:14px">
       <div><span style="color:var(--ink-faint);font-family:monospace;font-size:11px">PLAN</span><br><strong>${s.plan || 'starter'}</strong></div>
-      <div><span style="color:var(--ink-faint);font-family:monospace;font-size:11px">STATUS</span><br><strong style="color:${status==='active'?'var(--ok)':status==='trial'?'var(--warn)':'var(--err)'}">${status}</strong></div>
-      ${daysLeft !== null && status === 'trial' ? `<div><span style="color:var(--ink-faint);font-family:monospace;font-size:11px">TRIAL DAYS LEFT</span><br><strong>${daysLeft}</strong></div>` : ''}
+      <div><span style="color:var(--ink-faint);font-family:monospace;font-size:11px">STATUS</span><br><strong style="color:${status==='active'?'var(--ok)':status==='inactive'?'var(--warn)':'var(--err)'}">${status}</strong></div>
     </div>`;
   document.querySelectorAll('[data-buy]').forEach(b => b.onclick = async () => {
     try {

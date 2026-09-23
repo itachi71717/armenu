@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#0a0806" />
+<title>Kitchen · AR Menu</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{--bg:#0a0806;--ink:#f5efe6;--ink-dim:#9a9388;--ink-faint:#564f45;--accent:#ff5722;--accent-2:#ffb066;--line:rgba(255,239,220,.08);--ok:#7dd87d;--warn:#ffb066;--err:#f87171}
+  body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;-webkit-font-smoothing:antialiased}
+  button,input{font-family:inherit;color:inherit;cursor:pointer;border:none}
+
+  /* Login */
+  .login{position:fixed;inset:0;z-index:10;background:rgba(10,8,6,.98);display:grid;place-items:center;padding:24px}
+  .login-card{width:min(420px,100%);padding:44px 36px;border-radius:22px;background:linear-gradient(180deg,rgba(255,239,220,.03),rgba(255,239,220,.005));border:1px solid var(--line);text-align:center}
+  .login-card h1{font-family:'Instrument Serif',serif;font-style:italic;font-size:32px;margin-bottom:6px}
+  .login-card p{color:var(--ink-dim);font-size:14px;margin-bottom:24px}
+  .login-card input{width:100%;padding:16px;border-radius:12px;background:rgba(255,239,220,.03);border:1px solid var(--line);font-size:18px;margin-bottom:8px}
+  .login-card .pin{letter-spacing:.5em;text-align:center;font-weight:700}
+  .btn{padding:16px 22px;border-radius:12px;background:linear-gradient(135deg,var(--accent),#c93d00);color:#fff;font-weight:700;font-size:15px}
+  .login-card .btn{width:100%;margin-top:6px}
+  .err{color:var(--err);font-size:13px;min-height:18px;margin:8px 0}
+
+  header{padding:18px 32px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;background:#080603}
+  .h-title{font-family:'Instrument Serif',serif;font-style:italic;font-size:26px}
+  .h-title b{font-style:normal;font-family:'Inter';font-weight:800}
+  .h-meta{display:flex;gap:16px;align-items:center;font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-dim)}
+  .live-dot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok);animation:pulse 2s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  .signout{background:none;color:var(--ink-dim);font-size:12px;padding:8px 14px;border-radius:8px;text-transform:uppercase;letter-spacing:.08em}
+
+  main{padding:24px 32px;display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:18px;max-width:1800px;margin:0 auto}
+  .ticket{border-radius:20px;padding:22px;border:2px solid var(--line);background:linear-gradient(180deg,rgba(255,239,220,.03),rgba(255,239,220,.005));display:flex;flex-direction:column;gap:12px;position:relative;transition:transform .2s}
+  .ticket.new{border-color:var(--accent);box-shadow:0 0 0 3px rgba(255,87,34,.15),0 12px 32px rgba(255,87,34,.15);animation:flash .8s ease}
+  .ticket.prep{border-color:var(--warn)}
+  .ticket.ready{border-color:var(--ok)}
+  @keyframes flash{0%{background:rgba(255,87,34,.15)}100%{background:transparent}}
+  .t-top{display:flex;justify-content:space-between;align-items:center}
+  .t-table{font-family:'Instrument Serif',serif;font-style:italic;font-size:30px;font-weight:400}
+  .t-table b{font-style:normal;font-family:'Inter';font-weight:900}
+  .t-time{font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--ink-dim);font-weight:600}
+  .t-age{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:4px 10px;border-radius:999px;background:rgba(255,239,220,.06);border:1px solid var(--line)}
+  .t-age.warm{background:rgba(255,176,102,.14);color:var(--warn);border-color:rgba(255,176,102,.3)}
+  .t-age.hot{background:rgba(248,113,113,.14);color:var(--err);border-color:rgba(248,113,113,.3)}
+  .t-items{list-style:none;padding:0;display:flex;flex-direction:column;gap:6px}
+  .t-items li{padding:10px 12px;border-radius:10px;background:rgba(255,239,220,.04);display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+  .t-items .qty{font-family:'JetBrains Mono',monospace;font-weight:800;color:var(--accent);font-size:18px;min-width:34px}
+  .t-items .name{flex:1;font-size:16px;font-weight:600}
+  .t-items .note{font-size:12px;color:var(--warn);margin-top:3px;font-style:italic}
+  .t-note{background:rgba(255,176,102,.06);border-left:3px solid var(--warn);padding:10px 12px;border-radius:6px;font-size:13px;color:var(--warn)}
+  .t-actions{display:flex;gap:8px;margin-top:auto}
+  .t-actions button{flex:1;padding:14px;border-radius:12px;font-size:13px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+  .btn-prep{background:linear-gradient(135deg,var(--warn),#c98a3d);color:#0a0806}
+  .btn-ready{background:linear-gradient(135deg,var(--ok),#4ea54e);color:#0a0806}
+  .btn-served{background:rgba(154,147,136,.14);color:var(--ink-dim);border:1px solid var(--line)}
+
+  .empty{grid-column:1/-1;padding:100px 24px;text-align:center;color:var(--ink-dim)}
+  .empty h2{font-family:'Instrument Serif',serif;font-style:italic;font-size:36px;color:var(--ink);margin-bottom:10px}
+  .empty .icon{font-size:64px;margin-bottom:20px;opacity:.4}
+
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);padding:14px 24px;border-radius:12px;background:#13100c;border:1px solid var(--line);font-size:14px;z-index:200;display:none;box-shadow:0 12px 32px rgba(0,0,0,.6)}
+  .toast.show{display:block}
+</style>
+</head>
+<body>
+
+<div class="login" id="login">
+  <div class="login-card">
+    <h1>Kitchen display</h1>
+    <p>Sign in with a manager PIN.</p>
+    <input id="loginSlug" placeholder="restaurant-slug" autocomplete="off" />
+    <input id="loginPin" class="pin" inputmode="numeric" maxlength="6" placeholder="••••" autocomplete="off" />
+    <div class="err" id="loginErr"></div>
+    <button class="btn" id="loginBtn">Enter kitchen →</button>
+  </div>
+</div>
+
+<header>
+  <div class="h-title"><b>Kitchen</b> · <span id="whoRestaurant">—</span></div>
+  <div class="h-meta"><span class="live-dot"></span> Live · <span id="clock">--:--</span> · <span id="orderCount">0 orders</span></div>
+  <button class="signout" id="signout">Sign out</button>
+</header>
+
+<main id="board">
+  <div class="empty" id="emptyState">
+    <div class="icon">🍳</div>
+    <h2>Kitchen ready.</h2>
+    <p>New orders will appear here the moment guests place them.</p>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const toast = m => { const t = $('toast'); t.textContent = m; t.className = 'toast show'; setTimeout(() => t.classList.remove('show'), 2500); };
+let session = null;
+try { session = JSON.parse(localStorage.getItem('armenu_kitchen_session') || 'null'); } catch {}
+let poll = null, es = null;
+let previousIds = new Set();
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, { ...opts, headers: { 'content-type': 'application/json', ...(session?.token ? { authorization: 'Bearer ' + session.token } : {}), ...(opts.headers || {}) } });
+  if (res.status === 401) { signOut(); throw new Error('unauth'); }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Request failed');
+  return data;
+}
+
+$('loginBtn').onclick = async () => {
+  const r = $('loginSlug').value.trim().toLowerCase();
+  const pin = $('loginPin').value.trim();
+  if (!r || !pin) return $('loginErr').textContent = 'Both fields required';
+  try {
+    const res = await fetch('/api/staff/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ r, pin }) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Login failed');
+    session = data;
+    localStorage.setItem('armenu_kitchen_session', JSON.stringify(session));
+    onIn();
+  } catch (e) { $('loginErr').textContent = e.message; }
+};
+$('loginPin').onkeydown = e => { if (e.key === 'Enter') $('loginBtn').click(); };
+
+function signOut() {
+  localStorage.removeItem('armenu_kitchen_session');
+  session = null;
+  if (poll) clearInterval(poll);
+  try { es?.close(); } catch {}
+  $('login').style.display = 'grid';
+}
+$('signout').onclick = signOut;
+
+function onIn() {
+  $('login').style.display = 'none';
+  $('whoRestaurant').textContent = session.restaurant.name;
+  tick();
+  refresh();
+  poll = setInterval(refresh, 12000);
+  setInterval(tick, 1000);
+  try {
+    es = new EventSource('/api/events?token=' + encodeURIComponent(session.token));
+    es.addEventListener('orders', () => refresh());
+    es.onerror = () => { try { es.close(); } catch {} setTimeout(() => { if (session) onIn(); }, 4000); };
+  } catch {}
+}
+
+function tick() { const d = new Date(); $('clock').textContent = d.toTimeString().slice(0, 5); }
+
+async function refresh() {
+  try {
+    const { orders } = await api('/api/staff/orders');
+    const kitchen = (orders || []).filter(o => ['new','prep','ready'].includes(o.status));
+    $('orderCount').textContent = `${kitchen.length} order${kitchen.length === 1 ? '' : 's'}`;
+    render(kitchen);
+    // Ding for new orders
+    const currIds = new Set(kitchen.map(o => o.id));
+    for (const id of currIds) if (!previousIds.has(id)) beep();
+    previousIds = currIds;
+  } catch (e) { console.error(e); }
+}
+
+function render(orders) {
+  if (!orders.length) { $('board').innerHTML = `<div class="empty" id="emptyState"><div class="icon">🍳</div><h2>All caught up.</h2><p>Great work. New orders will appear here.</p></div>`; return; }
+  $('board').innerHTML = orders.map(o => {
+    const age = Math.round((Date.now() - new Date(o.created_at).getTime()) / 60000);
+    const ageClass = age >= 15 ? 'hot' : age >= 8 ? 'warm' : '';
+    return `<div class="ticket ${o.status}">
+      <div class="t-top">
+        <div class="t-table">${o.table_label ? `<b>${escapeHTML(o.table_label)}</b>` : 'Walk-up'}</div>
+        <div class="t-age ${ageClass}">${age}m</div>
+      </div>
+      <ul class="t-items">${(o.order_items || []).map(it => `<li><span class="qty">×${it.qty}</span><div class="name">${escapeHTML(it.dish_name)}${it.note ? `<div class="note">${escapeHTML(it.note)}</div>` : ''}${it.complimentary ? '<div class="note" style="color:var(--ok)">(complimentary)</div>' : ''}</div></li>`).join('')}</ul>
+      ${o.guest_note ? `<div class="t-note">📝 ${escapeHTML(o.guest_note)}</div>` : ''}
+      <div class="t-actions">
+        ${o.status === 'new' ? `<button class="btn-prep" data-mark="${o.id}:prep">Start prep</button>` : ''}
+        ${o.status === 'prep' ? `<button class="btn-ready" data-mark="${o.id}:ready">Ready</button>` : ''}
+        ${o.status === 'ready' ? `<button class="btn-served" data-mark="${o.id}:served">Served</button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+  document.querySelectorAll('[data-mark]').forEach(b => b.onclick = async () => {
+    const [id, status] = b.dataset.mark.split(':');
+    try { await api('/api/staff/orders?id=' + id, { method: 'PATCH', body: JSON.stringify({ status }) }); refresh(); }
+    catch (e) { toast(e.message); }
+  });
+}
+
+function beep() {
+  try {
+    const c = new (window.AudioContext || window.webkitAudioContext)();
+    const o = c.createOscillator(), g = c.createGain();
+    o.connect(g); g.connect(c.destination);
+    o.frequency.value = 880; g.gain.value = 0.05;
+    o.start(); o.stop(c.currentTime + 0.12);
+  } catch {}
+}
+
+function escapeHTML(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// Keep screen awake (only works with user gesture on iOS/Android)
+if ('wakeLock' in navigator) {
+  navigator.wakeLock.request('screen').catch(() => {});
+  addEventListener('click', () => { navigator.wakeLock?.request('screen').catch(() => {}); }, { once: true });
+}
+
+if (session?.token) onIn();
+</script>
+</body>
+</html>

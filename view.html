@@ -321,6 +321,11 @@
     mv.setAttribute('src', meal.glb);
     if(meal.usdz) mv.setAttribute('ios-src', meal.usdz);
     if(meal.orbit) mv.setAttribute('camera-orbit', meal.orbit);
+    // Apply owner-set life-size scale (defaults to 1). model-viewer treats
+    // "1 1 1" as the raw glb size; owner can tune via the AR Studio slider.
+    if (meal.scale && meal.scale !== 1) {
+      mv.setAttribute('scale', `${meal.scale} ${meal.scale} ${meal.scale}`);
+    }
 
     mv.addEventListener('load', ()=>{
       document.getElementById('loader').classList.add('gone');

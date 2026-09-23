@@ -28,7 +28,7 @@ export default async function handler(req, res) {
   // === SINGLE DISH ===
   if (d) {
     const { data: dish, error: dishErr } = await supabase.from('dishes')
-      .select('name, price, price_cents, description, glb_url, usdz_url, camera_orbit, translations, allergens')
+      .select('name, price, price_cents, description, glb_url, usdz_url, camera_orbit, translations, allergens, scale')
       .eq('restaurant_id', restaurant.id).eq('slug', d).eq('active', true).single();
     if (isRealError(dishErr)) return res.status(502).json({ error: 'Backend temporarily unavailable' });
     if (!dish) return res.status(404).json({ error: 'Dish not found' });
@@ -38,7 +38,8 @@ export default async function handler(req, res) {
       description: dish.description,
       translations: dish.translations || {},
       allergens: dish.allergens,
-      glb: dish.glb_url, usdz: dish.usdz_url, orbit: dish.camera_orbit
+      glb: dish.glb_url, usdz: dish.usdz_url, orbit: dish.camera_orbit,
+      scale: dish.scale || 1
     });
   }
 
