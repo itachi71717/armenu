@@ -5,6 +5,16 @@ export default async function handler(req, res) {
   const { r, d } = req.query;
   if (!r) return res.status(400).json({ error: 'Missing r param' });
 
+  // Canary — expose whether Node fetch is broken in this function instance
+  if (r === '__canary__') {
+    const out = {};
+    try { const g = await fetch('https://www.google.com'); out.google = g.status; } catch (e) { out.google_err = e.message; }
+    try { const s = await fetch(process.env.NEXT_PUBLIC_SUPABASE_URL + '/rest/v1/', { headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY } }); out.supabase = s.status; } catch (e) { out.supabase_err = e.message; }
+    out.env_url = !!process.env.NEXT_PUBLIC_SUPABASE_URL;
+    out.env_key = !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    return res.status(200).json(out);
+  }
+
   // Resolve restaurant
   const rest = await supabase.from('restaurants').select('id, name, slug').eq('slug', r).single();
   if (rest.error && rest.error.code !== 'PGRST116') {
