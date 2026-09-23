@@ -17,7 +17,8 @@
     { "source": "/kitchen",  "destination": "/kitchen/index.html" },
     { "source": "/kitchen/", "destination": "/kitchen/index.html" },
     { "source": "/m/:slug", "destination": "/menu.html?r=:slug" },
-    { "source": "/t/:slug/:table", "destination": "/menu.html?r=:slug&t=:table" }
+    { "source": "/t/:slug/:table", "destination": "/menu.html?r=:slug&t=:table" },
+    { "source": "/api/:path*", "destination": "/api/index?path=:path*" }
   ],
   "headers": [
     {
