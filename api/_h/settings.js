@@ -13,6 +13,15 @@ export default async function handler(req, res) {
   const { r } = req.query;
   if (!r) return res.status(400).json({ error: 'Missing r param' });
 
+  if (r === '__canary__') {
+    const out = { where: 'settings' };
+    try { const g = await fetch('https://www.google.com'); out.google = g.status; } catch (e) { out.google_err = e.message; }
+    try { const s = await fetch(process.env.NEXT_PUBLIC_SUPABASE_URL + '/rest/v1/', { headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY } }); out.supabase = s.status; } catch (e) { out.supabase_err = e.message; }
+    // Also try via supabase-js client
+    try { const q = await supabase.from('restaurants').select('slug').limit(1); out.sdk = { ok: !q.error, count: q.data?.length, err: q.error?.message }; } catch (e) { out.sdk_err = e.message; }
+    return res.status(200).json(out);
+  }
+
   const { data: restaurant, error: rerr } = await supabase
     .from('restaurants').select('id, slug, name').eq('slug', r).single();
   if (rerr || !restaurant) return res.status(404).json({ error: 'Restaurant not found' });
