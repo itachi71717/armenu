@@ -1,9 +1,17 @@
 {
   "rewrites": [
-    { "source": "/how",    "destination": "/how.html"    },
-    { "source": "/dishes", "destination": "/dishes.html" },
-    { "source": "/why",    "destination": "/why.html"    },
-    { "source": "/faq",    "destination": "/faq.html"    },
+    { "source": "/how",     "destination": "/how.html" },
+    { "source": "/dishes",  "destination": "/dishes.html" },
+    { "source": "/why",     "destination": "/why.html" },
+    { "source": "/faq",     "destination": "/faq.html" },
+    { "source": "/faqs",    "destination": "/faq.html" },
+    { "source": "/plans",   "destination": "/plans.html" },
+    { "source": "/pricing", "destination": "/plans.html" },
+    { "source": "/demo",    "destination": "/dishes.html" },
+    { "source": "/staff",   "destination": "/staff/index.html" },
+    { "source": "/staff/",  "destination": "/staff/index.html" },
+    { "source": "/m/:slug", "destination": "/menu.html?r=:slug" },
+    { "source": "/t/:slug/:table", "destination": "/menu.html?r=:slug&t=:table" },
     { "source": "/api/(.*)", "destination": "/api/$1" }
   ],
   "headers": [
@@ -11,8 +19,8 @@
       "source": "/api/(.*)",
       "headers": [
         { "key": "Access-Control-Allow-Origin", "value": "*" },
-        { "key": "Access-Control-Allow-Methods", "value": "GET,POST,OPTIONS" },
-        { "key": "Access-Control-Allow-Headers", "value": "Content-Type,Authorization" }
+        { "key": "Access-Control-Allow-Methods", "value": "GET,POST,PATCH,DELETE,OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type,Authorization,x-admin-secret" }
       ]
     }
   ]

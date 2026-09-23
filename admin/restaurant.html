@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Manage restaurant · AR Menu</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#0a0806;--panel:#13100c;--ink:#f5efe6;--ink-dim:#9a9388;--ink-faint:#564f45;
+    --accent:#ff5722;--accent-2:#ffb066;--line:rgba(255,239,220,.08);
+    --serif:'Instrument Serif',serif;--mono:'JetBrains Mono',monospace;
+    --ok:#7dd87d;--warn:#ffb066;--err:#f87171;
+  }
+  body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
+  a{color:inherit;text-decoration:none}
+  button,input,select,textarea{font-family:inherit;color:inherit}
+  button{cursor:pointer;border:none}
+
+  header{padding:20px 32px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:13px;letter-spacing:.06em;text-transform:uppercase}
+  .brand .mark{width:24px;height:24px;border-radius:7px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative}
+  .brand b{font-weight:800}
+  .hero-title{font-family:var(--serif);font-style:italic;font-size:24px;font-weight:400}
+  .hero-title b{font-style:normal;font-family:'Inter',sans-serif;font-weight:800}
+  .back{font-size:12px;color:var(--ink-dim);padding:8px 14px;border-radius:8px;background:rgba(255,239,220,.04);border:1px solid var(--line)}
+
+  .tabs{display:flex;overflow-x:auto;gap:6px;padding:12px 20px;border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(10,8,6,.9);backdrop-filter:blur(10px);z-index:5;scrollbar-width:none}
+  .tabs::-webkit-scrollbar{display:none}
+  .tab{padding:10px 16px;border-radius:10px;font-size:13px;font-weight:600;color:var(--ink-dim);background:rgba(255,239,220,.02);white-space:nowrap}
+  .tab.on{background:rgba(255,87,34,.14);color:var(--accent);border:1px solid rgba(255,87,34,.28)}
+
+  main{padding:24px 32px;max-width:1200px}
+  @media(max-width:760px){main,header,.tabs{padding-left:16px;padding-right:16px}}
+  .view{display:none}.view.on{display:block}
+
+  .card{background:linear-gradient(180deg,rgba(255,239,220,.03),rgba(255,239,220,.005));border:1px solid var(--line);border-radius:16px;padding:22px;margin-bottom:18px}
+  .card h2{font-size:18px;margin-bottom:6px}
+  .card .sub{font-size:13px;color:var(--ink-dim);margin-bottom:16px}
+
+  .row{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+  .row label{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--ink-faint)}
+  .row input,.row select,.row textarea{padding:11px 13px;border-radius:10px;background:rgba(255,239,220,.03);border:1px solid var(--line);font-size:14px}
+  .row-inline{display:flex;gap:8px;align-items:center}
+
+  .toggle{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-radius:12px;background:rgba(255,239,220,.03);border:1px solid var(--line);margin-bottom:8px}
+  .toggle .t-name{font-weight:600;font-size:14px}
+  .toggle .t-sub{font-size:12px;color:var(--ink-dim);margin-top:2px}
+  .switch{position:relative;width:44px;height:24px;background:rgba(255,239,220,.1);border-radius:999px;transition:.2s;flex-shrink:0}
+  .switch::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.2s}
+  .switch.on{background:var(--accent)}.switch.on::after{left:23px}
+
+  .btn{padding:10px 16px;border-radius:10px;font-size:13px;font-weight:600;background:linear-gradient(135deg,var(--accent),#c93d00);color:#fff}
+  .btn-ghost{background:rgba(255,239,220,.05);color:var(--ink);border:1px solid var(--line)}
+  .btn-err{background:rgba(248,113,113,.12);color:var(--err);border:1px solid rgba(248,113,113,.3)}
+
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th{text-align:left;padding:12px;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--ink-faint);border-bottom:1px solid var(--line)}
+  td{padding:14px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+  tbody tr:hover td{background:rgba(255,239,220,.02)}
+
+  .status-pill{padding:3px 9px;border-radius:999px;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.1em;background:rgba(255,239,220,.06);border:1px solid var(--line)}
+  .status-pill.new{background:rgba(255,87,34,.14);color:var(--accent);border-color:rgba(255,87,34,.3)}
+  .status-pill.prep{background:rgba(255,176,102,.12);color:var(--warn);border-color:rgba(255,176,102,.3)}
+  .status-pill.ready{background:rgba(125,216,125,.12);color:var(--ok);border-color:rgba(125,216,125,.3)}
+  .status-pill.served{color:var(--ink-dim)}
+
+  .empty{padding:60px 20px;text-align:center;color:var(--ink-dim)}
+  .empty h3{font-family:var(--serif);font-style:italic;font-size:20px;color:var(--ink);margin-bottom:6px}
+
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:12px 20px;border-radius:12px;background:var(--panel);border:1px solid var(--line);font-size:13px;z-index:100;display:none;box-shadow:0 12px 32px rgba(0,0,0,.6)}
+  .toast.show{display:block}
+  .toast.err{border-color:rgba(248,113,113,.3);color:var(--err)}
+  .toast.ok{border-color:rgba(125,216,125,.3);color:var(--ok)}
+
+  .login-cover{position:fixed;inset:0;z-index:1000;background:rgba(10,8,6,.97);backdrop-filter:blur(20px);display:grid;place-items:center;padding:20px}
+  .login-card{width:min(400px,100%);padding:40px 32px;border-radius:22px;background:linear-gradient(180deg,rgba(255,239,220,.03),rgba(255,239,220,.005));border:1px solid var(--line);text-align:center}
+  .login-card h2{font-family:var(--serif);font-style:italic;font-size:24px;margin-bottom:16px}
+  .login-card input{width:100%;padding:14px;border-radius:10px;background:rgba(255,239,220,.03);border:1px solid var(--line);margin-bottom:8px;font-size:14px}
+  .login-card .btn{width:100%;padding:14px;margin-top:6px}
+  .err-line{color:var(--err);font-size:12px;min-height:18px;margin:6px 0}
+</style>
+</head>
+<body>
+
+<div class="login-cover" id="login">
+  <div class="login-card">
+    <h2>Boss password</h2>
+    <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password" />
+    <div class="err-line" id="loginErr"></div>
+    <button class="btn" id="loginBtn">Sign in →</button>
+  </div>
+</div>
+
+<header>
+  <div style="display:flex;align-items:center;gap:16px">
+    <div class="brand"><span class="mark"></span><b>AR</b><span style="color:var(--ink-dim);font-weight:500;margin-left:3px">Menu</span></div>
+    <div><div class="hero-title" id="hName">—</div><div style="font-size:12px;color:var(--ink-dim);font-family:var(--mono)" id="hSlug">—</div></div>
+  </div>
+  <a class="back" href="/admin/">← All restaurants</a>
+</header>
+
+<nav class="tabs">
+  <button class="tab on" data-tab="settings">Settings & Features</button>
+  <button class="tab" data-tab="branding">Branding</button>
+  <button class="tab" data-tab="categories">Categories</button>
+  <button class="tab" data-tab="tables">Tables & QR</button>
+  <button class="tab" data-tab="staff">Staff</button>
+  <button class="tab" data-tab="orders">Live orders</button>
+  <button class="tab" data-tab="calls">Waiter calls</button>
+  <button class="tab" data-tab="reviews">Reviews</button>
+  <button class="tab" data-tab="offers">Happy hour</button>
+</nav>
+
+<main>
+
+<!-- SETTINGS & FEATURE FLAGS -->
+<div class="view on" id="view-settings">
+  <div class="card">
+    <h2>Optional modules</h2>
+    <div class="sub">Turn these on only if you want AR Menu to handle them. If you already have a POS or an ordering system you love, leave them off — every restaurant just gets the AR menu.</div>
+    <div id="toggles"></div>
+  </div>
+  <div class="card">
+    <h2>Locale</h2>
+    <div class="sub">Currency and languages shown to guests.</div>
+    <div class="row-inline">
+      <div class="row" style="flex:1"><label>Currency code</label><input id="s_currency" placeholder="ZAR" /></div>
+      <div class="row" style="flex:1"><label>Currency symbol</label><input id="s_symbol" placeholder="R" /></div>
+    </div>
+    <div class="row"><label>Default language</label><input id="s_lang" placeholder="en" /></div>
+    <div class="row"><label>Enabled languages (comma-separated)</label><input id="s_langs" placeholder="en,af,zu" /></div>
+    <button class="btn" id="s_saveLocale">Save locale</button>
+  </div>
+  <div class="card">
+    <h2>Google Reviews</h2>
+    <div class="sub">4- and 5-star reviews prompt the guest to also post on Google. Paste your Google Business review link.</div>
+    <div class="row"><label>Google review URL</label><input id="s_gurl" placeholder="https://g.page/r/…" /></div>
+    <button class="btn" id="s_saveGoogle">Save</button>
+  </div>
+  <div class="card">
+    <h2>Plan</h2>
+    <div class="row"><label>Current plan</label><select id="s_plan"><option value="starter">Starter</option><option value="pro">Pro</option><option value="premium">Premium</option><option value="enterprise">Enterprise</option></select></div>
+    <button class="btn" id="s_savePlan">Save plan</button>
+  </div>
+</div>
+
+<!-- BRANDING -->
+<div class="view" id="view-branding">
+  <div class="card">
+    <h2>Brand appearance</h2>
+    <div class="sub">These show up on the guest menu.</div>
+    <div class="row"><label>Logo URL</label><input id="b_logo" /></div>
+    <div class="row"><label>Cover image URL</label><input id="b_cover" /></div>
+    <div class="row-inline">
+      <div class="row" style="flex:1"><label>Accent colour</label><input id="b_primary" type="color" style="height:44px;padding:4px" /></div>
+      <div class="row" style="flex:1"><label>Background colour</label><input id="b_bg" type="color" style="height:44px;padding:4px" /></div>
+    </div>
+    <div class="row"><label>Tagline</label><input id="b_tagline" placeholder="Tap any dish to see it life-size on your table." /></div>
+    <button class="btn" id="b_save">Save branding</button>
+  </div>
+</div>
+
+<!-- CATEGORIES -->
+<div class="view" id="view-categories">
+  <div class="card">
+    <h2>Add category</h2>
+    <div class="row-inline">
+      <input id="cat_name" placeholder="Starters" style="flex:1;padding:11px 13px;border-radius:10px;background:rgba(255,239,220,.03);border:1px solid var(--line);font-size:14px" />
+      <button class="btn" id="cat_add">+ Add</button>
+    </div>
+  </div>
+  <div class="card"><h2>Categories</h2><div id="cat_list"></div></div>
+</div>
+
+<!-- TABLES & QR -->
+<div class="view" id="view-tables">
+  <div class="card">
+    <h2>Add table</h2>
+    <div class="row-inline">
+      <input id="tbl_label" placeholder="T-12" style="flex:1;padding:11px 13px;border-radius:10px;background:rgba(255,239,220,.03);border:1px solid var(--line);font-size:14px" />
+      <input id="tbl_seats" type="number" placeholder="2" min="1" max="20" style="width:80px;padding:11px 13px;border-radius:10px;background:rgba(255,239,220,.03);border:1px solid var(--line);font-size:14px" />
+      <button class="btn" id="tbl_add">+ Add</button>
+    </div>
+  </div>
+  <div class="card"><h2>Tables</h2><div class="sub">Each table's QR opens the menu pinned to that table. Print and place on the table.</div><div id="tbl_list"></div></div>
+</div>
+
+<!-- STAFF -->
+<div class="view" id="view-staff">
+  <div class="card">
+    <h2>Add staff member</h2>
+    <div class="sub">They sign in at <code style="color:var(--accent-2)">/staff/</code> with the restaurant code and their PIN.</div>
+    <div class="row-inline" style="align-items:flex-end">
+      <div class="row" style="flex:1"><label>Name</label><input id="st_name" placeholder="Sarah" /></div>
+      <div class="row" style="width:120px"><label>4–6 digit PIN</label><input id="st_pin" inputmode="numeric" maxlength="6" placeholder="1234" /></div>
+      <div class="row" style="width:130px"><label>Role</label><select id="st_role"><option value="waiter">Waiter</option><option value="manager">Manager</option></select></div>
+      <button class="btn" id="st_add">+ Add</button>
+    </div>
+  </div>
+  <div class="card"><h2>Staff</h2><div id="st_list"></div></div>
+</div>
+
+<!-- LIVE ORDERS -->
+<div class="view" id="view-orders"><div class="card"><h2>Live orders</h2><div class="sub">Refreshes every 6 seconds.</div><div id="orders_list"></div></div></div>
+
+<!-- WAITER CALLS -->
+<div class="view" id="view-calls"><div class="card"><h2>Waiter calls</h2><div id="calls_list"></div></div></div>
+
+<!-- REVIEWS -->
+<div class="view" id="view-reviews"><div class="card"><h2>Reviews</h2><div class="sub">All ratings from guests. 4-5★ were also invited to Google.</div><div id="rev_list"></div></div></div>
+
+<!-- OFFERS -->
+<div class="view" id="view-offers">
+  <div class="card">
+    <h2>Add offer / happy hour</h2>
+    <div class="row-inline">
+      <div class="row" style="flex:2"><label>Name</label><input id="of_name" placeholder="Happy Hour" /></div>
+      <div class="row" style="flex:1"><label>Discount %</label><input id="of_pct" type="number" min="1" max="90" placeholder="20" /></div>
+    </div>
+    <div class="row-inline">
+      <div class="row" style="flex:1"><label>Starts</label><input id="of_start" type="time" value="17:00" /></div>
+      <div class="row" style="flex:1"><label>Ends</label><input id="of_end" type="time" value="19:00" /></div>
+    </div>
+    <div class="row"><label>Days (0=Sun..6=Sat, comma)</label><input id="of_days" placeholder="1,2,3,4,5" /></div>
+    <button class="btn" id="of_add">+ Add offer</button>
+  </div>
+  <div class="card"><h2>Offers</h2><div id="of_list"></div></div>
+</div>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const params = new URLSearchParams(location.search);
+const slug = params.get('slug');
+if (!slug) { document.body.innerHTML = '<p style="padding:60px;text-align:center;font-family:sans-serif">Missing ?slug= in URL</p>'; }
+
+const SECRET_KEY = 'armenu_admin_secret';
+let SECRET = sessionStorage.getItem(SECRET_KEY);
+
+const toast = (m, k='ok') => { const t = $('toast'); t.textContent = m; t.className = 'toast show ' + k; setTimeout(() => t.classList.remove('show'), 2600); };
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, {
+    ...opts,
+    headers: { 'content-type': 'application/json', 'x-admin-secret': SECRET || '', ...(opts.headers || {}) }
+  });
+  if (res.status === 401) { sessionStorage.removeItem(SECRET_KEY); SECRET = null; $('login').style.display = 'grid'; throw new Error('unauth'); }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Request failed');
+  return data;
+}
+
+$('loginBtn').onclick = async () => {
+  const pw = $('loginPass').value.trim(); if (!pw) return;
+  SECRET = pw; sessionStorage.setItem(SECRET_KEY, pw); $('loginErr').textContent = '';
+  try { await api('/api/admin/settings?slug=' + slug); $('login').style.display = 'none'; boot(); }
+  catch { SECRET = null; sessionStorage.removeItem(SECRET_KEY); $('loginErr').textContent = 'Wrong password'; }
+};
+$('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') $('loginBtn').click(); });
+
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('on'));
+  t.classList.add('on');
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('on'));
+  $('view-' + t.dataset.tab).classList.add('on');
+  load(t.dataset.tab);
+});
+
+const FEATURES = [
+  { key: 'orders_enabled',      name: 'Order cart (guest self-ordering)', sub: 'Guests build a cart and send orders straight to your kitchen. Turn OFF if you already have a POS.' },
+  { key: 'waiter_call_enabled', name: 'Waiter call button',              sub: 'Guests tap a button to call a waiter. Alerts appear on the staff console.' },
+  { key: 'kitchen_display',     name: 'Kitchen display',                  sub: 'A dedicated view for the kitchen (coming soon).' },
+  { key: 'reviews_enabled',     name: 'Post-meal reviews',                sub: '1-tap star rating; 4-5★ invited to Google.' },
+  { key: 'tables_enabled',      name: 'Table management',                sub: 'Per-table QRs so orders/calls know the seat.' }
+];
+
+let settings = null;
+
+async function boot() {
+  await load('settings');
+  // Meta
+  const c = await api('/api/admin/client?slug=' + slug).catch(() => null);
+  if (c?.restaurant) { $('hName').innerHTML = `<b>${c.restaurant.name}</b>`; $('hSlug').textContent = '/r/' + c.restaurant.slug; }
+}
+
+async function load(tab) {
+  try {
+    if (tab === 'settings') {
+      const { settings: s } = await api('/api/admin/settings?slug=' + slug);
+      settings = s;
+      $('toggles').innerHTML = FEATURES.map(f => `
+        <div class="toggle">
+          <div><div class="t-name">${f.name}</div><div class="t-sub">${f.sub}</div></div>
+          <div class="switch ${s[f.key] ? 'on' : ''}" data-flag="${f.key}"></div>
+        </div>`).join('');
+      document.querySelectorAll('[data-flag]').forEach(el => el.onclick = async () => {
+        const key = el.dataset.flag;
+        const next = !settings[key];
+        try {
+          await api('/api/admin/settings?slug=' + slug, { method: 'PATCH', body: JSON.stringify({ [key]: next }) });
+          settings[key] = next; el.classList.toggle('on', next);
+          toast('Saved ✓', 'ok');
+        } catch (e) { toast(e.message, 'err'); }
+      });
+      $('s_currency').value = s.default_currency || 'ZAR';
+      $('s_symbol').value = s.currency_symbol || 'R';
+      $('s_lang').value = s.default_language || 'en';
+      $('s_langs').value = (s.enabled_languages || ['en']).join(',');
+      $('s_gurl').value = s.google_review_url || '';
+      $('s_plan').value = s.plan || 'starter';
+    }
+    if (tab === 'branding') {
+      const { settings: s } = await api('/api/admin/settings?slug=' + slug);
+      $('b_logo').value = s.logo_url || ''; $('b_cover').value = s.cover_url || '';
+      $('b_primary').value = s.theme_primary || '#ff5722';
+      $('b_bg').value = s.theme_bg || '#0a0806';
+      $('b_tagline').value = s.tagline || '';
+    }
+    if (tab === 'categories') {
+      const { categories } = await api('/api/admin/categories?slug=' + slug);
+      $('cat_list').innerHTML = categories.length
+        ? `<table><thead><tr><th>Name</th><th>Order</th><th>Status</th><th></th></tr></thead><tbody>${categories.map(c => `<tr><td>${escapeHTML(c.name)}</td><td>${c.sort_order}</td><td><span class="status-pill ${c.active ? 'ready' : ''}">${c.active ? 'active' : 'hidden'}</span></td><td style="text-align:right"><button class="btn-ghost btn" data-toggle-cat="${c.id}:${!c.active}">${c.active ? 'Hide' : 'Show'}</button> <button class="btn-err btn" data-del-cat="${c.id}">✕</button></td></tr>`).join('')}</tbody></table>`
+        : `<div class="empty"><h3>No categories yet</h3><p>Add "Starters", "Mains", "Desserts", etc.</p></div>`;
+      wireList('[data-toggle-cat]', async v => { const [id, active] = v.split(':'); await api('/api/admin/categories?id=' + id, { method: 'PATCH', body: JSON.stringify({ active: active === 'true' }) }); load('categories'); });
+      wireList('[data-del-cat]', async id => { if (confirm('Delete category?')) { await api('/api/admin/categories?id=' + id, { method: 'DELETE' }); load('categories'); } });
+    }
+    if (tab === 'tables') {
+      const { tables } = await api('/api/admin/tables?slug=' + slug);
+      $('tbl_list').innerHTML = tables.length
+        ? `<table><thead><tr><th>Label</th><th>Seats</th><th>Status</th><th>QR link</th><th></th></tr></thead><tbody>${tables.map(t => `<tr><td><strong>${escapeHTML(t.label)}</strong></td><td>${t.seats}</td><td><span class="status-pill">${t.status}</span></td><td style="font-family:var(--mono);font-size:11px"><a href="/menu.html?r=${slug}&t=${encodeURIComponent(t.label)}" target="_blank">/menu?r=${slug}&t=${escapeHTML(t.label)}</a></td><td style="text-align:right"><button class="btn-err btn" data-del-tbl="${t.id}">✕</button></td></tr>`).join('')}</tbody></table>`
+        : `<div class="empty"><h3>No tables yet</h3></div>`;
+      wireList('[data-del-tbl]', async id => { if (confirm('Delete table?')) { await api('/api/admin/tables?id=' + id, { method: 'DELETE' }); load('tables'); } });
+    }
+    if (tab === 'staff') {
+      const { staff } = await api('/api/admin/staff?slug=' + slug);
+      $('st_list').innerHTML = staff.length
+        ? `<table><thead><tr><th>Name</th><th>Role</th><th>Last sign-in</th><th>Status</th><th></th></tr></thead><tbody>${staff.map(s => `<tr><td>${escapeHTML(s.name)}</td><td>${s.role}</td><td style="font-size:12px;color:var(--ink-dim)">${s.last_login_at ? new Date(s.last_login_at).toLocaleString() : '—'}</td><td><span class="status-pill ${s.active ? 'ready' : ''}">${s.active ? 'active' : 'disabled'}</span></td><td style="text-align:right"><button class="btn-ghost btn" data-reset-pin="${s.id}">Reset PIN</button> <button class="btn-err btn" data-del-staff="${s.id}">✕</button></td></tr>`).join('')}</tbody></table>`
+        : `<div class="empty"><h3>No staff yet</h3></div>`;
+      wireList('[data-del-staff]', async id => { if (confirm('Delete this staff member?')) { await api('/api/admin/staff?id=' + id, { method: 'DELETE' }); load('staff'); } });
+      wireList('[data-reset-pin]', async id => { const pin = prompt('New 4–6 digit PIN:'); if (pin && /^\d{4,6}$/.test(pin)) { await api('/api/admin/staff?id=' + id, { method: 'PATCH', body: JSON.stringify({ pin }) }); toast('PIN reset', 'ok'); } });
+    }
+    if (tab === 'orders') {
+      const { orders } = await api('/api/admin/orders?slug=' + slug);
+      $('orders_list').innerHTML = orders.length
+        ? `<table><thead><tr><th>Time</th><th>Table</th><th>Items</th><th>Total</th><th>Status</th></tr></thead><tbody>${orders.map(o => `<tr><td style="font-size:12px;color:var(--ink-dim)">${new Date(o.created_at).toLocaleString()}</td><td>${escapeHTML(o.table_label || '—')}</td><td>${(o.order_items || []).map(i => `${i.qty}× ${escapeHTML(i.dish_name)}`).join(', ')}</td><td>R${(o.total_cents / 100).toFixed(2)}</td><td><span class="status-pill ${o.status}">${o.status}</span></td></tr>`).join('')}</tbody></table>`
+        : `<div class="empty"><h3>No orders yet</h3></div>`;
+    }
+    if (tab === 'calls') {
+      const { calls } = await api('/api/admin/waiter-calls?slug=' + slug);
+      $('calls_list').innerHTML = calls.length
+        ? `<table><thead><tr><th>Time</th><th>Table</th><th>Reason</th><th>Status</th></tr></thead><tbody>${calls.map(c => `<tr><td style="font-size:12px;color:var(--ink-dim)">${new Date(c.created_at).toLocaleString()}</td><td>${escapeHTML(c.table_label || '—')}</td><td>${escapeHTML(c.reason)}</td><td><span class="status-pill ${c.status === 'open' ? 'new' : ''}">${c.status}</span></td></tr>`).join('')}</tbody></table>`
+        : `<div class="empty"><h3>No calls yet</h3></div>`;
+    }
+    if (tab === 'reviews') {
+      const { reviews } = await api('/api/admin/reviews?slug=' + slug);
+      $('rev_list').innerHTML = reviews.length
+        ? `<table><thead><tr><th>Date</th><th>Rating</th><th>Comment</th><th>Google?</th></tr></thead><tbody>${reviews.map(r => `<tr><td style="font-size:12px;color:var(--ink-dim)">${new Date(r.created_at).toLocaleDateString()}</td><td style="color:var(--accent-2);font-size:16px">${'★'.repeat(r.stars)}${'☆'.repeat(5 - r.stars)}</td><td>${escapeHTML(r.comment || '—')}</td><td>${r.routed_to_google ? '✓' : ''}</td></tr>`).join('')}</tbody></table>`
+        : `<div class="empty"><h3>No reviews yet</h3></div>`;
+    }
+    if (tab === 'offers') {
+      const { offers } = await api('/api/admin/offers?slug=' + slug);
+      $('of_list').innerHTML = offers.length
+        ? `<table><thead><tr><th>Name</th><th>Discount</th><th>Window</th><th>Days</th><th></th></tr></thead><tbody>${offers.map(o => `<tr><td>${escapeHTML(o.name)}</td><td>${o.discount_pct}%</td><td>${o.starts_at} → ${o.ends_at}</td><td>${(o.days_of_week || []).join(',')}</td><td style="text-align:right"><button class="btn-err btn" data-del-offer="${o.id}">✕</button></td></tr>`).join('')}</tbody></table>`
+        : `<div class="empty"><h3>No offers yet</h3></div>`;
+      wireList('[data-del-offer]', async id => { if (confirm('Delete offer?')) { await api('/api/admin/offers?id=' + id, { method: 'DELETE' }); load('offers'); } });
+    }
+  } catch (e) { if (e.message !== 'unauth') toast(e.message, 'err'); }
+}
+
+function wireList(sel, fn) { document.querySelectorAll(sel).forEach(el => el.onclick = () => fn(el.dataset[Object.keys(el.dataset)[0]])); }
+function escapeHTML(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// Save buttons
+$('s_saveLocale').onclick = async () => {
+  const langs = $('s_langs').value.split(',').map(x => x.trim()).filter(Boolean);
+  try { await api('/api/admin/settings?slug=' + slug, { method: 'PATCH', body: JSON.stringify({ default_currency: $('s_currency').value.trim(), currency_symbol: $('s_symbol').value.trim(), default_language: $('s_lang').value.trim(), enabled_languages: langs }) }); toast('Locale saved', 'ok'); }
+  catch (e) { toast(e.message, 'err'); }
+};
+$('s_saveGoogle').onclick = async () => { try { await api('/api/admin/settings?slug=' + slug, { method: 'PATCH', body: JSON.stringify({ google_review_url: $('s_gurl').value.trim() }) }); toast('Saved', 'ok'); } catch (e) { toast(e.message, 'err'); } };
+$('s_savePlan').onclick = async () => { try { await api('/api/admin/settings?slug=' + slug, { method: 'PATCH', body: JSON.stringify({ plan: $('s_plan').value }) }); toast('Plan saved', 'ok'); } catch (e) { toast(e.message, 'err'); } };
+
+$('b_save').onclick = async () => {
+  try { await api('/api/admin/settings?slug=' + slug, { method: 'PATCH', body: JSON.stringify({ logo_url: $('b_logo').value.trim() || null, cover_url: $('b_cover').value.trim() || null, theme_primary: $('b_primary').value, theme_bg: $('b_bg').value, tagline: $('b_tagline').value.trim() || null }) }); toast('Branding saved ✓', 'ok'); }
+  catch (e) { toast(e.message, 'err'); }
+};
+
+$('cat_add').onclick = async () => {
+  const name = $('cat_name').value.trim(); if (!name) return;
+  try { await api('/api/admin/categories?slug=' + slug, { method: 'POST', body: JSON.stringify({ name }) }); $('cat_name').value = ''; load('categories'); }
+  catch (e) { toast(e.message, 'err'); }
+};
+$('tbl_add').onclick = async () => {
+  const label = $('tbl_label').value.trim(); if (!label) return;
+  try { await api('/api/admin/tables?slug=' + slug, { method: 'POST', body: JSON.stringify({ label, seats: parseInt($('tbl_seats').value) || 2 }) }); $('tbl_label').value = ''; load('tables'); }
+  catch (e) { toast(e.message, 'err'); }
+};
+$('st_add').onclick = async () => {
+  const name = $('st_name').value.trim(); const pin = $('st_pin').value.trim(); const role = $('st_role').value;
+  if (!name || !/^\d{4,6}$/.test(pin)) return toast('Name and 4–6 digit PIN required', 'err');
+  try { await api('/api/admin/staff?slug=' + slug, { method: 'POST', body: JSON.stringify({ name, pin, role }) }); $('st_name').value = ''; $('st_pin').value = ''; load('staff'); toast('Staff added ✓', 'ok'); }
+  catch (e) { toast(e.message, 'err'); }
+};
+$('of_add').onclick = async () => {
+  const days = ($('of_days').value || '0,1,2,3,4,5,6').split(',').map(x => parseInt(x)).filter(n => n >= 0 && n <= 6);
+  try { await api('/api/admin/offers?slug=' + slug, { method: 'POST', body: JSON.stringify({ name: $('of_name').value.trim(), discount_pct: parseInt($('of_pct').value), starts_at: $('of_start').value, ends_at: $('of_end').value, days_of_week: days }) }); load('offers'); }
+  catch (e) { toast(e.message, 'err'); }
+};
+
+// Silent auth
+if (SECRET) { api('/api/admin/settings?slug=' + slug).then(() => { $('login').style.display = 'none'; boot(); }).catch(() => {}); }
+
+// Poll orders/calls when their tab is open
+setInterval(() => {
+  const t = document.querySelector('.tab.on')?.dataset.tab;
+  if (t === 'orders' || t === 'calls') load(t);
+}, 6000);
+</script>
+</body>
+</html>

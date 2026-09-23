@@ -1,6 +1,8 @@
--- AR Menu — Supabase (PostgreSQL) schema
--- HOW TO RUN: go to supabase.com → your project → SQL Editor → paste this → Run
+-- AR Menu — Supabase (PostgreSQL) schema (v2, 4D-parity expansion)
+-- Safe to re-run: every statement uses `IF NOT EXISTS` or `ADD COLUMN IF NOT EXISTS`.
+-- HOW TO RUN: Supabase → SQL Editor → paste → Run.
 
+-- ============ CORE (existing) ============
 create table if not exists restaurants (
   id          uuid primary key default gen_random_uuid(),
   slug        text unique not null,
@@ -40,11 +42,6 @@ create table if not exists requests (
   created_at    timestamptz default now()
 );
 
-create index if not exists scans_restaurant_date on scans(restaurant_id, scanned_at);
-create index if not exists scans_dish on scans(dish_id);
-
--- Pending sign-ups: people who signed up at /portal/ before a restaurant exists for their email.
--- Owner sees these in admin and either creates a restaurant for them or rejects.
 create table if not exists pending_signups (
   id              uuid primary key default gen_random_uuid(),
   email           text not null,
@@ -54,4 +51,179 @@ create table if not exists pending_signups (
   status          text default 'pending',
   created_at      timestamptz default now()
 );
+
+create index if not exists scans_restaurant_date on scans(restaurant_id, scanned_at);
+create index if not exists scans_dish on scans(dish_id);
 create unique index if not exists pending_signups_email on pending_signups(lower(email));
+
+-- ============ V2 EXPANSION ============
+
+-- Categories (Starters / Mains / Desserts / Drinks / etc.)
+create table if not exists categories (
+  id            uuid primary key default gen_random_uuid(),
+  restaurant_id uuid references restaurants(id) on delete cascade,
+  name          text not null,
+  slug          text not null,
+  sort_order    int  default 0,
+  active        boolean default true,
+  created_at    timestamptz default now(),
+  unique(restaurant_id, slug)
+);
+
+-- Attach dishes to categories + support ordering/description/i18n/allergens
+alter table dishes add column if not exists category_id  uuid references categories(id) on delete set null;
+alter table dishes add column if not exists description  text;
+alter table dishes add column if not exists sort_order   int default 0;
+alter table dishes add column if not exists allergens    text;                    -- comma-sep e.g. "gluten,dairy"
+alter table dishes add column if not exists translations jsonb default '{}'::jsonb; -- { "de": {"name": "...", "description": "..."}, "af": {...} }
+alter table dishes add column if not exists price_cents  int;                     -- normalised (currency held on restaurant_settings)
+
+create index if not exists dishes_category on dishes(category_id);
+
+-- Per-restaurant settings — feature flags, branding, currency, langs, google reviews
+create table if not exists restaurant_settings (
+  restaurant_id       uuid primary key references restaurants(id) on delete cascade,
+  -- Feature flags — optional modules (owner can turn off if they have their own POS)
+  orders_enabled      boolean default false,
+  waiter_call_enabled boolean default false,
+  kitchen_display     boolean default false,
+  reviews_enabled     boolean default true,
+  tables_enabled      boolean default false,
+  -- Branding
+  logo_url            text,
+  cover_url           text,
+  theme_primary       text default '#ff5722',
+  theme_bg            text default '#0a0806',
+  tagline             text,
+  -- Locale
+  default_currency    text default 'ZAR',
+  currency_symbol     text default 'R',
+  default_language    text default 'en',
+  enabled_languages   text[] default array['en'],   -- e.g. {'en','de','af','zu'}
+  -- Integrations
+  google_review_url   text,
+  -- Plan / billing
+  plan                text default 'starter',       -- starter | pro | premium | enterprise
+  subscription_status text default 'trial',         -- trial | active | past_due | cancelled
+  trial_ends_at       timestamptz default (now() + interval '7 days'),
+  paddle_subscription_id text,
+  -- Meta
+  updated_at          timestamptz default now()
+);
+
+-- Menu schedules (breakfast/lunch/dinner auto-switching). A dish or category
+-- is visible only when the current time-of-day falls inside an active window.
+create table if not exists menu_schedules (
+  id            uuid primary key default gen_random_uuid(),
+  restaurant_id uuid references restaurants(id) on delete cascade,
+  name          text not null,                     -- 'Breakfast', 'Lunch', 'Dinner'
+  starts_at     time not null,                     -- 07:00
+  ends_at       time not null,                     -- 11:00
+  days_of_week  int[] default array[0,1,2,3,4,5,6], -- 0=Sun..6=Sat
+  category_ids  uuid[] default array[]::uuid[],
+  active        boolean default true,
+  created_at    timestamptz default now()
+);
+
+-- Time-boxed offers (happy hour / weekend specials)
+create table if not exists offers (
+  id            uuid primary key default gen_random_uuid(),
+  restaurant_id uuid references restaurants(id) on delete cascade,
+  name          text not null,
+  discount_pct  int not null,                      -- 15 = 15% off
+  starts_at     time not null,
+  ends_at       time not null,
+  days_of_week  int[] default array[0,1,2,3,4,5,6],
+  dish_ids      uuid[] default array[]::uuid[],    -- empty = whole menu
+  active        boolean default true,
+  created_at    timestamptz default now()
+);
+
+-- Tables (each has its own QR that pins order/waiter-call to that seat)
+create table if not exists restaurant_tables (
+  id            uuid primary key default gen_random_uuid(),
+  restaurant_id uuid references restaurants(id) on delete cascade,
+  label         text not null,                     -- 'T-12', 'Bar-3', 'Patio-A'
+  seats         int default 2,
+  status        text default 'available',          -- available | occupied | reserved | vip | cleaning
+  updated_at    timestamptz default now(),
+  unique(restaurant_id, label)
+);
+
+-- Staff (floor waiters). PIN log-in on staff/index.html.
+create table if not exists staff (
+  id            uuid primary key default gen_random_uuid(),
+  restaurant_id uuid references restaurants(id) on delete cascade,
+  name          text not null,
+  pin_hash      text not null,                     -- sha256 of PIN + restaurant_id salt
+  role          text default 'waiter',             -- waiter | manager
+  active        boolean default true,
+  last_login_at timestamptz,
+  created_at    timestamptz default now(),
+  unique(restaurant_id, name)
+);
+
+-- Orders (created by diner OR staff-taken). Kitchen sees NEW/PREP.
+create table if not exists orders (
+  id            uuid primary key default gen_random_uuid(),
+  restaurant_id uuid references restaurants(id) on delete cascade,
+  table_id      uuid references restaurant_tables(id) on delete set null,
+  table_label   text,                              -- denormalised (survives table deletion)
+  taken_by      uuid references staff(id) on delete set null, -- null = guest self-ordered
+  source        text default 'guest',              -- guest | staff
+  status        text default 'new',                -- new | prep | ready | served | cancelled
+  subtotal_cents int default 0,
+  discount_cents int default 0,
+  total_cents   int default 0,
+  currency      text default 'ZAR',
+  guest_note    text,
+  created_at    timestamptz default now(),
+  updated_at    timestamptz default now()
+);
+
+create table if not exists order_items (
+  id           uuid primary key default gen_random_uuid(),
+  order_id     uuid references orders(id) on delete cascade,
+  dish_id      uuid references dishes(id) on delete set null,
+  dish_name    text not null,                      -- snapshot
+  qty          int  not null default 1,
+  price_cents  int  not null default 0,
+  note         text,                               -- 'no onion', 'extra cheese'
+  complimentary boolean default false
+);
+
+create index if not exists orders_restaurant_ts on orders(restaurant_id, created_at desc);
+create index if not exists orders_status on orders(restaurant_id, status);
+create index if not exists order_items_order on order_items(order_id);
+
+-- Waiter call events (independent of orders — 'call waiter' button)
+create table if not exists waiter_calls (
+  id            uuid primary key default gen_random_uuid(),
+  restaurant_id uuid references restaurants(id) on delete cascade,
+  table_id      uuid references restaurant_tables(id) on delete set null,
+  table_label   text,
+  reason        text,                              -- 'help' | 'bill' | 'water' | custom
+  status        text default 'open',               -- open | acknowledged | closed
+  created_at    timestamptz default now(),
+  closed_at     timestamptz
+);
+create index if not exists waiter_calls_open on waiter_calls(restaurant_id, status, created_at);
+
+-- Reviews (post-meal, 1-5 stars). 4-5★ can be routed to Google — the app
+-- captures the click event but does not fake anything.
+create table if not exists reviews (
+  id            uuid primary key default gen_random_uuid(),
+  restaurant_id uuid references restaurants(id) on delete cascade,
+  table_id      uuid references restaurant_tables(id) on delete set null,
+  stars         int not null check (stars between 1 and 5),
+  comment       text,
+  routed_to_google boolean default false,
+  created_at    timestamptz default now()
+);
+create index if not exists reviews_restaurant on reviews(restaurant_id, created_at desc);
+
+-- Add settings row automatically for every existing restaurant
+insert into restaurant_settings (restaurant_id)
+  select id from restaurants
+  where id not in (select restaurant_id from restaurant_settings)
+on conflict do nothing;

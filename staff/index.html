@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0a0806" />
+<title>Staff · AR Menu</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#0a0806;--panel:#13100c;--ink:#f5efe6;--ink-dim:#9a9388;--ink-faint:#564f45;
+    --accent:#ff5722;--accent-2:#ffb066;--line:rgba(255,239,220,.08);
+    --serif:'Instrument Serif',serif;--mono:'JetBrains Mono',monospace;
+    --ok:#7dd87d;--warn:#ffb066;--err:#f87171;
+  }
+  body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;-webkit-font-smoothing:antialiased}
+  button,input{font-family:inherit;color:inherit}
+  button{cursor:pointer;border:none}
+  a{color:inherit;text-decoration:none}
+
+  /* Login */
+  .login-cover{position:fixed;inset:0;z-index:1000;background:rgba(10,8,6,.97);backdrop-filter:blur(20px);display:grid;place-items:center;padding:20px}
+  .login-card{width:min(420px,100%);padding:40px 32px;border-radius:22px;background:linear-gradient(180deg,rgba(255,239,220,.03),rgba(255,239,220,.005));border:1px solid var(--line);text-align:center}
+  .login-card h2{font-family:var(--serif);font-style:italic;font-size:28px;margin-bottom:6px}
+  .login-card p{color:var(--ink-dim);font-size:13px;margin-bottom:22px}
+  .login-card .row{margin-bottom:12px;text-align:left}
+  .login-card label{display:block;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--ink-faint);margin-bottom:6px}
+  .login-card input{width:100%;padding:14px;border-radius:10px;background:rgba(255,239,220,.03);border:1px solid var(--line);font-size:15px}
+  .login-card .pin{letter-spacing:.4em;text-align:center;font-size:22px;font-weight:700}
+  .login-card .btn{width:100%;padding:14px;border-radius:12px;background:linear-gradient(135deg,var(--accent),#c93d00);color:#fff;font-weight:700;font-size:14px;margin-top:6px}
+  .login-card .err{color:var(--err);font-size:12px;min-height:18px;margin:8px 0}
+
+  header{position:sticky;top:0;z-index:10;background:rgba(10,8,6,.9);backdrop-filter:blur(14px);border-bottom:1px solid var(--line);padding:14px 20px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:13px;letter-spacing:.06em;text-transform:uppercase}
+  .brand .mark{width:22px;height:22px;border-radius:7px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative}
+  .brand b{font-weight:800}
+  .whoami{font-family:var(--mono);font-size:11px;color:var(--ink-dim);letter-spacing:.08em;text-transform:uppercase}
+  .signout{background:none;color:var(--ink-dim);font-size:12px;padding:6px 10px;border-radius:8px}
+
+  .tabs{display:flex;padding:8px 12px;gap:6px;border-bottom:1px solid var(--line);background:rgba(10,8,6,.6);position:sticky;top:52px;z-index:9}
+  .tab{padding:10px 16px;border-radius:10px;font-size:13px;font-weight:600;color:var(--ink-dim);background:rgba(255,239,220,.02)}
+  .tab.active{background:rgba(255,87,34,.14);color:var(--accent);border:1px solid rgba(255,87,34,.28)}
+  .badge{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;font-family:var(--mono);font-size:10px;background:rgba(255,87,34,.2);color:var(--accent)}
+
+  main{padding:22px 20px;max-width:1400px}
+  .view{display:none}.view.on{display:block}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+  .card{background:linear-gradient(180deg,rgba(255,239,220,.03),rgba(255,239,220,.005));border:1px solid var(--line);border-radius:16px;padding:16px}
+  .card.new{border-color:rgba(255,87,34,.3);box-shadow:0 0 0 1px rgba(255,87,34,.14)}
+  .card.prep{border-color:rgba(255,176,102,.3)}
+  .card.ready{border-color:rgba(125,216,125,.3)}
+  .card h4{font-size:15px;margin-bottom:6px;display:flex;align-items:center;gap:8px}
+  .status-dot{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+  .status-dot.prep{background:var(--warn)}
+  .status-dot.ready{background:var(--ok)}
+  .card .meta{font-family:var(--mono);font-size:11px;color:var(--ink-dim);letter-spacing:.08em;margin-bottom:10px}
+  .card ul{list-style:none;padding:0;margin:8px 0;font-size:14px;line-height:1.6}
+  .card ul li{padding:6px 0;border-bottom:1px solid var(--line);display:flex;justify-content:space-between}
+  .card ul li:last-child{border:0}
+  .card .note{background:rgba(255,176,102,.06);border-left:2px solid var(--warn);padding:8px 10px;border-radius:6px;font-size:12px;color:var(--warn);margin-top:8px}
+  .card .actions{display:flex;gap:6px;margin-top:12px}
+  .card .actions button{flex:1;padding:10px;border-radius:10px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+  .btn-primary{background:linear-gradient(135deg,var(--accent),#c93d00);color:#fff}
+  .btn-ok{background:rgba(125,216,125,.14);color:var(--ok);border:1px solid rgba(125,216,125,.3)}
+  .btn-ghost{background:rgba(255,239,220,.05);color:var(--ink);border:1px solid var(--line)}
+  .btn-err{background:rgba(248,113,113,.12);color:var(--err);border:1px solid rgba(248,113,113,.3)}
+
+  .tables-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}
+  .tbl{aspect-ratio:1/1;border-radius:14px;padding:12px;display:flex;flex-direction:column;justify-content:space-between;background:rgba(125,216,125,.08);border:1px solid rgba(125,216,125,.3);cursor:pointer}
+  .tbl.occupied{background:rgba(255,87,34,.1);border-color:rgba(255,87,34,.35)}
+  .tbl.reserved{background:rgba(255,176,102,.1);border-color:rgba(255,176,102,.35)}
+  .tbl.vip{background:linear-gradient(135deg,rgba(255,176,102,.15),rgba(255,87,34,.15));border-color:var(--accent-2)}
+  .tbl.cleaning{background:rgba(154,147,136,.08);border-color:rgba(154,147,136,.3)}
+  .tbl .lbl{font-family:var(--serif);font-style:italic;font-size:22px}
+  .tbl .st{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim)}
+
+  .empty{padding:60px 20px;text-align:center;color:var(--ink-dim)}
+  .empty h3{font-family:var(--serif);font-style:italic;font-size:22px;color:var(--ink);margin-bottom:6px}
+
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);padding:12px 20px;border-radius:12px;background:#13100c;border:1px solid var(--line);font-size:13px;z-index:100;display:none;box-shadow:0 12px 32px rgba(0,0,0,.6)}
+  .toast.show{display:block}
+  .toast.err{border-color:rgba(248,113,113,.3);color:var(--err)}
+  .toast.ok{border-color:rgba(125,216,125,.3);color:var(--ok)}
+
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:50;display:none;align-items:center;justify-content:center;padding:20px}
+  .modal-overlay.on{display:flex}
+  .modal{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px;max-width:360px;width:100%}
+  .modal h3{font-family:var(--serif);font-style:italic;font-size:22px;margin-bottom:12px}
+  .modal .opt{display:flex;justify-content:space-between;padding:14px 16px;border-radius:10px;background:rgba(255,239,220,.03);border:1px solid var(--line);margin-bottom:6px;cursor:pointer}
+  .modal .opt:hover{border-color:var(--accent)}
+</style>
+</head>
+<body>
+
+<div class="login-cover" id="login">
+  <div class="login-card">
+    <div class="brand" style="justify-content:center;margin-bottom:14px"><span class="mark"></span><b>AR</b><span style="color:var(--ink-dim);font-weight:500;margin-left:3px">Menu · Staff</span></div>
+    <h2>Sign in</h2>
+    <p>Enter your restaurant code and PIN.</p>
+    <div class="row"><label>Restaurant code</label><input id="loginSlug" placeholder="restaurant-slug" autocomplete="off" /></div>
+    <div class="row"><label>Your PIN</label><input id="loginPin" class="pin" inputmode="numeric" maxlength="6" placeholder="••••" autocomplete="off" /></div>
+    <div class="err" id="loginErr"></div>
+    <button class="btn" id="loginBtn">Sign in →</button>
+  </div>
+</div>
+
+<header>
+  <div class="brand"><span class="mark"></span><b>AR</b><span style="color:var(--ink-dim);font-weight:500;margin-left:3px">Menu · Staff</span></div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <span class="whoami" id="whoami"></span>
+    <button class="signout" id="signout">Sign out</button>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button class="tab active" data-tab="orders">Orders <span class="badge" id="ordersBadge" style="display:none">0</span></button>
+  <button class="tab" data-tab="calls">Calls <span class="badge" id="callsBadge" style="display:none">0</span></button>
+  <button class="tab" data-tab="tables">Tables</button>
+</nav>
+
+<main>
+  <div class="view on" id="view-orders"></div>
+  <div class="view" id="view-calls"></div>
+  <div class="view" id="view-tables"></div>
+</main>
+
+<div class="modal-overlay" id="modal"><div class="modal" id="modalBody"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const toast = (m, k='ok') => { const t = $('toast'); t.textContent = m; t.className = 'toast show ' + k; setTimeout(() => t.classList.remove('show'), 2400); };
+
+let session = null;
+try { session = JSON.parse(localStorage.getItem('armenu_staff_session') || 'null'); } catch {}
+let poll = null;
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, {
+    ...opts,
+    headers: {
+      'content-type': 'application/json',
+      ...(session?.token ? { authorization: 'Bearer ' + session.token } : {}),
+      ...(opts.headers || {})
+    }
+  });
+  if (res.status === 401) { signOut(); throw new Error('unauth'); }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Request failed');
+  return data;
+}
+
+// ============ LOGIN ============
+$('loginBtn').onclick = async () => {
+  const r = $('loginSlug').value.trim().toLowerCase();
+  const pin = $('loginPin').value.trim();
+  if (!r || !pin) return $('loginErr').textContent = 'Both fields required';
+  $('loginErr').textContent = '';
+  try {
+    const res = await fetch('/api/staff/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ r, pin }) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Login failed');
+    session = data;
+    localStorage.setItem('armenu_staff_session', JSON.stringify(session));
+    onLoggedIn();
+  } catch (e) { $('loginErr').textContent = e.message; }
+};
+$('loginPin').addEventListener('keydown', e => { if (e.key === 'Enter') $('loginBtn').click(); });
+
+function signOut() {
+  localStorage.removeItem('armenu_staff_session');
+  session = null;
+  if (poll) clearInterval(poll);
+  $('login').style.display = 'grid';
+}
+$('signout').onclick = signOut;
+
+function onLoggedIn() {
+  $('login').style.display = 'none';
+  $('whoami').textContent = `${session.staff.name} · ${session.restaurant.name}`;
+  refresh();
+  poll = setInterval(refresh, 5000);
+}
+
+// ============ TABS ============
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+  t.classList.add('active');
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('on'));
+  $('view-' + t.dataset.tab).classList.add('on');
+  refresh();
+});
+
+async function refresh() {
+  if (!session) return;
+  const active = document.querySelector('.tab.active').dataset.tab;
+  try {
+    // Always refresh badges
+    const [oResp, cResp] = await Promise.all([
+      api('/api/staff/orders'),
+      api('/api/staff/calls').catch(() => ({ calls: [] }))
+    ]);
+    const activeOrders = (oResp.orders || []).filter(o => o.status !== 'served');
+    const openCalls = (cResp.calls || []).filter(c => c.status !== 'closed');
+    updateBadge('ordersBadge', activeOrders.length);
+    updateBadge('callsBadge', openCalls.length);
+
+    if (active === 'orders') renderOrders(activeOrders);
+    if (active === 'calls')  renderCalls(openCalls);
+    if (active === 'tables') renderTables((await api('/api/staff/tables')).tables || []);
+  } catch (e) { if (e.message !== 'unauth') console.error(e); }
+}
+
+function updateBadge(id, n) {
+  const el = $(id);
+  if (!n) { el.style.display = 'none'; } else { el.style.display = 'inline-block'; el.textContent = n; }
+}
+
+function renderOrders(orders) {
+  if (!orders.length) return $('view-orders').innerHTML = `<div class="empty"><h3>No active orders</h3><p>New orders appear here the moment a guest places one.</p></div>`;
+  const sym = 'R';
+  $('view-orders').innerHTML = `<div class="grid">${orders.map(o => `
+    <div class="card ${o.status}">
+      <h4><span class="status-dot ${o.status}"></span>${o.table_label ? `Table ${escapeHTML(o.table_label)}` : 'Walk-up'}</h4>
+      <div class="meta">${new Date(o.created_at).toLocaleTimeString()} · ${o.source === 'staff' ? 'Staff-taken' : 'Guest self-order'}</div>
+      <ul>${(o.order_items || []).map(it => `<li><span>${it.qty}× ${escapeHTML(it.dish_name)}${it.note ? ` <em style="color:var(--warn);font-style:normal">· ${escapeHTML(it.note)}</em>` : ''}${it.complimentary ? ' <span style="color:var(--ok)">(comp)</span>' : ''}</span><span>${it.price_cents ? sym + (it.price_cents * it.qty / 100).toFixed(2) : ''}</span></li>`).join('')}</ul>
+      ${o.guest_note ? `<div class="note">📝 ${escapeHTML(o.guest_note)}</div>` : ''}
+      <div class="actions">
+        ${o.status === 'new' ? `<button class="btn-primary" data-mark="${o.id}:prep">Start prep</button>` : ''}
+        ${o.status === 'prep' ? `<button class="btn-primary" data-mark="${o.id}:ready">Ready</button>` : ''}
+        ${o.status === 'ready' ? `<button class="btn-ok" data-mark="${o.id}:served">Served</button>` : ''}
+        <button class="btn-err" data-mark="${o.id}:cancelled">✕</button>
+      </div>
+    </div>`).join('')}</div>`;
+  document.querySelectorAll('[data-mark]').forEach(b => b.onclick = async () => {
+    const [id, status] = b.dataset.mark.split(':');
+    try { await api('/api/staff/orders?id=' + id, { method: 'PATCH', body: JSON.stringify({ status }) }); refresh(); }
+    catch (e) { toast(e.message, 'err'); }
+  });
+}
+
+function renderCalls(calls) {
+  if (!calls.length) return $('view-calls').innerHTML = `<div class="empty"><h3>No open calls</h3><p>Guests tap "Call Waiter" from their menu and it appears here.</p></div>`;
+  $('view-calls').innerHTML = `<div class="grid">${calls.map(c => `
+    <div class="card new">
+      <h4>🛎 ${c.table_label ? 'Table ' + escapeHTML(c.table_label) : 'Walk-up'}</h4>
+      <div class="meta">${new Date(c.created_at).toLocaleTimeString()} · ${escapeHTML(c.reason || 'help')}</div>
+      <div class="actions">
+        ${c.status === 'open' ? `<button class="btn-primary" data-call="${c.id}:acknowledged">On my way</button>` : ''}
+        <button class="btn-ok" data-call="${c.id}:closed">Done</button>
+      </div>
+    </div>`).join('')}</div>`;
+  document.querySelectorAll('[data-call]').forEach(b => b.onclick = async () => {
+    const [id, status] = b.dataset.call.split(':');
+    try { await api('/api/staff/calls?id=' + id, { method: 'PATCH', body: JSON.stringify({ status }) }); refresh(); }
+    catch (e) { toast(e.message, 'err'); }
+  });
+}
+
+function renderTables(tables) {
+  if (!tables.length) return $('view-tables').innerHTML = `<div class="empty"><h3>No tables yet</h3><p>The owner sets these up in the admin console.</p></div>`;
+  $('view-tables').innerHTML = `<div class="tables-grid">${tables.map(t => `
+    <div class="tbl ${t.status}" data-tid="${t.id}">
+      <div><div class="lbl">${escapeHTML(t.label)}</div><div class="st">${t.seats} seats</div></div>
+      <div class="st">${t.status}</div>
+    </div>`).join('')}</div>`;
+  document.querySelectorAll('[data-tid]').forEach(el => el.onclick = () => openTableModal(el.dataset.tid));
+}
+
+function openTableModal(id) {
+  const opts = ['available','occupied','reserved','vip','cleaning'];
+  $('modalBody').innerHTML = `<h3>Set table status</h3>${opts.map(s => `<div class="opt" data-set="${s}"><span>${s}</span><span>→</span></div>`).join('')}`;
+  $('modal').classList.add('on');
+  document.querySelectorAll('[data-set]').forEach(o => o.onclick = async () => {
+    try { await api('/api/staff/tables?id=' + id, { method: 'PATCH', body: JSON.stringify({ status: o.dataset.set }) }); $('modal').classList.remove('on'); refresh(); }
+    catch (e) { toast(e.message, 'err'); }
+  });
+}
+$('modal').onclick = e => { if (e.target.id === 'modal') $('modal').classList.remove('on'); };
+
+function escapeHTML(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// Boot
+if (session?.token) onLoggedIn();
+</script>
+</body>
+</html>

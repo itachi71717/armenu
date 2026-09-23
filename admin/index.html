@@ -213,6 +213,7 @@
         </div>
         <div class="actions">
           <button class="btn-ghost btn" id="cDeleteBtn">Delete restaurant</button>
+          <a class="btn-ghost btn" id="cManageBtn" href="#" target="_blank" style="text-decoration:none">⚙ Manage modules & settings</a>
           <button class="btn" data-go="add-dish" id="cAddDishBtn">+ Add dish</button>
         </div>
       </div>
@@ -444,6 +445,7 @@
       $('cSlug').textContent = `/r/${r.slug}`;
       $('cEmail').textContent = r.email;
       $('cAvatar').textContent = avatarFor(r.name);
+      $('cManageBtn').href = '/admin/restaurant.html?slug=' + encodeURIComponent(r.slug);
       $('ms-dishes').textContent = c.dishes.length;
       $('ms-scans').textContent = c.total_scans_30d.toLocaleString();
       const pending = c.requests.filter(req => req.status === 'pending').length;
