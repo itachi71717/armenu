@@ -87,9 +87,14 @@ const ROUTES = {
 };
 
 export default async function handler(req, res) {
-  // req.query.path is the [...path] segments array
-  const segs = Array.isArray(req.query.path) ? req.query.path : [req.query.path].filter(Boolean);
-  const key = segs.join('/');
+  // Prefer Vercel's [...path] param; fall back to parsing req.url directly.
+  let key = '';
+  if (Array.isArray(req.query.path)) key = req.query.path.join('/');
+  else if (req.query.path) key = String(req.query.path);
+  if (!key) {
+    const pathname = (req.url || '').split('?')[0];
+    key = pathname.replace(/^\/api\/?/, '').replace(/\/+$/, '');
+  }
   const fn = ROUTES[key];
   if (!fn) return res.status(404).json({ error: 'not found: /api/' + key });
   return fn(req, res);
