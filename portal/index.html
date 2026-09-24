@@ -353,18 +353,41 @@
     }
   };
 
+  let signInMounted = false;
   function showSignIn() {
     $('gate').style.display = 'grid';
     $('app').classList.remove('ready');
     $('link-error').style.display = 'none';
     const mount = $('clerk-mount');
     mount.style.display = 'flex';
+    // If a user is already signed in but landed here (e.g. we bounced back
+    // from /api/portal/me with a 401 due to server-side clerk misconfig),
+    // don't remount the SignIn widget — Clerk will just show a dead-end
+    // "Signed in as X" screen. Show a diagnostic + sign-out route instead.
+    if (clerk.user) {
+      mount.innerHTML = `
+        <div style="padding:24px;text-align:left;width:100%">
+          <div style="padding:16px;border-radius:12px;border:1px solid rgba(255,176,102,.28);background:rgba(255,176,102,.06);color:#e8c58a;font-size:13.5px;line-height:1.55;margin-bottom:16px">
+            <strong style="display:block;color:#fff;margin-bottom:6px">Signed in as ${clerk.user.primaryEmailAddress?.emailAddress || clerk.user.id}.</strong>
+            We couldn't verify your session with the portal. If this is your first time here, use the button below to send us your restaurant details and we'll link your account within 1 business day.
+          </div>
+          <button class="btn-primary" id="continueBtn" style="width:100%;padding:13px;font-size:14px;border-radius:10px;background:linear-gradient(135deg,#e8c58a,#d4a574);color:#0a0806;border:none;font-weight:700;cursor:pointer;margin-bottom:10px">Send my restaurant details →</button>
+          <button class="btn" id="signOutInline" style="width:100%;justify-content:center;padding:11px">Sign out and try a different email</button>
+        </div>`;
+      $('continueBtn').onclick = () => showLinkError();
+      $('signOutInline').onclick = async () => { await clerk.signOut(); location.reload(); };
+      return;
+    }
+    if (signInMounted) return;
     mount.innerHTML = '';
     clerk.mountSignIn(mount, {
-      afterSignInUrl: '/portal/',
-      afterSignUpUrl: '/portal/',
+      signInFallbackRedirectUrl: '/portal/',
+      signUpFallbackRedirectUrl: '/portal/',
+      signInForceRedirectUrl: '/portal/',
+      signUpForceRedirectUrl: '/portal/',
       appearance: clerkAppearance
     });
+    signInMounted = true;
   }
 
   function showLinkError() {
@@ -521,12 +544,17 @@
     toast('Request sent — AR Menu will reply within 1 business day.', 'ok');
   });
 
-  // Boot
+  // Boot. Listener fires on sign-in / sign-out events; when a user shows up
+  // we always re-run loadMe (which will render the app, or fall into
+  // link-error / diagnostic if the server can't verify them).
+  clerk.addListener((res) => {
+    if (res.user && !$('app').classList.contains('ready')) loadMe();
+    if (!res.user) { signInMounted = false; showSignIn(); }
+  });
   if (clerk.user) {
     loadMe();
   } else {
     showSignIn();
-    clerk.addListener(({ user }) => { if (user) loadMe(); });
   }
 </script>
 </body>

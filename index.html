@@ -89,7 +89,7 @@
   @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(1.5)}}
   @keyframes fade{to{opacity:1;transform:none}}
 
-  /* HUGE wordmark. Crisp single-layer text with sheen animation. */
+  /* HUGE interactive wordmark. Per-letter proximity distortion + metallic sheen. */
   .wordmark{
     position:relative;
     font-family:var(--display);
@@ -100,18 +100,25 @@
     font-size:clamp(88px,17vw,240px);
     cursor:default;
     user-select:none;
+    display:inline-flex;
+    text-shadow:0 6px 40px rgba(212,165,116,.35);
+    animation:wordUp 1.1s .15s cubic-bezier(.16,1,.3,1) both;
+    will-change:transform;
+  }
+  .wordmark .ltr{
     display:inline-block;
     background:linear-gradient(115deg,#f5ecd8 0%,#fff 20%,#e8c58a 40%,#c9903c 60%,#e8c58a 80%,#f5ecd8 100%);
-    background-size:200% 100%;
-    background-position:var(--sx,50%) 50%;
+    background-size:220% 100%;
+    background-position:var(--bp,50%) 50%;
     -webkit-background-clip:text;background-clip:text;
     -webkit-text-fill-color:transparent;
-    text-shadow:0 6px 40px rgba(212,165,116,.35);
-    animation:wordUp 1.1s .15s cubic-bezier(.16,1,.3,1) both,sheen 8s ease-in-out infinite;
-    transition:transform .3s ease-out;
+    color:transparent;
+    transform:translate3d(var(--tx,0),var(--ty,0),0) scale(var(--s,1));
+    transition:transform .35s cubic-bezier(.2,.9,.3,1), background-position .35s ease-out;
     will-change:transform,background-position;
+    animation:sheen 8s ease-in-out infinite;
+    animation-delay:calc(var(--i,0) * .12s);
   }
-  .wordmark:hover{transform:scale(1.02)}
   @keyframes wordUp{from{opacity:0;transform:translateY(60px)}to{opacity:1;transform:none}}
   @keyframes sheen{
     0%,100%{background-position:0% 50%}
@@ -208,7 +215,8 @@
   .cell-b:hover .cell-body::after{opacity:1}
   .cell-b h4{font-family:var(--serif);font-style:italic;font-size:22px;font-weight:400;margin-bottom:6px;letter-spacing:-.01em;color:var(--ink)}
   .cell-b p{color:var(--ink-dim);font-size:13px;line-height:1.5}
-  .cell-b .ico{position:absolute;top:16px;right:16px;padding:6px 10px;border-radius:8px;background:rgba(10,8,6,.7);backdrop-filter:blur(10px);border:1px solid rgba(232,197,138,.28);font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--accent-hi)}
+  .cell-b .ico{position:absolute;top:14px;right:14px;width:40px;height:40px;padding:9px;border-radius:11px;background:rgba(10,8,6,.72);backdrop-filter:blur(10px);border:1px solid rgba(232,197,138,.3);color:var(--accent-hi);display:grid;place-items:center;z-index:3;box-shadow:0 6px 18px rgba(0,0,0,.4)}
+  .cell-b .ico svg{width:100%;height:100%;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
   .cell-b.w2{grid-column:span 2}.cell-b.w4{grid-column:span 4}
   .cell-b.h2{grid-row:span 2}
   @media(max-width:900px){.cell-b.w2,.cell-b.w4{grid-column:span 2}.cell-b.h2{grid-row:auto}}
@@ -293,7 +301,9 @@
   <div class="hero-inner">
     <span class="kicker"><span class="dot"></span> South Africa's immersive AR menu platform</span>
     <div class="wordmark-wrap">
-      <div class="wordmark" id="wm">ARMenu</div>
+      <div class="wordmark" id="wm" aria-label="ARMenu">
+        <span class="ltr" style="--i:0">A</span><span class="ltr" style="--i:1">R</span><span class="ltr" style="--i:2">M</span><span class="ltr" style="--i:3">e</span><span class="ltr" style="--i:4">n</span><span class="ltr" style="--i:5">u</span>
+      </div>
     </div>
     <div class="subline">See it<span class="sep"></span>Order it</div>
     <p class="tag"><em>The dish appears on the table.</em> Before it ever leaves the kitchen.</p>
@@ -386,18 +396,41 @@
     <h2 class="sect-h">Every feature. <b>Included.</b></h2>
     <p class="sect-lead">The AR menu is always on. Ordering, waiter call and kitchen display are optional. Turn them on only if you want them.</p>
     <div class="bento">
-      <div class="cell-b feature-ar w4 h2"><div class="cell-bg" style="background-image:url('https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=1600&q=90&fm=jpg&auto=format')"></div><div class="cell-wash"></div><div class="cell-body"><span class="ico">AR</span><h4>Life size AR dishes</h4><p>Real WebAR through the phone's native camera. iOS Quick Look. Android Scene Viewer. No app. Ever.</p></div></div>
-      <div class="cell-b w2"><div class="cell-bg" style="background-image:url('https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=900&q=90&fm=jpg&auto=format')"></div><div class="cell-wash"></div><div class="cell-body"><span class="ico">BRAND</span><h4>Custom branding</h4><p>Your logo, colours, cover video.</p></div></div>
-      <div class="cell-b w2"><div class="cell-bg" style="background-image:url('https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=900&q=90&fm=jpg&auto=format')"></div><div class="cell-wash"></div><div class="cell-body"><span class="ico">STATS</span><h4>Live analytics</h4><p>Scans, orders, revenue, peak hours.</p></div></div>
-      <div class="cell-b w2"><div class="cell-bg" style="background-image:url('https://images.unsplash.com/photo-1600891964599-f61ba0e24092?w=900&q=90&fm=jpg&auto=format')"></div><div class="cell-wash"></div><div class="cell-body"><span class="ico">LIVE</span><h4>Real time menu</h4><p>Edit a price, mark sold out. Live in seconds.</p></div></div>
-      <div class="cell-b w2"><div class="cell-bg" style="background-image:url('https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=900&q=90&fm=jpg&auto=format')"></div><div class="cell-wash"></div><div class="cell-body"><span class="ico">i18n</span><h4>Multi language</h4><p>Up to 8 languages. 8 currencies.</p></div></div>
-      <div class="cell-b w2"><div class="cell-bg" style="background-image:url('https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=900&q=90&fm=jpg&auto=format')"></div><div class="cell-wash"></div><div class="cell-body"><span class="ico">★</span><h4>Review routing</h4><p>4-5★ invited to Google. 1-3★ private.</p></div></div>
-      <div class="cell-b w2"><div class="cell-bg" style="background-image:url('https://images.unsplash.com/photo-1517244683847-7456b63c5969?w=900&q=90&fm=jpg&auto=format')"></div><div class="cell-wash"></div><div class="cell-body"><span class="ico">CRON</span><h4>Menu scheduler</h4><p>Breakfast, lunch, dinner switches on the clock.</p></div></div>
-      <div class="cell-b w2"><div class="cell-bg" style="background-image:url('https://images.unsplash.com/photo-1470337458703-46ad1756a187?w=900&q=90&fm=jpg&auto=format')"></div><div class="cell-wash"></div><div class="cell-body"><span class="ico">HAPPY</span><h4>Happy hour</h4><p>Schedule discounts automatically.</p></div></div>
-      <div class="cell-b w2"><div class="cell-bg" style="background-image:url('https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=900&q=90&fm=jpg&auto=format')"></div><div class="cell-wash"></div><div class="cell-body"><span class="ico">3D</span><h4>AR Studio</h4><p>One photo. One 3D dish. Ready in minutes.</p></div></div>
-      <div class="cell-b optional w2"><div class="cell-bg" style="background-image:url('https://images.unsplash.com/photo-1550547660-d9450f859349?w=900&q=90&fm=jpg&auto=format')"></div><div class="cell-wash"></div><div class="cell-body"><span class="ico">CART</span><h4>Order cart</h4><p>Guests send orders straight to the kitchen.</p></div></div>
-      <div class="cell-b optional w2"><div class="cell-bg" style="background-image:url('https://images.unsplash.com/photo-1552566626-52f8b828add9?w=900&q=90&fm=jpg&auto=format')"></div><div class="cell-wash"></div><div class="cell-body"><span class="ico">BELL</span><h4>Waiter call</h4><p>One tap alert to the staff console.</p></div></div>
-      <div class="cell-b optional w2"><div class="cell-bg" style="background-image:url('https://images.unsplash.com/photo-1577219491135-ce391730fb2c?w=900&q=90&fm=jpg&auto=format')"></div><div class="cell-wash"></div><div class="cell-body"><span class="ico">KITCHEN</span><h4>Staff + kitchen</h4><p>PIN sign in. Live orders. Table board.</p></div></div>
+      <!-- Hero: life size AR dish — a plated meal, phone/AR icon -->
+      <div class="cell-b feature-ar w4 h2"><div class="cell-bg" style="background-image:url('https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=1600&q=90&fm=jpg&auto=format')"></div><div class="cell-wash"></div><div class="cell-body"><span class="ico" title="AR"><svg viewBox="0 0 24 24"><path d="M12 3 3 7.5v9L12 21l9-4.5v-9L12 3Z"/><path d="M3 7.5 12 12l9-4.5"/><path d="M12 12v9"/></svg></span><h4>Life size AR dishes</h4><p>Real WebAR through the phone's native camera. iOS Quick Look. Android Scene Viewer. No app. Ever.</p></div></div>
+
+      <!-- Branding: designer plating / signage vibe -->
+      <div class="cell-b w2"><div class="cell-bg" style="background-image:url('https://images.unsplash.com/photo-1541167760496-1628856ab772?w=900&q=90&fm=jpg&auto=format')"></div><div class="cell-wash"></div><div class="cell-body"><span class="ico" title="Branding"><svg viewBox="0 0 24 24"><path d="M4 4h6l10 10-6 6L4 10V4Z"/><circle cx="8" cy="8" r="1.4" fill="currentColor" stroke="none"/></svg></span><h4>Custom branding</h4><p>Your logo, colours, cover video.</p></div></div>
+
+      <!-- Live analytics: dashboard/chart on laptop -->
+      <div class="cell-b w2"><div class="cell-bg" style="background-image:url('https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=900&q=90&fm=jpg&auto=format')"></div><div class="cell-wash"></div><div class="cell-body"><span class="ico" title="Analytics"><svg viewBox="0 0 24 24"><path d="M3 20h18"/><path d="M6 20V10"/><path d="M11 20V4"/><path d="M16 20v-8"/><path d="M21 20V7"/></svg></span><h4>Live analytics</h4><p>Scans, orders, revenue, peak hours.</p></div></div>
+
+      <!-- Real time menu: phone showing a menu / interface -->
+      <div class="cell-b w2"><div class="cell-bg" style="background-image:url('https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=900&q=90&fm=jpg&auto=format')"></div><div class="cell-wash"></div><div class="cell-body"><span class="ico" title="Real-time"><svg viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M10 18h4"/><path d="M9 6h6M9 10h6M9 14h3"/></svg></span><h4>Real time menu</h4><p>Edit a price, mark sold out. Live in seconds.</p></div></div>
+
+      <!-- Multi language: books / globe -->
+      <div class="cell-b w2"><div class="cell-bg" style="background-image:url('https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=900&q=90&fm=jpg&auto=format')"></div><div class="cell-wash"></div><div class="cell-body"><span class="ico" title="Languages"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18"/><path d="M12 3a14 14 0 0 0 0 18"/></svg></span><h4>Multi language</h4><p>Up to 8 languages. 8 currencies.</p></div></div>
+
+      <!-- Review routing: five stars -->
+      <div class="cell-b w2"><div class="cell-bg" style="background-image:url('https://images.unsplash.com/photo-1567521464027-f127ff144326?w=900&q=90&fm=jpg&auto=format')"></div><div class="cell-wash"></div><div class="cell-body"><span class="ico" title="Reviews"><svg viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.3L12 17.4l-5.6 2.9 1.1-6.3L3 9.6l6.2-.9L12 3Z" fill="currentColor" stroke="none"/></svg></span><h4>Review routing</h4><p>4-5★ invited to Google. 1-3★ private.</p></div></div>
+
+      <!-- Menu scheduler: clock -->
+      <div class="cell-b w2"><div class="cell-bg" style="background-image:url('https://images.unsplash.com/photo-1501139083538-0139583c060f?w=900&q=90&fm=jpg&auto=format')"></div><div class="cell-wash"></div><div class="cell-body"><span class="ico" title="Schedule"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><h4>Menu scheduler</h4><p>Breakfast, lunch, dinner switches on the clock.</p></div></div>
+
+      <!-- Happy hour: cocktails / bar -->
+      <div class="cell-b w2"><div class="cell-bg" style="background-image:url('https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=900&q=90&fm=jpg&auto=format')"></div><div class="cell-wash"></div><div class="cell-body"><span class="ico" title="Happy hour"><svg viewBox="0 0 24 24"><path d="M4 4h16l-8 9-8-9Z"/><path d="M12 13v7"/><path d="M8 20h8"/></svg></span><h4>Happy hour</h4><p>Schedule discounts automatically.</p></div></div>
+
+      <!-- AR Studio: photo → 3D. Camera lens + cube -->
+      <div class="cell-b w2"><div class="cell-bg" style="background-image:url('https://images.unsplash.com/photo-1495707902641-75cac588d2e9?w=900&q=90&fm=jpg&auto=format')"></div><div class="cell-wash"></div><div class="cell-body"><span class="ico" title="AR Studio"><svg viewBox="0 0 24 24"><path d="M3 8h4l2-2h6l2 2h4v11H3V8Z"/><circle cx="12" cy="13" r="3.2"/></svg></span><h4>AR Studio</h4><p>One photo. One 3D dish. Ready in minutes.</p></div></div>
+
+      <!-- Order cart: shopping bag / cart -->
+      <div class="cell-b optional w2"><div class="cell-bg" style="background-image:url('https://images.unsplash.com/photo-1556742044-3c52d6e88c62?w=900&q=90&fm=jpg&auto=format')"></div><div class="cell-wash"></div><div class="cell-body"><span class="ico" title="Order"><svg viewBox="0 0 24 24"><path d="M6 6h14l-1.5 10.5a2 2 0 0 1-2 1.7H9.5a2 2 0 0 1-2-1.7L5 4H2"/><circle cx="9" cy="21" r="1.4" fill="currentColor" stroke="none"/><circle cx="18" cy="21" r="1.4" fill="currentColor" stroke="none"/></svg></span><h4>Order cart</h4><p>Guests send orders straight to the kitchen.</p></div></div>
+
+      <!-- Waiter call: waiter/bell -->
+      <div class="cell-b optional w2"><div class="cell-bg" style="background-image:url('https://images.unsplash.com/photo-1544025162-d76694265947?w=900&q=90&fm=jpg&auto=format')"></div><div class="cell-wash"></div><div class="cell-body"><span class="ico" title="Waiter call"><svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4l2-2Z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg></span><h4>Waiter call</h4><p>One tap alert to the staff console.</p></div></div>
+
+      <!-- Staff + kitchen: chef in kitchen -->
+      <div class="cell-b optional w2"><div class="cell-bg" style="background-image:url('https://images.unsplash.com/photo-1466978913421-dad2ebd01d17?w=900&q=90&fm=jpg&auto=format')"></div><div class="cell-wash"></div><div class="cell-body"><span class="ico" title="Staff + kitchen"><svg viewBox="0 0 24 24"><path d="M6 10a3 3 0 1 1 3-3 3 3 0 1 1 6 0 3 3 0 1 1 3 3v3H6v-3Z"/><path d="M6 13v6h12v-6"/><path d="M9 16h6"/></svg></span><h4>Staff + kitchen</h4><p>PIN sign in. Live orders. Table board.</p></div></div>
     </div>
   </div>
 </section>
@@ -485,25 +518,51 @@
     });
   });
 
-  // Interactive: cursor drags the metallic sheen across the wordmark AND
-  // adds a subtle 3D tilt. Zero blur, GPU-accelerated transforms only.
+  // Interactive per-letter proximity distortion (React Bits "Variable Proximity" style).
+  // Each letter scales, drifts away from the cursor slightly, and its metallic sheen
+  // gradient shifts based on how close the cursor is. Zero blur — GPU transforms only.
   const wm = document.getElementById('wm');
-  wm.addEventListener('pointermove', e => {
-    const r = wm.getBoundingClientRect();
-    const px = ((e.clientX - r.left) / r.width);           // 0..1
-    const py = ((e.clientY - r.top) / r.height);           // 0..1
-    // Sheen follows cursor along the metallic gradient
-    wm.style.setProperty('--sx', (px * 100).toFixed(1) + '%');
-    // Subtle 3D tilt (max 6deg either axis)
-    const rx = ((.5 - py) * 8).toFixed(2);
-    const ry = ((px - .5) * 8).toFixed(2);
-    wm.style.transform = `perspective(1200px) rotateX(${rx}deg) rotateY(${ry}deg) scale(1.02)`;
-    wm.style.animationPlayState = 'paused';
-  });
-  wm.addEventListener('pointerleave', () => {
-    wm.style.transform = '';
-    wm.style.animationPlayState = 'running';
-  });
+  const letters = [...wm.querySelectorAll('.ltr')];
+  const RADIUS = 260;          // px of influence around the cursor
+  const MAX_SCALE = 1.35;      // biggest letter grows this much when cursor is on it
+  const MAX_PUSH = 18;         // px of directional drift away from cursor
+
+  function onMove(clientX, clientY) {
+    letters.forEach(l => {
+      const r = l.getBoundingClientRect();
+      const cx = r.left + r.width / 2;
+      const cy = r.top + r.height / 2;
+      const dx = clientX - cx;
+      const dy = clientY - cy;
+      const dist = Math.hypot(dx, dy);
+      const t = Math.max(0, 1 - dist / RADIUS);   // 0..1 proximity
+      const s = 1 + (MAX_SCALE - 1) * t;
+      // Push letter *away* from cursor a touch — feels like the letters part
+      const push = -MAX_PUSH * t;
+      const nx = dist ? (dx / dist) * push : 0;
+      const ny = dist ? (dy / dist) * push : 0;
+      l.style.setProperty('--s', s.toFixed(3));
+      l.style.setProperty('--tx', nx.toFixed(2) + 'px');
+      l.style.setProperty('--ty', ny.toFixed(2) + 'px');
+      // Sheen shifts across each letter as cursor sweeps horizontally
+      const bp = 50 + (dx / RADIUS) * 60;
+      l.style.setProperty('--bp', Math.max(0, Math.min(100, bp)).toFixed(1) + '%');
+      l.style.animationPlayState = 'paused';
+    });
+  }
+  function reset() {
+    letters.forEach(l => {
+      l.style.setProperty('--s', 1);
+      l.style.setProperty('--tx', '0px');
+      l.style.setProperty('--ty', '0px');
+      l.style.removeProperty('--bp');
+      l.style.animationPlayState = 'running';
+    });
+  }
+  wm.addEventListener('pointermove', e => onMove(e.clientX, e.clientY));
+  wm.addEventListener('pointerleave', reset);
+  wm.addEventListener('touchmove', e => { const t = e.touches[0]; if (t) onMove(t.clientX, t.clientY); }, { passive: true });
+  wm.addEventListener('touchend', reset);
 </script>
 </body>
 </html>
