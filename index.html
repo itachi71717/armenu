@@ -509,10 +509,11 @@
     });
   }, 8000);
 
-  // 3D dish: try hosted burger from Poly.Pizza CDN, then local /vendor/models/burger.glb, then Avocado
+  // 3D dish: prefer a self-hosted photorealistic burger (drop your own PBR .glb at
+  // /vendor/models/burger.glb). Falls back to the Khronos Avocado, which is a
+  // full PBR photorealistic asset even if it isn't a burger.
   const mv = document.getElementById('heroMV');
   const CANDIDATES = [
-    { url: 'https://static.poly.pizza/7899a872-8b89-424a-af7c-43dd347ffc6b.glb', name: 'The Signature Burger', price: 'R 189', orbit: '35deg 65deg 3m' },
     { url: '/vendor/models/burger.glb', name: 'The Signature Burger', price: 'R 189', orbit: '35deg 65deg 3m' },
     { url: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Avocado/glTF-Binary/Avocado.glb', name: 'The Signature Avocado', price: 'R 89', orbit: '0deg 75deg 0.4m' }
   ];
