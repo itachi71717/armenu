@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="theme-color" content="#0a0806" />
-<title>Menu — AR Menu</title>
+<title>Menu. AR Menu</title>
 <meta name="description" content="Browse this restaurant's menu and see every dish in augmented reality on your table." />
 
 <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -305,7 +305,7 @@ function render() {
       <div class="section-label">Menu · ${activeItems.length} dish${activeItems.length === 1 ? '' : 'es'}</div>
       <div class="dishes">${dishesHtml}</div>
       <div class="foot-hint">
-        Point your phone at the table after tapping <em>View in AR</em> — your meal appears at real size.
+        Point your phone at the table after tapping <em>View in AR</em>. your meal appears at real size.
         <div class="powered">Powered by <a href="https://armenu.co.za" target="_blank" rel="noopener">AR Menu</a></div>
       </div>
     </main>`;
@@ -425,7 +425,7 @@ async function submitOrder() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Could not send');
     state.cart = []; updateActionbar(); closeSheet();
-    toast('Order sent — kitchen has it ✓', 'ok');
+    toast('Order sent. kitchen has it ✓', 'ok');
   } catch (e) { toast(e.message, 'err'); btn.disabled = false; btn.textContent = 'Send to kitchen →'; }
 }
 

@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="theme-color" content="#0a0806" />
-<title>AR Menu — See your meal</title>
+<title>AR Menu. See your meal</title>
 <meta name="description" content="See this dish in augmented reality on your table." />
 
 <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -271,7 +271,7 @@
       </svg>
       See my meal
     </button>
-    <div class="hint">Tap, then point at the table — <em>your meal will appear at real size.</em></div>
+    <div class="hint">Tap, then point at the table. <em>your meal will appear at real size.</em></div>
   </div>
 </div>
 
@@ -280,7 +280,7 @@
   const r = params.get('r') || 'demo';
   const d = params.get('d') || 'avocado';
 
-  // Lightweight client-side registry — production reads from /api/dish/:r/:d
+  // Lightweight client-side registry. production reads from /api/dish/:r/:d
   const REGISTRY = {
     'demo/avocado':{
       dish:'The Signature Avocado', venue:'Demo Restaurant', price:'R 89',
@@ -338,14 +338,14 @@
   }
   loadDish();
 
-  // iOS detection — covers iPadOS (reports MacIntel + touch)
+  // iOS detection. covers iPadOS (reports MacIntel + touch)
   function isIOS() {
     return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   }
 
   // Capability-based check: only Safari on iOS returns true for a.relList.supports('ar').
-  // Chrome, Firefox, Brave, Edge on iOS all return false — no UA sniffing needed.
+  // Chrome, Firefox, Brave, Edge on iOS all return false. no UA sniffing needed.
   function supportsQuickLook() {
     const a = document.createElement('a');
     return !!(a.relList && a.relList.supports && a.relList.supports('ar'));
@@ -364,7 +364,7 @@
   const arBtnFallbackHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 010 20M12 2a15 15 0 000 20"/></svg> Rotate the 3D model`;
 
   // Launches Apple Quick Look via the documented rel="ar" anchor trick, given
-  // a real, already-hosted .usdz URL (never a client-generated one — see
+  // a real, already-hosted .usdz URL (never a client-generated one. see
   // iosArReady() below for why that's not possible).
   function launchQuickLook(url) {
     const a = document.createElement('a');
@@ -376,7 +376,7 @@
     document.body.removeChild(a);
   }
 
-  // iOS Quick Look needs an actual .usdz file — there is no reliable way to
+  // iOS Quick Look needs an actual .usdz file. there is no reliable way to
   // generate one from a .glb in the browser (model-viewer has no public API
   // for this; an earlier version of this codebase assumed a generateUSDZ()
   // method that has never existed in the library). Room-scale AR on iPhone
@@ -389,7 +389,7 @@
 
   function updateArSupport() {
     // Android gets the guided "open in Chrome" popup on tap even before
-    // canActivateAR resolves — scene-viewer works directly from the .glb,
+    // canActivateAR resolves. scene-viewer works directly from the .glb,
     // no separate file needed, unlike iOS.
     if (mv.canActivateAR || iosArReady() || isAndroid()) {
       arBtn.innerHTML = arBtnActiveHTML;
@@ -416,7 +416,7 @@
       if (!supportsQuickLook()) { showSafariNag(); return; }
       const usdzUrl = mv.getAttribute('ios-src');
       if (usdzUrl) { launchQuickLook(usdzUrl); return; }
-      // No real .usdz for this dish yet — show the 3D view instead of
+      // No real .usdz for this dish yet. show the 3D view instead of
       // silently failing (there's nothing valid for Quick Look to open).
       mv.scrollIntoView({ behavior: 'smooth', block: 'center' });
       arHint.classList.add('show');
@@ -456,7 +456,7 @@
       try {
         await navigator.clipboard.writeText(url);
         const btn = document.getElementById('nagShare');
-        btn.textContent = 'Copied — paste in Safari';
+        btn.textContent = 'Copied. paste in Safari';
         setTimeout(() => { btn.textContent = 'Open in Safari →'; }, 3000);
       } catch(e) {}
     }
@@ -488,7 +488,7 @@
   });
 
   document.getElementById('nagChromeOpen').addEventListener('click', () => {
-    // Android intent URI — opens the current URL directly in Chrome.
+    // Android intent URI. opens the current URL directly in Chrome.
     // If Chrome isn't installed, Android falls back to the plain https URL.
     const fallback = encodeURIComponent(location.href);
     const intentUrl = 'intent://' + location.host + location.pathname + location.search +
