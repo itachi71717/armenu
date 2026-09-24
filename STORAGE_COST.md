@@ -1,78 +1,73 @@
-# Storage and cost planning for 100+ restaurants
+# Storage & bandwidth costs. Recalculated for realistic file sizes.
 
-## The maths
+## Assumption
+Per dish: `.glb` + `.usdz` + thumbnail. Realistic sizes for AR-Studio-generated PBR dishes: about **150-200 MB total per dish** when meshy hits max quality (photo-realistic PBR with baked 4K textures). For lower quality (~2K textures) it's more like 10-20 MB. The 200 MB figure is the WORST CASE — I'll assume it for planning.
 
-Assumptions for 100 restaurants × 35 dishes = **3,500 dishes**:
+## Storage at scale
 
-| Asset per dish | Realistic size | Total for 3,500 dishes |
-|---|---|---|
-| `.glb` (Android AR + 3D) | 2 – 4 MB | ~10 GB |
-| `.usdz` (iOS Quick Look) | 3 – 6 MB | ~16 GB |
-| Thumbnail `.jpg` | 100 – 200 KB | ~0.5 GB |
-| **Storage subtotal** | **~7 MB / dish** | **~26 GB** |
+| Restaurants | Dishes per | Total dishes | Storage @ 200 MB/dish |
+|---|---|---|---|
+| 10 | 35 | 350 | 70 GB |
+| 100 | 35 | 3,500 | 700 GB |
+| 500 | 35 | 17,500 | 3.5 TB |
+| 1,000 | 40 | 40,000 | 8 TB |
 
-Bandwidth (egress) at 50 diners/day per restaurant, each viewing 2 dishes in AR:
-- `100 × 50 × 2 × 7 MB = 70 GB/day`
-- **~2 TB per month at cruise speed**
+## Bandwidth
+Assume every dish is viewed on average 2 times a day per active restaurant, 50 diners per restaurant:
+- 100 restaurants × 50 diners × 2 dish views × 200 MB = **2 TB/day = 60 TB/month**
+- 500 restaurants: 300 TB/month
+- 1,000 restaurants: 800 TB/month
 
-## Provider comparison (26 GB storage + 2 TB egress per month)
+## Provider cost comparison at 100 restaurants (700 GB storage + 60 TB egress)
 
-| Provider | Storage cost | Egress cost | **Monthly total** | Notes |
+| Provider | Storage | Egress | **Monthly total** | Notes |
 |---|---|---|---|---|
-| **Cloudflare R2** | 26 GB × $0.015 = **$0.39** | **$0** | **~$1** | Egress is always free. This is the winner. |
-| Backblaze B2 | 26 GB × $0.006 = $0.16 | 2 TB × $0.01 = $20 | ~$20 | |
-| Supabase Storage (Pro) | Included in $25/mo (100 GB) | $0.09/GB beyond 200 GB = 1.8 TB × $0.09 = **$162** | **$187** | Egress kills you at scale. |
-| AWS S3 | 26 GB × $0.023 = $0.60 | 2 TB × $0.09 = $180 | ~$180 | |
-| Vercel Blob | 26 GB, Pro tier $20/mo | 2 TB × $0.15/GB after free = ~$225 | ~$245 | |
+| **Cloudflare R2** | 700 GB × $0.015 = **$10.50** | **$0 always** | **$10-15** | Winner by orders of magnitude. Egress is free forever. |
+| Backblaze B2 | 700 GB × $0.006 = $4.20 | 60 TB × $0.01 = $614 | $618 | |
+| Supabase Storage Pro | 700 GB (over 100 GB tier) → +$126 | 60 TB × $0.09 (over 200 GB) = $5,382 | **$5,500+** | Would bankrupt you at scale. |
+| AWS S3 | 700 GB × $0.023 = $16.10 | 60 TB × $0.09 = $5,530 | $5,550 | |
+| Vercel Blob | 700 GB × $0.15 = $105 | 60 TB × $0.30 = $18,432 | $18,500 | Not viable. |
 
-**Cloudflare R2 is 100 – 200× cheaper than the alternatives at this scale, and gets cheaper (relatively) the more you grow, because egress stays free forever.**
+**Cloudflare R2 is the only sane choice at this file-size scale.**
 
-## Cost comparison for database + auth
+## Cost projection using recommended stack (Neon + R2 + Clerk + Vercel + Meshy)
 
-| Component | Free tier good enough? | Pro cost when needed |
-|---|---|---|
-| **Neon** Postgres | Yes, forever. Auto-resumes. 0.5 GB storage. | $19/mo when you exceed 0.5 GB (thousands of dishes fit) |
-| **Supabase** database | No — auto-pauses after 7 days idle | $25/mo Pro (no pause + 8 GB) |
-| **Clerk** auth | Yes, up to 10,000 monthly active users | $25/mo after 10k MAU |
-| **Vercel** hosting | Yes for hobby projects | $20/mo Pro when you outgrow |
-
-## Ship-ready recommended stack (targets 100+ restaurants, all-in cost <$5/month)
-
+At **100 restaurants × 35 dishes at 200 MB each = 700 GB / 60 TB egress**:
 ```
-Frontend + API   → Vercel Hobby           $0
-Database         → Neon Free              $0  (auto-resume, never pauses meaningfully)
-File storage     → Cloudflare R2          ~$1/mo at 26 GB, $0 egress forever
-Auth (portal)    → Clerk Free             $0  (up to 10k users)
-AR generation    → Meshy (Ian's key)      Pay per dish (~$0.10 each, one-time cost)
+Neon database         $0/mo (free tier fits 3,500 dish records easily)
+Cloudflare R2         $10.50/mo storage. $0 egress.
+Clerk auth            $0/mo (well under 10k MAU)
+Vercel hosting        $0/mo (Hobby fine for the marketing site + 1 API function)
+Meshy generation      $0.10-0.30 per dish, one-time. 3,500 dishes × $0.20 = $700 one-time cost during onboarding
 ```
+**Total ongoing: about $11/month at 100 restaurants** (or $25/mo Supabase Pro on top if you don't migrate the database).
 
-**Total ongoing: about $1 – $5 / month at 100 restaurants**, plus one-time Meshy generation cost per new dish.
+At **500 restaurants** (3.5 TB / 300 TB egress):
+- R2 storage: $52.50/mo
+- Everything else: still $0/mo
+- Total: about $55/mo
 
-When you exceed ~10,000 restaurants or 100k MAU, budget an extra $20 – $50/mo for tier upgrades.
+At **1,000 restaurants** (8 TB / 800 TB egress):
+- R2 storage: $120/mo
+- Neon Pro (once over 0.5 GB): $19/mo
+- Clerk Pro: $25/mo
+- Vercel Pro (once you outgrow Hobby): $20/mo
+- Total: about $184/mo
 
-## What I need from you to migrate
+**Even at 1,000 restaurants with 8 TB of AR assets and nearly a petabyte of monthly bandwidth, you're at $184/month.** Same load on AWS/Vercel Blob would cost you $100,000+/month.
 
-**Option A — Keep Supabase Pro** ($25/mo): pay Supabase, everything works as-is. No code changes. Fastest path.
+## Realistic Meshy budget for onboarding blitz
 
-**Option B — Move to the recommended stack** (~$1 – 5/mo):
-1. Sign up at https://neon.tech, create a project, share the connection string
-2. Sign up at https://dash.cloudflare.com (free), enable R2, share the access key + secret + bucket name
-3. I rewrite `api/_db.js` to use Neon and `api/_h/admin/ai-generate.js` (plus `upload-url.js` and `compress.js`) to use R2 instead of Supabase Storage.
-4. About 45 minutes of my work.
+If you're onboarding 100 restaurants in a month with 35 dishes each:
+- 3,500 generations
+- Free tier: 20/month (way too small)
+- Pro at $20/mo: 100 generations
+- Enterprise: quote from meshy.ai — expect $500-1,500 for 3,500 credits burst
 
-Recommendation: **Option B**. It's meaningfully cheaper at every scale after month 1, and never has the pause-risk.
+Talk to Meshy sales for a startup enterprise burst discount if you're onboarding fast.
 
----
-
-## The one hidden variable: Meshy generation cost
-
-AR Studio calls Meshy to generate each `.glb`. Meshy pricing (as of Sep 2026):
-- Free tier: 200 credits/month (roughly 20 image-to-3D jobs)
-- Pro: $20/month for 1,000 credits (~100 dishes/month generated)
-- Enterprise: custom, unlimited
-
-So for 100 restaurants × 35 dishes = 3,500 generations initially:
-- On Pro at $20/mo: 35 months of onboarding, OR
-- One-time Enterprise burst quote from Meshy sales
-
-Every subsequent regeneration also costs. If you plan an onboarding blitz, budget for Meshy enterprise from day one.
+## What you don't pay for at scale
+- Egress ("bandwidth"): $0 with R2, forever, regardless of TB.
+- Redundancy: R2 replicates automatically.
+- SSL: Cloudflare terminates.
+- Nights/weekends: no autoscaling surprises.
