@@ -40,23 +40,33 @@ Without this, AR Studio returns "AR generation not configured" — the rest of t
 
 Paddle webhook URL: `https://armenu.co.za/api/paddle/webhook` — subscribe to `subscription.created/activated/canceled/past_due/paused`, `transaction.completed`.
 
-## 4. Wildcard subdomain (optional)
+## 4. Realistic burger on the landing hero (optional but recommended)
+The landing's 3D dish showcase looks for a burger file at `vendor/models/burger.glb`. If it's missing, it falls back to the Khronos photoreal Avocado (which is fine — that's the same PBR quality Apple uses in their AR demos, just an avocado).
+
+To have a real burger there:
+1. Generate one with AR Studio from a good burger photo, or download any photoreal PBR burger .glb (Sketchfab paid, CGTrader, TurboSquid).
+2. Save it as `vendor/models/burger.glb` in the repo.
+3. Commit and push. The landing auto-loads it and the plate label switches to `The Signature Burger · R 189`.
+
+Prefer a file under 8 MB with baked PBR textures.
+
+## 5. Wildcard subdomain (optional)
 1. Vercel → Project → Domains → add `*.armenu.co.za`
 2. Host Africa DNS → add: `CNAME  *  cname.vercel-dns.com`
 3. `middleware.js` at the repo root handles the rewrite. `<slug>.armenu.co.za` → the menu; `<slug>.armenu.co.za/t/<label>` → the table-pinned menu.
 
 Reserved subs bypass the rewrite: `www`, `api`, `admin`, `portal`, `staff`, `kitchen`, `app`, `preview`, `staging`.
 
-## 5. Deploy
+## 6. Deploy
 ```
 vercel deploy --prod --yes
 ```
 Vercel's auto-deploy from GitHub is not currently hooked up — reconnect in Vercel → Project → Settings → Git if you want pushes to auto-deploy.
 
-## 6. If Supabase pauses
+## 7. If Supabase pauses
 Supabase free tier auto-pauses projects after ~1 week of inactivity. Symptom: every API endpoint returns `Backend temporarily unavailable`. Fix: Supabase dashboard → your project → **Restore**.
 
-## 7. Post-deploy smoke test
+## 8. Post-deploy smoke test
 1. `/admin/` → sign in with `ADMIN_SECRET`.
 2. Pick a restaurant → **⚙ Manage modules & settings**.
 3. Toggle **Order cart** on → open the restaurant's `/m/<slug>` in another tab → the "Order" button should appear.
@@ -66,7 +76,7 @@ Supabase free tier auto-pauses projects after ~1 week of inactivity. Symptom: ev
 7. `/kitchen/` → sign in with same PIN → same order appears with a ping.
 8. AR Studio tab → upload a food photo → wait for preview → slide the size → publish. A QR appears — scan on your phone to see life-size AR.
 
-## 8. Routes at a glance
+## 9. Routes at a glance
 | Path | Who | What |
 |---|---|---|
 | `/` | Public | Landing page |
@@ -84,14 +94,14 @@ Supabase free tier auto-pauses projects after ~1 week of inactivity. Symptom: ev
 | `/qr-print.html?r=&type=tables\|dishes\|menu` | Owner | Printable A4 QR sheets |
 | `/api/*` | Everyone | Single catch-all dispatcher in `api/index.js` |
 
-## 9. Architecture notes
+## 10. Architecture notes
 - Every `/api/*` request goes through `api/index.js` (dynamic-imports handlers under `api/_h/`) — 1 serverless function total to stay under Vercel Hobby's 12-function cap.
 - Guest AR is `<model-viewer>` — iOS Quick Look (`.usdz`) + Android Scene Viewer (`.glb`) = 1-tap native camera AR, no app.
 - AR Studio downloads BOTH `.glb` and `.usdz` from the generation provider and rehosts them on Supabase Storage before attaching to the dish, so the upstream URL is never exposed and the assets survive if the provider expires them.
 - Real-time updates: `api/_h/events.js` streams SSE with 3s DB probes + 25s heartbeat. Staff + Kitchen consoles both subscribe.
 - Scale is per-dish (`dishes.scale`, real, defaults 1.0). Adjustable via slider in the AR Studio at generation time OR later from the Dishes tab.
 
-## 10. What's ALWAYS-ON vs OPTIONAL
+## 11. What's ALWAYS-ON vs OPTIONAL
 Always on for every restaurant:
 - The AR menu, categories, translations, currency, real-time menu edits, analytics, reviews (unless explicitly disabled)
 
