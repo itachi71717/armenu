@@ -449,29 +449,25 @@
     });
   });
 
-  // Load a burger 3D model — try multiple public URLs, fall back to Avocado on error
+  // 3D dish showcase — tries a hosted burger; falls back to Avocado
+  // (Khronos sample, confirmed public) and rebrands the plate to match.
   const mv = document.getElementById('heroMV');
-  const BURGER_SOURCES = [
-    'https://cdn.jsdelivr.net/gh/nasa/NASA-3D-Resources@master/3D%20Models/Cheeseburger/Cheeseburger.glb',
-    'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Avocado/glTF-Binary/Avocado.glb'
+  const AVOCADO = { url: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Avocado/glTF-Binary/Avocado.glb', name: 'The Signature Avocado', price: 'R 89', orbit: '0deg 75deg 0.4m' };
+  const CANDIDATES = [
+    // Try to load our own hosted burger first (drop a burger.glb in /vendor/models/ to enable)
+    { url: '/vendor/models/burger.glb', name: 'The Signature Burger', price: 'R 189', orbit: '-25deg 68deg 4m' },
+    AVOCADO
   ];
-  const AVOCADO_URL = 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Avocado/glTF-Binary/Avocado.glb';
-
-  let currentSrcIndex = 0;
-  function tryNextSrc() {
-    if (currentSrcIndex >= BURGER_SOURCES.length) {
-      // Final fallback — Avocado, and rebrand plate
-      mv.setAttribute('src', AVOCADO_URL);
-      mv.setAttribute('camera-orbit', '0deg 75deg 0.4m');
-      document.getElementById('dName').textContent = 'The Signature Avocado';
-      document.getElementById('dPrice').textContent = 'R 89';
-      return;
-    }
-    mv.setAttribute('src', BURGER_SOURCES[currentSrcIndex]);
-    currentSrcIndex++;
+  let idx = 0;
+  function loadCandidate() {
+    const c = CANDIDATES[idx];
+    mv.setAttribute('src', c.url);
+    mv.setAttribute('camera-orbit', c.orbit);
+    document.getElementById('dName').textContent = c.name;
+    document.getElementById('dPrice').textContent = c.price;
   }
-  mv.addEventListener('error', tryNextSrc, { once: false });
-  tryNextSrc();
+  mv.addEventListener('error', () => { if (idx < CANDIDATES.length - 1) { idx++; loadCandidate(); } });
+  loadCandidate();
 </script>
 </body>
 </html>
