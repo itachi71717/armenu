@@ -20,9 +20,11 @@
   .brand .word{display:flex;flex-direction:column;line-height:1;gap:2px}
   .brand .word .n1{font-family:var(--serif);font-style:italic;font-size:18px;color:var(--ink);font-weight:400}
   .brand .word .n2{font-family:var(--mono);font-size:9px;letter-spacing:.28em;color:var(--ink-dim);text-transform:uppercase}
-  nav a{margin:0 10px;font-size:14px;color:var(--ink-dim)}
-  nav a:hover{color:var(--ink)}
-  nav .btn{background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:10px;font-weight:700;margin-left:8px}
+  nav{display:flex;align-items:center;gap:2px}
+  nav a{padding:9px 14px;font-size:14px;color:var(--ink-dim);border-radius:9px;transition:color .15s,background .15s}
+  nav a:hover{color:var(--ink);background:rgba(245,236,216,.05)}
+  nav .btn{background:linear-gradient(135deg,var(--accent-hi),var(--accent)) !important;color:var(--bg) !important;padding:11px 22px;border-radius:11px;font-weight:700;margin-left:8px;box-shadow:0 10px 24px rgba(212,165,116,.32)}
+  @media(max-width:820px){nav a:not(.btn){display:none}header{padding:14px 20px}}
 
   .hero{padding:100px 24px 40px;text-align:center;background:radial-gradient(ellipse 100% 80% at 50% 0%,rgba(212,165,116,.14),transparent 60%)}
   .hero .kicker{display:inline-block;font-family:var(--mono);font-size:11px;color:var(--accent-hi);letter-spacing:.22em;text-transform:uppercase;padding:7px 15px;border:1px solid rgba(232,197,138,.22);border-radius:999px;background:rgba(212,165,116,.06);margin-bottom:16px}
@@ -58,7 +60,7 @@
 <section class="hero">
   <span class="kicker">Pricing</span>
   <h1>Priced <b>per restaurant.</b></h1>
-  <p>Every kitchen is different. number of dishes, tables, staff, languages, and modules. We build a proposal that fits, not a one-size-fits-all tier. Get in touch and we'll walk you through the options.</p>
+  <p>Every kitchen is different. Number of dishes, tables, staff, languages, and modules. We build a proposal that fits, not a one-size-fits-all tier. Get in touch and we'll walk you through the options.</p>
 </section>
 
 <div class="cards">
