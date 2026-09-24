@@ -5,9 +5,9 @@ export default async function handler(req, res) {
   const { r, d } = req.query;
   if (!r) return res.status(400).json({ error: 'Missing r param' });
 
-  // Resolve restaurant
-  const rest = await supabase.from('restaurants').select('id, name, slug').eq('slug', r).single();
-  if (rest.error && rest.error.code !== 'PGRST116') {
+  // Resolve restaurant (use maybeSingle so no-rows returns null instead of erroring)
+  const rest = await supabase.from('restaurants').select('id, name, slug').eq('slug', r).maybeSingle();
+  if (rest.error) {
     return res.status(502).json({ error: 'Backend temporarily unavailable — please retry in a moment' });
   }
   if (!rest.data) return res.status(404).json({ error: 'Restaurant not found' });
