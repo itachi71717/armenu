@@ -89,7 +89,7 @@
   @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(1.5)}}
   @keyframes fade{to{opacity:1;transform:none}}
 
-  /* HUGE wordmark, one line on desktop, spotlight interactive */
+  /* HUGE wordmark. Crisp single-layer text with sheen animation. */
   .wordmark{
     position:relative;
     font-family:var(--display);
@@ -98,30 +98,29 @@
     letter-spacing:-.04em;
     line-height:.9;
     font-size:clamp(88px,17vw,240px);
-    color:transparent;
-    -webkit-text-stroke:1px rgba(232,197,138,.4);
-    filter:drop-shadow(0 24px 60px rgba(212,165,116,.4));
     cursor:default;
     user-select:none;
-  }
-  .wordmark .base{display:inline-block;background:linear-gradient(180deg,#3a2f1e 0%,#5c4a2e 40%,#8a5a2b 70%,#3a2f1e 100%);-webkit-background-clip:text;background-clip:text;color:transparent;padding:0 .04em}
-  /* Spotlight layer — brighter metallic that follows cursor */
-  .wordmark .spot{
-    position:absolute;inset:0;
     display:inline-block;
-    background:linear-gradient(180deg,#fff 0%,#f5ecd8 30%,#e8c58a 55%,#c9903c 80%,#8a5a2b 100%);
-    -webkit-background-clip:text;background-clip:text;color:transparent;
-    padding:0 .04em;
-    -webkit-mask-image:radial-gradient(circle 320px at var(--mx,50%) var(--my,50%),#000 0%,transparent 65%);
-    mask-image:radial-gradient(circle 320px at var(--mx,50%) var(--my,50%),#000 0%,transparent 65%);
-    pointer-events:none;
-    animation:wordUp 1s .3s cubic-bezier(.16,1,.3,1) both;
+    background:linear-gradient(115deg,#f5ecd8 0%,#fff 20%,#e8c58a 40%,#c9903c 60%,#e8c58a 80%,#f5ecd8 100%);
+    background-size:200% 100%;
+    background-position:var(--sx,50%) 50%;
+    -webkit-background-clip:text;background-clip:text;
+    -webkit-text-fill-color:transparent;
+    text-shadow:0 6px 40px rgba(212,165,116,.35);
+    animation:wordUp 1.1s .15s cubic-bezier(.16,1,.3,1) both,sheen 8s ease-in-out infinite;
+    transition:transform .3s ease-out;
+    will-change:transform,background-position;
   }
-  .wordmark .base{animation:wordUp 1s .15s cubic-bezier(.16,1,.3,1) both}
-  @keyframes wordUp{from{opacity:0;transform:translateY(60px) scale(.94)}to{opacity:1;transform:none}}
+  .wordmark:hover{transform:scale(1.02)}
+  @keyframes wordUp{from{opacity:0;transform:translateY(60px)}to{opacity:1;transform:none}}
+  @keyframes sheen{
+    0%,100%{background-position:0% 50%}
+    50%{background-position:100% 50%}
+  }
 
   /* Reflected glow under the text */
-  .wordmark::after{content:"";position:absolute;left:50%;bottom:-18px;transform:translateX(-50%);width:60%;height:80px;background:radial-gradient(ellipse,var(--accent-glow) 0%,transparent 70%);filter:blur(28px);pointer-events:none;opacity:.9;z-index:-1}
+  .wordmark-wrap{position:relative;display:inline-block}
+  .wordmark-wrap::after{content:"";position:absolute;left:50%;bottom:-14px;transform:translateX(-50%);width:60%;height:60px;background:radial-gradient(ellipse,var(--accent-glow) 0%,transparent 70%);filter:blur(24px);pointer-events:none;opacity:.9;z-index:-1}
 
   .subline{font-family:'Inter',sans-serif;font-size:clamp(18px,2.4vw,30px);letter-spacing:.22em;color:var(--accent-hi);text-transform:uppercase;font-weight:800;margin-top:2px;opacity:0;animation:fade 1s .9s cubic-bezier(.2,.9,.3,1) forwards;text-shadow:0 4px 24px rgba(212,165,116,.55)}
   .subline .sep{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent-hi);margin:0 12px;vertical-align:middle;box-shadow:0 0 12px var(--accent-hi)}
@@ -293,8 +292,8 @@
 
   <div class="hero-inner">
     <span class="kicker"><span class="dot"></span> South Africa's immersive AR menu platform</span>
-    <div class="wordmark" id="wm">
-      <span class="base">ARMenu</span><span class="spot" aria-hidden="true">ARMenu</span>
+    <div class="wordmark-wrap">
+      <div class="wordmark" id="wm">ARMenu</div>
     </div>
     <div class="subline">See it<span class="sep"></span>Order it</div>
     <p class="tag"><em>The dish appears on the table.</em> Before it ever leaves the kitchen.</p>
@@ -463,7 +462,7 @@
   </div>
 </footer>
 
-<a class="wa-float" href="https://wa.me/27000000000?text=Hi%2C%20I%27m%20interested%20in%20ARMenu%20for%20my%20restaurant" target="_blank" rel="noopener" aria-label="Chat on WhatsApp">
+<a class="wa-float" href="https://wa.me/27683282991?text=Hi%2C%20I%27m%20interested%20in%20ARMenu%20for%20my%20restaurant" target="_blank" rel="noopener" aria-label="Chat on WhatsApp">
   <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.5 14.4c-.3-.15-1.77-.87-2.04-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.27-.47-2.42-1.5-.9-.8-1.5-1.78-1.67-2.08-.17-.3-.02-.46.13-.61.14-.14.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37s-1.05 1.02-1.05 2.49 1.08 2.89 1.23 3.09c.15.2 2.12 3.24 5.14 4.55.72.31 1.28.5 1.72.64.72.23 1.38.2 1.9.12.58-.09 1.77-.72 2.02-1.42.25-.7.25-1.29.17-1.42-.07-.13-.27-.2-.57-.35zM12 2A10 10 0 002 12c0 1.76.46 3.42 1.27 4.86L2 22l5.31-1.4A10 10 0 0022 12c0-5.52-4.48-10-10-10zm0 18.3a8.28 8.28 0 01-4.22-1.16l-.3-.18-3.13.82.84-3.05-.2-.31A8.29 8.29 0 013.7 12c0-4.58 3.72-8.3 8.3-8.3s8.3 3.72 8.3 8.3-3.72 8.3-8.3 8.3z"/></svg>
   <span class="lbl">Chat on WhatsApp</span>
 </a>
@@ -486,31 +485,25 @@
     });
   });
 
-  // Interactive spotlight text — cursor drags a bright metallic mask across the ARMenu wordmark
+  // Interactive: cursor drags the metallic sheen across the wordmark AND
+  // adds a subtle 3D tilt. Zero blur, GPU-accelerated transforms only.
   const wm = document.getElementById('wm');
-  const spot = wm.querySelector('.spot');
   wm.addEventListener('pointermove', e => {
     const r = wm.getBoundingClientRect();
-    const x = ((e.clientX - r.left) / r.width * 100).toFixed(1);
-    const y = ((e.clientY - r.top) / r.height * 100).toFixed(1);
-    spot.style.setProperty('--mx', x + '%');
-    spot.style.setProperty('--my', y + '%');
+    const px = ((e.clientX - r.left) / r.width);           // 0..1
+    const py = ((e.clientY - r.top) / r.height);           // 0..1
+    // Sheen follows cursor along the metallic gradient
+    wm.style.setProperty('--sx', (px * 100).toFixed(1) + '%');
+    // Subtle 3D tilt (max 6deg either axis)
+    const rx = ((.5 - py) * 8).toFixed(2);
+    const ry = ((px - .5) * 8).toFixed(2);
+    wm.style.transform = `perspective(1200px) rotateX(${rx}deg) rotateY(${ry}deg) scale(1.02)`;
+    wm.style.animationPlayState = 'paused';
   });
   wm.addEventListener('pointerleave', () => {
-    // Slowly drift back to centre when the cursor leaves
-    spot.style.setProperty('--mx', '50%');
-    spot.style.setProperty('--my', '50%');
+    wm.style.transform = '';
+    wm.style.animationPlayState = 'running';
   });
-  // Auto-drift when there's no pointer (mobile) so the shimmer still moves
-  let autoT = 0;
-  setInterval(() => {
-    if (matchMedia('(hover:hover)').matches) return;
-    autoT += 0.02;
-    const x = (50 + Math.cos(autoT) * 40).toFixed(1);
-    const y = (50 + Math.sin(autoT * .8) * 30).toFixed(1);
-    spot.style.setProperty('--mx', x + '%');
-    spot.style.setProperty('--my', y + '%');
-  }, 30);
 </script>
 </body>
 </html>

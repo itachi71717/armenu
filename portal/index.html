@@ -84,14 +84,34 @@
   .toast.err{border-color:rgba(248,113,113,.3);color:#f87171}
   .toast.ok{border-color:rgba(125,216,125,.3);color:#7dd87d}
 
-  .gate{position:fixed;inset:0;z-index:1000;background:rgba(10,8,6,.97);backdrop-filter:blur(20px);display:grid;place-items:center;padding:20px;overflow-y:auto}
-  .gate-card{width:min(460px,100%);padding:36px 28px;border-radius:24px;background:linear-gradient(180deg,rgba(255,239,220,.03),rgba(255,239,220,.01));border:1px solid var(--line);text-align:center}
+  .gate{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:20px;overflow-y:auto;background:#0a0806}
+  .gate::before{content:"";position:absolute;inset:0;background-image:url('https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=2400&q=85&fm=jpg&auto=format');background-size:cover;background-position:center;filter:brightness(.32) saturate(1.2);z-index:0}
+  .gate::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 60% 60% at 50% 50%,transparent 20%,rgba(10,8,6,.92) 100%);z-index:0}
+  .gate-card{position:relative;z-index:1;width:min(480px,100%);padding:42px 34px;border-radius:24px;background:linear-gradient(180deg,rgba(18,16,11,.94),rgba(10,8,6,.94));backdrop-filter:blur(20px);border:1px solid rgba(232,197,138,.18);text-align:center;box-shadow:0 40px 120px rgba(0,0,0,.6),0 0 0 1px rgba(232,197,138,.08) inset}
   .gate-card .brand{justify-content:center;margin-bottom:14px}
-  .gate-card h2{font-family:var(--serif);font-style:italic;font-size:30px;font-weight:400;margin-bottom:6px;letter-spacing:-.02em}
-  .gate-card p{color:var(--ink-dim);font-size:13px;margin-bottom:24px}
-  .gate-card #clerk-mount{min-height:380px;display:flex;justify-content:center;align-items:center}
-  .gate-card #clerk-mount > div{margin:0 auto !important}
-  .gate-card .cl-rootBox,.gate-card .cl-card{margin:0 auto !important;width:100% !important;max-width:100% !important;box-shadow:none !important;background:transparent !important}
+  .gate-card .brand img{filter:drop-shadow(0 10px 24px rgba(212,165,116,.4))}
+  .gate-card h2{font-family:var(--serif);font-style:italic;font-size:32px;font-weight:400;margin:14px 0 6px;letter-spacing:-.02em;background:linear-gradient(180deg,#fff,#e8c58a);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .gate-card p{color:#a89d84;font-size:13px;margin-bottom:20px}
+  .gate-card #clerk-mount{min-height:380px;display:flex;justify-content:center;align-items:center;width:100%}
+  /* Force Clerk widget to fit inside our container, no clipping */
+  .gate-card #clerk-mount > *,
+  .gate-card .cl-rootBox,
+  .gate-card .cl-card,
+  .gate-card .cl-cardBox{margin:0 auto !important;width:100% !important;max-width:100% !important;box-shadow:none !important;background:transparent !important;border:0 !important;padding:0 !important;box-sizing:border-box !important}
+  /* Hide every trace of Clerk branding + development banner */
+  .gate-card .cl-footer,
+  .gate-card .cl-internal-b3fm6y,
+  .gate-card .cl-footerAction,
+  .gate-card .cl-badge,
+  .gate-card .cl-poweredBy,
+  .gate-card [data-localization-key="footer.branded.action__pricing"],
+  .cl-devPreviewBanner,
+  .cl-internal-1sn2ci8,
+  .cl-modalCloseButton { display: none !important }
+  /* Also block the browser-level dev-mode toast that Clerk injects */
+  body > .cl-devPreviewBanner,
+  body > [class*="devPreview"],
+  body > [class*="DevelopmentMode"] { display: none !important }
   .gate-card .err-block{padding:20px;border-radius:14px;border:1px solid rgba(255,176,102,.25);background:rgba(255,176,102,.05);color:var(--accent-2);text-align:left;font-size:13px;line-height:1.55;margin-bottom:18px}
   .gate-card .err-block strong{display:block;margin-bottom:6px;color:#fff;font-size:14px}
   .gate-card .lead-form{text-align:left;margin-top:8px}
@@ -122,9 +142,9 @@
 <!-- Auth gate -->
 <div class="gate" id="gate">
   <div class="gate-card">
-    <div class="brand"><span class="mark"></span><b>AR</b><i>Menu</i></div>
-    <h2>Restaurant Portal</h2>
-    <p>Sign in with the email AR Menu set up for your restaurant.</p>
+    <div class="brand"><img src="/favicon.svg" alt="ARMenu" style="width:56px;height:56px" /></div>
+    <h2>Restaurant portal</h2>
+    <p>Sign in with the email ARMenu set up for your restaurant.</p>
     <div id="clerk-mount"></div>
 
     <div id="link-error" style="display:none">
@@ -290,37 +310,46 @@
     return { ok: res.ok, status: res.status, data };
   }
 
-  // Dark-theme appearance for Clerk widgets so text is readable on our background
+  // Warm amber appearance for Clerk widgets. Hides every trace of Clerk branding.
   const clerkAppearance = {
     variables: {
-      colorPrimary: '#ff5722',
-      colorBackground: '#13100c',
-      colorText: '#f5efe6',
-      colorTextSecondary: '#9a9388',
-      colorInputBackground: 'rgba(255,239,220,0.04)',
-      colorInputText: '#f5efe6',
-      colorNeutral: '#f5efe6',
+      colorPrimary: '#d4a574',
+      colorBackground: 'transparent',
+      colorText: '#f5ecd8',
+      colorTextSecondary: '#a89d84',
+      colorInputBackground: 'rgba(245,236,216,0.04)',
+      colorInputText: '#f5ecd8',
+      colorNeutral: '#f5ecd8',
       colorDanger: '#f87171',
-      colorSuccess: '#7dd87d',
+      colorSuccess: '#8fa971',
       borderRadius: '12px',
       fontFamily: 'Inter, system-ui, sans-serif'
     },
     elements: {
-      card: { boxShadow: 'none', background: 'transparent', border: 'none', padding: '0' },
-      rootBox: { width: '100%' },
-      headerTitle: { color: '#f5efe6' },
-      headerSubtitle: { color: '#9a9388' },
-      socialButtonsBlockButton: { borderColor: 'rgba(255,239,220,0.12)', color: '#f5efe6' },
-      formFieldLabel: { color: '#9a9388' },
-      formFieldInput: { color: '#f5efe6', borderColor: 'rgba(255,239,220,0.12)' },
-      formButtonPrimary: { backgroundColor: '#ff5722', color: '#fff', '&:hover': { backgroundColor: '#c93d00' } },
-      footerActionText: { color: '#9a9388' },
-      footerActionLink: { color: '#ffb066' },
-      identityPreviewText: { color: '#f5efe6' },
-      identityPreviewEditButton: { color: '#ffb066' },
-      dividerLine: { background: 'rgba(255,239,220,0.08)' },
-      dividerText: { color: '#564f45' },
-      formFieldHintText: { color: '#564f45' }
+      // Wipe the Clerk chrome entirely so only OUR container styles it.
+      card:       { boxShadow: 'none', background: 'transparent', border: 'none', padding: '0', width: '100%', maxWidth: '100%' },
+      cardBox:    { boxShadow: 'none', background: 'transparent', border: 'none', width: '100%', maxWidth: '100%' },
+      rootBox:    { width: '100%', maxWidth: '100%' },
+      // Hide the "Sign in to ARMenu" header — our container already says "Restaurant portal"
+      header:     { display: 'none' },
+      logoBox:    { display: 'none' },
+      logoImage:  { display: 'none' },
+      // Hide Clerk's own footer with "Secured by Clerk" and dev-mode text
+      footer:     { display: 'none' },
+      footerAction:{ display: 'none' },
+      badge:      { display: 'none' },
+      // Style the actual form
+      socialButtonsBlockButton: { borderColor: 'rgba(232,197,138,0.24)', color: '#f5ecd8', background: 'rgba(245,236,216,0.04)' },
+      socialButtonsBlockButtonText: { color: '#f5ecd8' },
+      formFieldLabel:{ color: '#a89d84', fontSize: '11px', letterSpacing: '.1em', textTransform: 'uppercase' },
+      formFieldInput:{ color: '#f5ecd8', borderColor: 'rgba(245,236,216,0.12)', background: 'rgba(245,236,216,0.04)' },
+      formButtonPrimary:{ backgroundColor: '#d4a574', color: '#0a0806', fontWeight: '700', boxShadow: '0 14px 30px rgba(212,165,116,0.35)', '&:hover': { backgroundColor: '#e8c58a' } },
+      identityPreviewText: { color: '#f5ecd8' },
+      identityPreviewEditButton: { color: '#e8c58a' },
+      dividerLine: { background: 'rgba(245,236,216,0.1)' },
+      dividerText: { color: '#4d4638' },
+      formFieldHintText: { color: '#4d4638' },
+      alternativeMethodsBlockButton: { color: '#e8c58a' }
     }
   };
 
