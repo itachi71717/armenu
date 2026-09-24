@@ -43,12 +43,23 @@ Paddle webhook URL: `https://armenu.co.za/api/paddle/webhook` — subscribe to `
 ## 4. Realistic burger on the landing hero (optional but recommended)
 The landing's 3D dish showcase looks for a burger file at `vendor/models/burger.glb`. If it's missing, it falls back to the Khronos photoreal Avocado (which is fine — that's the same PBR quality Apple uses in their AR demos, just an avocado).
 
-To have a real burger there:
-1. Generate one with AR Studio from a good burger photo, or download any photoreal PBR burger .glb (Sketchfab paid, CGTrader, TurboSquid).
-2. Save it as `vendor/models/burger.glb` in the repo.
-3. Commit and push. The landing auto-loads it and the plate label switches to `The Signature Burger · R 189`.
+There is no publicly hotlinkable photoreal burger .glb online (Sketchfab, CGTrader and TurboSquid all lock downloads behind login). Three concrete ways to get a real one on this landing:
 
-Prefer a file under 8 MB with baked PBR textures.
+**Option A — Sketchfab CC0 hamburger (free, 5 minutes):**
+1. Create a free Sketchfab account
+2. Go to https://sketchfab.com/3d-models/cc0-hamburger-a6888a07938b4af4986cd05794961250
+3. Download the model, format: `Auto-converted format (glTF)` (this gives you a .glb)
+4. Rename the file to `burger.glb`
+5. Save to `vendor/models/burger.glb`, commit, push
+Licence: CC0 (no attribution required)
+
+**Option B — Generate your own via AR Studio (once you add MESHY_API_KEY):**
+Take a burger photo from your kitchen, run it through admin → AR Studio, download the resulting `.glb` from Supabase Storage, save as `vendor/models/burger.glb`.
+
+**Option C — Photogrammetry scan (best quality):**
+Use Polycam or KIRI Engine on your phone to scan a real burger, export as .glb, save to `vendor/models/burger.glb`.
+
+Prefer a file under 8 MB. The landing auto-swaps the moment the file exists and the plate label becomes `The Signature Burger · R 189`. Until then, the fallback is the Khronos Avocado (photoreal PBR, just not a burger — plate reads `The Signature Avocado · R 89`).
 
 ## 5. Wildcard subdomain (optional)
 1. Vercel → Project → Domains → add `*.armenu.co.za`
