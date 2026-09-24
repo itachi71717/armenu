@@ -5,14 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="theme-color" content="#0a0806" />
 <title>AR Menu — See your meal life-size before you order it</title>
-<meta name="description" content="South Africa's first immersive AR menu platform. Guests scan a QR, tap a dish, and see it life-size on their table — no app, no download. Built for restaurants." />
+<meta name="description" content="South Africa's immersive AR menu platform. Guests scan a QR, tap a dish, and see it life-size on their table. Built for restaurants that plate with pride." />
 <meta property="og:title" content="AR Menu — See your meal before you order it" />
-<meta property="og:description" content="Life-size augmented-reality dishes on every table. 1-tap. No app." />
+<meta property="og:description" content="Life-size augmented-reality dishes on every table. For restaurants that plate with pride." />
 <link rel="canonical" href="https://armenu.co.za/" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="preconnect" href="https://images.unsplash.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
 <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
@@ -20,10 +21,21 @@
 <style>
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
   :root{
-    --bg:#08060a; --panel:#0f0c11; --ink:#f7f2ea; --ink-dim:#a29b8f; --ink-faint:#4a4238;
-    --accent:#ff5722; --accent-2:#ffb066; --accent-3:#ff2a68; --violet:#8b5cf6; --teal:#14b8a6; --lime:#a3e635;
-    --line:rgba(247,242,234,.08); --line-2:rgba(247,242,234,.14);
-    --serif:'Instrument Serif',serif; --mono:'JetBrains Mono',ui-monospace,monospace;
+    /* Premium steakhouse-warm palette */
+    --bg:#0a0806;          /* deep espresso */
+    --panel:#12100b;
+    --ink:#f5ecd8;         /* warm cream */
+    --ink-dim:#a89d84;
+    --ink-faint:#4d4638;
+    --accent:#d4a574;      /* signature amber gold */
+    --accent-hi:#e8c58a;   /* highlight amber */
+    --accent-deep:#a8763b; /* deep amber */
+    --accent-glow:rgba(212,165,116,.38);
+    --sage:#8fa971;
+    --line:rgba(245,236,216,.08);
+    --line-2:rgba(245,236,216,.16);
+    --serif:'Instrument Serif',serif;
+    --mono:'JetBrains Mono',ui-monospace,monospace;
   }
   html{-webkit-font-smoothing:antialiased;scroll-behavior:smooth}
   body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);overflow-x:hidden;line-height:1.55}
@@ -32,123 +44,125 @@
   img,svg{display:block;max-width:100%}
   ::selection{background:var(--accent);color:var(--bg)}
 
-  /* ===== AMBIENT BACKGROUND ===== */
-  .aurora{position:fixed;inset:-20%;z-index:-2;filter:blur(90px) saturate(1.4);opacity:.55;pointer-events:none}
-  .aurora::before,.aurora::after,.aurora .blob{content:"";position:absolute;border-radius:50%}
-  .aurora::before{width:60vw;height:60vw;left:-10vw;top:-10vw;background:radial-gradient(circle,var(--accent) 0%,transparent 60%);animation:drift1 22s ease-in-out infinite}
-  .aurora::after{width:55vw;height:55vw;right:-15vw;top:10vw;background:radial-gradient(circle,var(--accent-3) 0%,transparent 60%);animation:drift2 26s ease-in-out infinite}
-  .aurora .blob{width:50vw;height:50vw;left:30vw;top:50vw;background:radial-gradient(circle,var(--violet) 0%,transparent 60%);animation:drift3 30s ease-in-out infinite}
-  @keyframes drift1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(20vw,10vh) scale(1.2)}}
-  @keyframes drift2{0%,100%{transform:translate(0,0) scale(1.1)}50%{transform:translate(-15vw,20vh) scale(.9)}}
-  @keyframes drift3{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-20vw,-15vh) scale(1.25)}}
-
-  .grid-bg{position:fixed;inset:0;z-index:-1;pointer-events:none;background-image:linear-gradient(rgba(247,242,234,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(247,242,234,.03) 1px,transparent 1px);background-size:60px 60px;mask-image:radial-gradient(ellipse 70% 60% at 50% 30%,#000 30%,transparent 80%);-webkit-mask-image:radial-gradient(ellipse 70% 60% at 50% 30%,#000 30%,transparent 80%)}
-  .grain{position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.05;mix-blend-mode:overlay;background-image:url("data:image/svg+xml;utf8,<svg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='.9'/></svg>")}
-  .spotlight{position:fixed;pointer-events:none;z-index:-1;width:600px;height:600px;left:-300px;top:-300px;border-radius:50%;background:radial-gradient(circle,rgba(255,87,34,.15),transparent 60%);transition:transform .12s ease-out;mix-blend-mode:screen}
-  @media(hover:none){.spotlight{display:none}}
+  /* Grain overlay for premium film feel */
+  .grain{position:fixed;inset:0;z-index:5;pointer-events:none;opacity:.055;mix-blend-mode:overlay;background-image:url("data:image/svg+xml;utf8,<svg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='.9'/></svg>")}
 
   /* ===== LOGO ===== */
-  .armark{width:34px;height:34px;flex-shrink:0;position:relative;display:inline-block;transition:transform .3s cubic-bezier(.2,.9,.3,1)}
+  .brand{display:flex;align-items:center;gap:12px;font-weight:800}
+  .armark{width:34px;height:34px;flex-shrink:0;display:block;transition:transform .3s cubic-bezier(.2,.9,.3,1)}
   .armark:hover{transform:rotate(-4deg) scale(1.05)}
-  .armark svg{width:100%;height:100%;display:block;overflow:visible}
-  .brand{display:flex;align-items:center;gap:12px;font-weight:800;font-size:15px;letter-spacing:.02em;text-transform:none}
-  .brand .word{display:flex;flex-direction:column;line-height:1}
-  .brand .word .n1{font-family:var(--serif);font-style:italic;font-size:19px;color:var(--ink);font-weight:400}
-  .brand .word .n2{font-family:var(--mono);font-size:9px;letter-spacing:.24em;color:var(--ink-dim);text-transform:uppercase;margin-top:1px;font-weight:500}
+  .brand .word{display:flex;flex-direction:column;line-height:1;gap:2px}
+  .brand .word .n1{font-family:var(--serif);font-style:italic;font-size:19px;color:var(--ink);font-weight:400;letter-spacing:-.005em}
+  .brand .word .n2{font-family:var(--mono);font-size:8.5px;letter-spacing:.28em;color:var(--ink-dim);text-transform:uppercase;font-weight:500}
 
   /* ===== NAV ===== */
-  header{position:sticky;top:0;z-index:100;padding:18px 32px;display:flex;justify-content:space-between;align-items:center;background:rgba(8,6,10,.55);backdrop-filter:blur(24px) saturate(1.6);border-bottom:1px solid transparent;transition:border-color .3s,padding .3s}
-  header.scrolled{border-bottom-color:var(--line);padding:12px 32px}
+  header{position:fixed;top:0;left:0;right:0;z-index:100;padding:18px 32px;display:flex;justify-content:space-between;align-items:center;background:linear-gradient(180deg,rgba(10,8,6,.92),rgba(10,8,6,.55) 60%,transparent);backdrop-filter:blur(14px);transition:padding .3s}
+  header.scrolled{padding:12px 32px;background:rgba(10,8,6,.85);border-bottom:1px solid var(--line);backdrop-filter:blur(24px) saturate(1.4)}
   nav{display:flex;align-items:center;gap:2px}
-  nav a{padding:9px 16px;border-radius:9px;font-size:14px;font-weight:500;color:var(--ink-dim);transition:color .15s,background .15s;position:relative}
-  nav a:hover{color:var(--ink);background:rgba(247,242,234,.04)}
-  .nav-cta{background:linear-gradient(135deg,var(--accent),var(--accent-3)) !important;color:#fff !important;padding:11px 22px !important;border-radius:11px;font-weight:700;box-shadow:0 8px 24px rgba(255,42,104,.35);transition:transform .2s,box-shadow .2s}
-  .nav-cta:hover{transform:translateY(-1px);box-shadow:0 12px 28px rgba(255,42,104,.5)}
+  nav a{padding:9px 16px;border-radius:9px;font-size:14px;font-weight:500;color:var(--ink-dim);transition:color .15s,background .15s}
+  nav a:hover{color:var(--ink);background:rgba(245,236,216,.05)}
+  .nav-cta{background:var(--ink) !important;color:var(--bg) !important;padding:11px 22px !important;border-radius:11px;font-weight:700;transition:transform .2s,background .2s}
+  .nav-cta:hover{transform:translateY(-1px);background:var(--accent-hi) !important}
   @media(max-width:820px){nav a:not(.nav-cta){display:none}header{padding:14px 20px}}
 
   /* ===== HERO ===== */
-  .hero{position:relative;padding:60px 24px 80px;max-width:1400px;margin:0 auto;display:grid;grid-template-columns:1.05fr 1fr;gap:60px;align-items:center;min-height:calc(100vh - 80px)}
-  @media(max-width:960px){.hero{grid-template-columns:1fr;padding:36px 20px 60px;min-height:auto;gap:40px}}
-  .hero-copy{max-width:640px}
-  .kicker{display:inline-flex;align-items:center;gap:10px;font-family:var(--mono);font-size:11px;color:var(--accent-2);letter-spacing:.22em;text-transform:uppercase;margin-bottom:28px;padding:8px 16px;border:1px solid rgba(255,176,102,.28);border-radius:999px;background:rgba(255,87,34,.06);backdrop-filter:blur(10px)}
-  .kicker .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent);animation:pulse 2s ease-in-out infinite}
+  .hero{position:relative;min-height:100vh;display:grid;place-items:center;text-align:center;padding:120px 24px 100px;overflow:hidden;isolation:isolate}
+  .hero-bg{position:absolute;inset:0;z-index:-2;background:#0a0806 center/cover no-repeat;transform:scale(1.08);will-change:transform,opacity;transition:transform .1s linear}
+  .hero-bg::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,8,6,.72) 0%,rgba(10,8,6,.55) 45%,rgba(10,8,6,.88) 90%,var(--bg) 100%)}
+  .hero-vignette{position:absolute;inset:0;z-index:-1;background:radial-gradient(ellipse 80% 60% at 50% 50%,transparent 30%,rgba(10,8,6,.65) 100%)}
+  .hero-glow{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:900px;height:900px;z-index:-1;background:radial-gradient(circle,var(--accent-glow) 0%,transparent 60%);filter:blur(80px);opacity:.55;pointer-events:none;animation:pulseGlow 10s ease-in-out infinite}
+  @keyframes pulseGlow{0%,100%{opacity:.4}50%{opacity:.65}}
+
+  .hero-inner{max-width:900px;position:relative;z-index:2}
+
+  .kicker{display:inline-flex;align-items:center;gap:10px;font-family:var(--mono);font-size:11px;color:var(--accent-hi);letter-spacing:.24em;text-transform:uppercase;margin-bottom:36px;padding:9px 18px;border:1px solid rgba(232,197,138,.22);border-radius:999px;background:rgba(212,165,116,.06);backdrop-filter:blur(10px);opacity:0;animation:fade 1s .15s cubic-bezier(.2,.9,.3,1) forwards}
+  .kicker .dot{width:6px;height:6px;border-radius:50%;background:var(--accent-hi);box-shadow:0 0 10px var(--accent-hi);animation:pulse 2s ease-in-out infinite}
   @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(1.4)}}
 
-  h1{font-family:var(--serif);font-style:italic;font-size:clamp(48px,7vw,96px);font-weight:400;line-height:.98;letter-spacing:-.028em;margin-bottom:26px}
-  h1 .line{display:block;overflow:hidden}
-  h1 .word-wrap{display:inline-block;overflow:hidden;padding:0 0.03em}
-  h1 .word{display:inline-block;transform:translateY(110%);opacity:0;animation:wordUp .9s cubic-bezier(.2,.9,.3,1) forwards}
-  h1 .g{background:linear-gradient(135deg,#fff 0%,var(--accent-2) 60%,var(--accent) 100%);-webkit-background-clip:text;background-clip:text;color:transparent;font-style:normal;font-family:'Inter';font-weight:900;letter-spacing:-.03em;position:relative}
-  h1 .g::after{content:"";position:absolute;left:0;right:0;bottom:.1em;height:.1em;background:linear-gradient(90deg,var(--accent-3),var(--accent));border-radius:2px;transform:scaleX(0);transform-origin:left;animation:underline 1.2s .8s cubic-bezier(.2,.9,.3,1) forwards}
+  .brand-hero{margin-bottom:36px;display:flex;align-items:center;justify-content:center;gap:20px;opacity:0;animation:fade 1s .3s cubic-bezier(.2,.9,.3,1) forwards}
+  .brand-hero .armark{width:78px;height:78px;filter:drop-shadow(0 12px 30px rgba(212,165,116,.35))}
+  .brand-hero .lockup{display:flex;flex-direction:column;text-align:left;line-height:1;gap:6px}
+  .brand-hero .lockup .n1{font-family:var(--serif);font-style:italic;font-size:clamp(48px,7vw,84px);color:var(--ink);font-weight:400;letter-spacing:-.025em}
+  .brand-hero .lockup .n2{font-family:var(--mono);font-size:11px;letter-spacing:.32em;color:var(--accent-hi);text-transform:uppercase;font-weight:500}
+  @media(max-width:600px){.brand-hero{flex-direction:column;gap:12px}.brand-hero .lockup{text-align:center}}
+
+  .h-line{overflow:hidden}
+  h1.tag{font-family:var(--serif);font-style:italic;font-size:clamp(38px,5.5vw,72px);font-weight:400;line-height:1.02;letter-spacing:-.02em;margin-bottom:26px;color:var(--ink)}
+  h1.tag .w{display:inline-block;transform:translateY(110%);opacity:0;animation:wordUp 1s cubic-bezier(.2,.9,.3,1) forwards}
+  h1.tag .g{color:var(--accent-hi);font-style:normal;font-family:'Inter';font-weight:900;letter-spacing:-.03em;position:relative;display:inline-block}
+  h1.tag .g::after{content:"";position:absolute;left:0;right:0;bottom:.06em;height:.09em;background:linear-gradient(90deg,var(--accent-deep),var(--accent-hi));border-radius:2px;transform:scaleX(0);transform-origin:left;animation:underline 1.4s 1s cubic-bezier(.2,.9,.3,1) forwards}
   @keyframes wordUp{to{transform:translateY(0);opacity:1}}
   @keyframes underline{to{transform:scaleX(1)}}
-
-  .hero p{color:var(--ink-dim);font-size:clamp(16px,1.7vw,19px);line-height:1.6;margin-bottom:34px;max-width:540px;opacity:0;transform:translateY(20px);animation:fade 1s 1.2s cubic-bezier(.2,.9,.3,1) forwards}
-  .hero p em{color:var(--accent-2);font-family:var(--serif);font-style:italic;font-weight:400}
   @keyframes fade{to{opacity:1;transform:none}}
 
-  .cta-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px;opacity:0;transform:translateY(20px);animation:fade 1s 1.4s cubic-bezier(.2,.9,.3,1) forwards}
-  .btn{padding:16px 28px;border-radius:13px;font-weight:700;font-size:15px;letter-spacing:.005em;transition:transform .2s,box-shadow .2s;display:inline-flex;align-items:center;gap:10px}
-  .btn-p{background:linear-gradient(135deg,var(--accent),var(--accent-3));color:#fff;box-shadow:0 14px 32px rgba(255,42,104,.35),inset 0 1px 0 rgba(255,255,255,.15);position:relative;overflow:hidden}
-  .btn-p::before{content:"";position:absolute;inset:0;background:linear-gradient(135deg,var(--accent-3),var(--accent));opacity:0;transition:opacity .2s}
-  .btn-p:hover{transform:translateY(-2px);box-shadow:0 18px 40px rgba(255,42,104,.5),inset 0 1px 0 rgba(255,255,255,.2)}
-  .btn-p:hover::before{opacity:1}
-  .btn-p span{position:relative;z-index:1}
-  .btn-s{background:rgba(247,242,234,.06);color:var(--ink);border:1px solid var(--line-2);backdrop-filter:blur(10px)}
-  .btn-s:hover{background:rgba(247,242,234,.1);border-color:rgba(247,242,234,.28)}
+  .hero-lead{color:var(--ink-dim);font-size:clamp(16px,1.7vw,19px);line-height:1.6;max-width:620px;margin:0 auto 36px;opacity:0;transform:translateY(20px);animation:fade 1s 1.2s cubic-bezier(.2,.9,.3,1) forwards}
+  .hero-lead em{color:var(--accent-hi);font-family:var(--serif);font-style:italic;font-weight:400}
+
+  .cta-row{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;opacity:0;transform:translateY(20px);animation:fade 1s 1.4s cubic-bezier(.2,.9,.3,1) forwards}
+  .btn{padding:16px 30px;border-radius:13px;font-weight:700;font-size:15px;letter-spacing:.005em;transition:transform .2s,box-shadow .2s,background .2s;display:inline-flex;align-items:center;gap:10px}
+  .btn-p{background:linear-gradient(135deg,var(--accent-hi),var(--accent));color:var(--bg);box-shadow:0 14px 34px rgba(212,165,116,.32),inset 0 1px 0 rgba(255,255,255,.25);position:relative;overflow:hidden}
+  .btn-p:hover{transform:translateY(-2px);box-shadow:0 18px 42px rgba(232,197,138,.45)}
+  .btn-s{background:rgba(245,236,216,.05);color:var(--ink);border:1px solid var(--line-2);backdrop-filter:blur(10px)}
+  .btn-s:hover{background:rgba(245,236,216,.1);border-color:rgba(245,236,216,.3)}
   .btn .arrow{transition:transform .25s}
   .btn:hover .arrow{transform:translateX(4px)}
 
-  .hero-badges{display:flex;gap:10px;flex-wrap:wrap;font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);opacity:0;animation:fade 1s 1.6s cubic-bezier(.2,.9,.3,1) forwards}
-  .hero-badges span{padding:6px 12px;border-radius:999px;background:rgba(247,242,234,.03);border:1px solid var(--line);display:inline-flex;align-items:center;gap:6px}
-  .hero-badges span::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--accent);flex-shrink:0}
-
-  /* ===== HERO SHOWCASE (right side) ===== */
-  .hero-stage{position:relative;aspect-ratio:1/1;max-width:600px;justify-self:center;width:100%;opacity:0;transform:scale(.95);animation:zoomin 1.2s .5s cubic-bezier(.2,.9,.3,1) forwards}
-  @keyframes zoomin{to{opacity:1;transform:none}}
-
-  .stage-scene{position:absolute;inset:0;border-radius:32px;overflow:hidden;background:radial-gradient(ellipse 90% 70% at 50% 60%,rgba(255,87,34,.22),rgba(139,92,246,.1) 50%,transparent 82%);border:1px solid var(--line-2);box-shadow:0 60px 120px -30px rgba(255,42,104,.35),0 0 0 1px rgba(255,87,34,.15) inset}
-  .stage-scene model-viewer{width:100%;height:100%;background:transparent;--poster-color:transparent}
-  .stage-scene .fx-ring{position:absolute;inset:12px;border-radius:24px;border:1px dashed rgba(247,242,234,.14);pointer-events:none;animation:slowspin 60s linear infinite}
-  @keyframes slowspin{to{transform:rotate(360deg)}}
-  .stage-scene .fx-corner{position:absolute;width:36px;height:36px;border-color:var(--accent);pointer-events:none}
-  .fx-corner.tl{top:20px;left:20px;border-top:2px solid;border-left:2px solid;border-radius:6px 0 0 0}
-  .fx-corner.tr{top:20px;right:20px;border-top:2px solid;border-right:2px solid;border-radius:0 6px 0 0}
-  .fx-corner.bl{bottom:20px;left:20px;border-bottom:2px solid;border-left:2px solid;border-radius:0 0 0 6px}
-  .fx-corner.br{bottom:20px;right:20px;border-bottom:2px solid;border-right:2px solid;border-radius:0 0 6px 0}
-
-  .hero-stage .tag{position:absolute;padding:8px 14px;border-radius:999px;background:rgba(8,6,10,.85);backdrop-filter:blur(14px);border:1px solid var(--line-2);font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink);display:flex;align-items:center;gap:8px;z-index:2;box-shadow:0 12px 30px rgba(0,0,0,.4)}
-  .hero-stage .tag.tl{top:28px;left:28px}
-  .hero-stage .tag.tl::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--accent);animation:pulse 2s ease-in-out infinite;box-shadow:0 0 10px var(--accent)}
-  .hero-stage .tag.br{bottom:28px;right:28px;font-size:9.5px;color:var(--ink-dim)}
-  .hero-stage .tag.br::before{content:"↻"}
-
-  .hero-stage .selector{position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);display:flex;gap:6px;padding:8px;background:rgba(8,6,10,.85);backdrop-filter:blur(14px);border:1px solid var(--line-2);border-radius:14px;z-index:3;box-shadow:0 20px 44px rgba(0,0,0,.55)}
-  .hero-stage .selector button{width:44px;height:44px;border-radius:9px;background:rgba(247,242,234,.05);border:1px solid transparent;font-size:20px;transition:all .2s}
-  .hero-stage .selector button.on{background:linear-gradient(135deg,var(--accent),var(--accent-3));box-shadow:0 6px 16px rgba(255,42,104,.4)}
-  .hero-stage .selector button:hover:not(.on){background:rgba(247,242,234,.1)}
+  .hero-scroll{position:absolute;bottom:38px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:12px;font-family:var(--mono);font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--ink-dim);opacity:0;animation:fade 1s 1.8s forwards;z-index:2}
+  .hero-scroll .line{width:1px;height:44px;background:linear-gradient(180deg,var(--accent-hi),transparent);position:relative;overflow:hidden}
+  .hero-scroll .line::after{content:"";position:absolute;top:-10px;left:0;right:0;height:10px;background:var(--accent-hi);animation:scrolldot 2.4s ease-in-out infinite}
+  @keyframes scrolldot{0%{top:-10px}100%{top:44px}}
 
   /* ===== SECTION SHELL ===== */
-  section{max-width:1200px;margin:0 auto;padding:100px 24px}
-  .sect-kicker{font-family:var(--mono);font-size:11px;color:var(--accent);letter-spacing:.22em;text-transform:uppercase;margin-bottom:16px;text-align:center;display:inline-block;padding:6px 14px;border:1px solid rgba(255,87,34,.24);border-radius:999px;background:rgba(255,87,34,.05)}
+  section{max-width:1200px;margin:0 auto;padding:110px 24px}
   .sect-kicker-wrap{text-align:center;margin-bottom:14px}
+  .sect-kicker{display:inline-block;font-family:var(--mono);font-size:11px;color:var(--accent-hi);letter-spacing:.22em;text-transform:uppercase;padding:7px 15px;border:1px solid rgba(232,197,138,.22);border-radius:999px;background:rgba(212,165,116,.06)}
   .sect-h{font-family:var(--serif);font-style:italic;font-size:clamp(34px,5.5vw,58px);font-weight:400;letter-spacing:-.02em;text-align:center;margin-bottom:16px;line-height:1.02}
-  .sect-h b{font-style:normal;font-family:'Inter';font-weight:900;background:linear-gradient(135deg,#fff,var(--accent-2));-webkit-background-clip:text;color:transparent}
+  .sect-h b{font-style:normal;font-family:'Inter';font-weight:900;color:var(--accent-hi)}
   .sect-lead{color:var(--ink-dim);font-size:17px;line-height:1.55;max-width:640px;margin:0 auto 60px;text-align:center}
 
   .reveal{opacity:0;transform:translateY(30px);transition:opacity .9s ease,transform .9s cubic-bezier(.2,.9,.3,1)}
   .reveal.on{opacity:1;transform:none}
 
+  /* ===== 3D DISH SHOWCASE ===== */
+  .dish-showcase{position:relative;padding:80px 24px;background:linear-gradient(180deg,var(--bg),#0e0b08 50%,var(--bg));border-top:1px solid var(--line);border-bottom:1px solid var(--line);overflow:hidden}
+  .dish-showcase::before{content:"";position:absolute;top:0;left:0;right:0;bottom:0;background:radial-gradient(ellipse 60% 70% at 50% 50%,var(--accent-glow),transparent 70%);opacity:.35;pointer-events:none}
+  .dish-inner{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center;position:relative}
+  @media(max-width:900px){.dish-inner{grid-template-columns:1fr;gap:36px}}
+
+  .dish-stage{position:relative;aspect-ratio:1/1;max-width:520px;margin:0 auto;width:100%}
+  .dish-stage-inner{position:absolute;inset:0;border-radius:32px;overflow:hidden;background:radial-gradient(ellipse 90% 70% at 50% 65%,rgba(212,165,116,.24),transparent 78%);border:1px solid var(--line-2);box-shadow:0 60px 120px -30px rgba(0,0,0,.6),inset 0 0 0 1px rgba(232,197,138,.12)}
+  .dish-stage model-viewer{width:100%;height:100%;background:transparent;--poster-color:transparent}
+  .dish-stage .fx-ring{position:absolute;inset:14px;border-radius:24px;border:1px dashed rgba(232,197,138,.18);pointer-events:none;animation:slowspin 60s linear infinite}
+  @keyframes slowspin{to{transform:rotate(360deg)}}
+  .dish-stage .fx-corner{position:absolute;width:36px;height:36px;pointer-events:none}
+  .fx-corner.tl{top:20px;left:20px;border-top:2px solid var(--accent-hi);border-left:2px solid var(--accent-hi);border-radius:6px 0 0 0}
+  .fx-corner.tr{top:20px;right:20px;border-top:2px solid var(--accent-hi);border-right:2px solid var(--accent-hi);border-radius:0 6px 0 0}
+  .fx-corner.bl{bottom:20px;left:20px;border-bottom:2px solid var(--accent-hi);border-left:2px solid var(--accent-hi);border-radius:0 0 0 6px}
+  .fx-corner.br{bottom:20px;right:20px;border-bottom:2px solid var(--accent-hi);border-right:2px solid var(--accent-hi);border-radius:0 0 6px 0}
+  .dish-stage .stage-tag{position:absolute;padding:8px 14px;border-radius:999px;background:rgba(10,8,6,.85);backdrop-filter:blur(14px);border:1px solid var(--line-2);font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink);z-index:2}
+  .dish-stage .stage-tag.tl{top:28px;left:28px;display:flex;align-items:center;gap:8px}
+  .dish-stage .stage-tag.tl::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--accent-hi);animation:pulse 2s ease-in-out infinite;box-shadow:0 0 10px var(--accent-hi)}
+  .dish-stage .stage-tag.br{bottom:28px;right:28px;font-size:9.5px;color:var(--ink-dim)}
+  .dish-stage .dish-plate{position:absolute;bottom:-42px;left:50%;transform:translateX(-50%);padding:14px 24px;background:rgba(10,8,6,.9);backdrop-filter:blur(16px);border:1px solid var(--line-2);border-radius:16px;z-index:3;box-shadow:0 22px 44px rgba(0,0,0,.6);text-align:center;min-width:240px}
+  .dish-stage .dish-name{font-family:var(--serif);font-style:italic;font-size:20px;color:var(--ink);line-height:1;margin-bottom:5px}
+  .dish-stage .dish-price{font-family:var(--mono);font-size:13px;letter-spacing:.06em;color:var(--accent-hi);font-weight:700}
+
+  .dish-copy .eyebrow{font-family:var(--mono);font-size:11px;color:var(--accent-hi);letter-spacing:.22em;text-transform:uppercase;margin-bottom:14px;display:inline-block}
+  .dish-copy h2{font-family:var(--serif);font-style:italic;font-size:clamp(32px,4.5vw,48px);font-weight:400;letter-spacing:-.02em;line-height:1.05;margin-bottom:18px}
+  .dish-copy h2 b{font-style:normal;font-family:'Inter';font-weight:900;color:var(--accent-hi)}
+  .dish-copy p{color:var(--ink-dim);font-size:16px;line-height:1.6;margin-bottom:14px}
+  .dish-copy p em{color:var(--accent-hi);font-family:var(--serif);font-style:italic}
+
   /* ===== TIMELINE ===== */
   .flow{position:relative;padding:40px 0 20px;max-width:900px;margin:0 auto}
-  .flow::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:2px;background:linear-gradient(180deg,transparent,var(--accent) 20%,var(--accent-3) 80%,transparent);border-radius:2px}
+  .flow::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:2px;background:linear-gradient(180deg,transparent,var(--accent) 20%,var(--accent-hi) 80%,transparent);border-radius:2px}
   @media(max-width:760px){.flow::before{left:22px}}
   .flow-step{display:grid;grid-template-columns:1fr 68px 1fr;align-items:center;gap:24px;margin-bottom:44px;position:relative}
   @media(max-width:760px){.flow-step{grid-template-columns:44px 1fr}.flow-step > *:nth-child(3){grid-column:2}}
   .flow-step:nth-child(even) .flow-body{grid-column:3;text-align:left}
   .flow-step:nth-child(odd)  .flow-body{text-align:right}
   @media(max-width:760px){.flow-step .flow-body{text-align:left !important;grid-column:2 !important}}
-  .flow-node{width:64px;height:64px;border-radius:18px;background:linear-gradient(135deg,var(--accent),var(--accent-3));display:grid;place-items:center;font-family:var(--mono);font-weight:800;font-size:15px;color:#fff;box-shadow:0 12px 30px rgba(255,42,104,.4),inset 0 1px 0 rgba(255,255,255,.2);position:relative;z-index:2;justify-self:center}
+  .flow-node{width:64px;height:64px;border-radius:18px;background:linear-gradient(135deg,var(--accent-hi),var(--accent-deep));display:grid;place-items:center;font-family:var(--mono);font-weight:800;font-size:15px;color:var(--bg);box-shadow:0 12px 30px rgba(212,165,116,.4),inset 0 1px 0 rgba(255,255,255,.35);position:relative;z-index:2;justify-self:center}
   @media(max-width:760px){.flow-node{width:44px;height:44px;border-radius:12px;font-size:12px}}
   .flow-body h3{font-size:22px;font-weight:700;letter-spacing:-.015em;margin-bottom:6px}
   .flow-body p{color:var(--ink-dim);font-size:14.5px;line-height:1.55}
@@ -156,62 +170,53 @@
   /* ===== BENTO ===== */
   .bento{display:grid;grid-template-columns:repeat(6,1fr);grid-auto-rows:180px;gap:14px}
   @media(max-width:900px){.bento{grid-template-columns:repeat(2,1fr);grid-auto-rows:auto}}
-  .cell{border-radius:22px;border:1px solid var(--line);background:linear-gradient(180deg,rgba(247,242,234,.03),rgba(247,242,234,.005));padding:24px;position:relative;overflow:hidden;transition:transform .3s cubic-bezier(.2,.9,.3,1),border-color .3s}
-  .cell:hover{transform:translateY(-4px);border-color:rgba(255,87,34,.35)}
-  .cell::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at var(--mx,50%) var(--my,50%),rgba(255,87,34,.15),transparent 40%);opacity:0;transition:opacity .3s;pointer-events:none}
+  .cell{border-radius:22px;border:1px solid var(--line);background:linear-gradient(180deg,rgba(245,236,216,.03),rgba(245,236,216,.005));padding:24px;position:relative;overflow:hidden;transition:transform .3s cubic-bezier(.2,.9,.3,1),border-color .3s}
+  .cell:hover{transform:translateY(-4px);border-color:rgba(212,165,116,.35)}
+  .cell::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at var(--mx,50%) var(--my,50%),rgba(212,165,116,.16),transparent 40%);opacity:0;transition:opacity .3s;pointer-events:none}
   .cell:hover::before{opacity:1}
   .cell h4{font-family:var(--serif);font-style:italic;font-size:22px;font-weight:400;margin-bottom:8px;letter-spacing:-.01em}
   .cell p{color:var(--ink-dim);font-size:13px;line-height:1.5}
-  .cell .ico{font-size:26px;margin-bottom:12px}
+  .cell .ico{font-size:26px;margin-bottom:12px;color:var(--accent-hi)}
   .cell.w2{grid-column:span 2}.cell.w3{grid-column:span 3}.cell.w4{grid-column:span 4}
   .cell.h2{grid-row:span 2}
   @media(max-width:900px){.cell.w2,.cell.w3,.cell.w4{grid-column:span 2}.cell.h2{grid-row:auto}}
-  .cell.feature-ar{background:linear-gradient(135deg,rgba(255,87,34,.14),rgba(139,92,246,.08));border-color:rgba(255,87,34,.28)}
-  .cell.feature-ar h4{font-size:28px;background:linear-gradient(180deg,#fff,var(--accent-2));-webkit-background-clip:text;color:transparent;font-family:'Inter';font-style:normal;font-weight:900}
-  .cell.feature-ar .demo-orb{position:absolute;right:-40px;bottom:-40px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,var(--accent),var(--accent-3) 60%,transparent 80%);filter:blur(10px);opacity:.6;animation:float 8s ease-in-out infinite}
-  @keyframes float{0%,100%{transform:translate(0,0)}50%{transform:translate(-20px,-10px)}}
-  .cell.optional{background:linear-gradient(135deg,rgba(20,184,166,.08),rgba(139,92,246,.06));border-color:rgba(20,184,166,.28)}
-  .cell.optional::after{content:"OPTIONAL";position:absolute;top:12px;right:12px;font-family:var(--mono);font-size:9px;letter-spacing:.18em;color:var(--teal);background:rgba(20,184,166,.12);border:1px solid rgba(20,184,166,.3);padding:3px 8px;border-radius:999px}
+  .cell.feature-ar{background:linear-gradient(135deg,rgba(212,165,116,.14),rgba(168,118,59,.08));border-color:rgba(212,165,116,.28)}
+  .cell.feature-ar h4{font-size:28px;color:var(--accent-hi);font-family:'Inter';font-style:normal;font-weight:900}
+  .cell.optional{background:linear-gradient(135deg,rgba(143,169,113,.08),rgba(212,165,116,.05));border-color:rgba(143,169,113,.28)}
+  .cell.optional::after{content:"OPTIONAL";position:absolute;top:12px;right:12px;font-family:var(--mono);font-size:9px;letter-spacing:.18em;color:var(--sage);background:rgba(143,169,113,.14);border:1px solid rgba(143,169,113,.32);padding:3px 8px;border-radius:999px}
 
   /* ===== ECOSYSTEM ===== */
   .eco{display:grid;grid-template-columns:1fr 1fr;gap:20px}
   @media(max-width:900px){.eco{grid-template-columns:1fr}}
-  .eco-card{padding:34px;border-radius:24px;background:linear-gradient(180deg,rgba(247,242,234,.03),rgba(247,242,234,.005));border:1px solid var(--line);display:flex;flex-direction:column;gap:14px;position:relative;overflow:hidden}
-  .eco-card::before{content:"";position:absolute;top:-100px;right:-100px;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,var(--accent-2) 0%,transparent 70%);opacity:.12;filter:blur(40px)}
-  .eco-card .tag{align-self:flex-start;font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);padding:5px 12px;border:1px solid rgba(255,87,34,.3);border-radius:999px;background:rgba(255,87,34,.06)}
+  .eco-card{padding:34px;border-radius:24px;background:linear-gradient(180deg,rgba(245,236,216,.03),rgba(245,236,216,.005));border:1px solid var(--line);display:flex;flex-direction:column;gap:14px;position:relative;overflow:hidden}
+  .eco-card::before{content:"";position:absolute;top:-100px;right:-100px;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,var(--accent-hi) 0%,transparent 70%);opacity:.12;filter:blur(40px)}
+  .eco-card .tag{align-self:flex-start;font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent-hi);padding:5px 12px;border:1px solid rgba(212,165,116,.32);border-radius:999px;background:rgba(212,165,116,.08)}
   .eco-card h3{font-family:var(--serif);font-style:italic;font-size:30px;font-weight:400;letter-spacing:-.015em}
   .eco-card p{color:var(--ink-dim);font-size:15px;line-height:1.55}
   .eco-card ul{padding-left:0;list-style:none;margin-top:6px;display:flex;flex-direction:column;gap:8px}
   .eco-card li{color:var(--ink);font-size:14.5px;display:flex;gap:12px;padding:6px 0}
-  .eco-card li::before{content:"→";color:var(--accent);flex-shrink:0;font-weight:700}
-
-  /* ===== STATS ===== */
-  .stats-band{background:linear-gradient(180deg,transparent,rgba(255,87,34,.05),transparent);border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:70px 24px;margin:20px 0;position:relative;overflow:hidden}
-  .stats-band::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 60px,rgba(255,87,34,.03) 60px 61px);pointer-events:none}
-  .stats-grid{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:20px;text-align:center;position:relative}
-  @media(max-width:700px){.stats-grid{grid-template-columns:repeat(2,1fr)}}
-  .stat .n{font-family:var(--serif);font-style:italic;font-size:52px;font-weight:400;color:var(--ink);line-height:1}
-  .stat .n b{font-style:normal;font-family:'Inter';font-weight:900;background:linear-gradient(180deg,#fff,var(--accent-2));-webkit-background-clip:text;color:transparent}
-  .stat .l{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);margin-top:10px}
+  .eco-card li::before{content:"→";color:var(--accent-hi);flex-shrink:0;font-weight:700}
 
   /* ===== MARQUEE ===== */
-  .marquee{overflow:hidden;padding:22px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:rgba(247,242,234,.02);margin:20px 0}
+  .marquee{overflow:hidden;padding:22px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:rgba(245,236,216,.02)}
   .marquee-track{display:flex;gap:60px;animation:marquee 40s linear infinite;white-space:nowrap;font-family:var(--serif);font-style:italic;font-size:22px;color:var(--ink-dim)}
-  .marquee-track b{color:var(--accent-2);font-family:'Inter';font-style:normal;font-weight:900;font-size:19px;margin-right:8px}
+  .marquee-track b{color:var(--accent-hi);font-family:'Inter';font-style:normal;font-weight:900;font-size:19px;margin-right:8px}
   @keyframes marquee{to{transform:translateX(-50%)}}
 
   /* ===== FAQ ===== */
   .faq{max-width:780px;margin:0 auto;display:flex;flex-direction:column;gap:8px}
-  .faq details{border-radius:14px;border:1px solid var(--line);background:rgba(247,242,234,.02);overflow:hidden;transition:border-color .2s,background .2s}
-  .faq details[open]{border-color:rgba(255,87,34,.3);background:rgba(255,87,34,.03)}
+  .faq details{border-radius:14px;border:1px solid var(--line);background:rgba(245,236,216,.02);overflow:hidden;transition:border-color .2s,background .2s}
+  .faq details[open]{border-color:rgba(212,165,116,.32);background:rgba(212,165,116,.04)}
   .faq summary{padding:22px 26px;cursor:pointer;list-style:none;font-weight:600;font-size:16px;display:flex;justify-content:space-between;align-items:center;gap:12px}
   .faq summary::-webkit-details-marker{display:none}
-  .faq summary::after{content:"+";font-size:26px;color:var(--accent);transition:transform .25s;font-weight:300;line-height:0}
+  .faq summary::after{content:"+";font-size:26px;color:var(--accent-hi);transition:transform .25s;font-weight:300;line-height:0}
   .faq details[open] summary::after{transform:rotate(135deg)}
   .faq p{padding:0 26px 24px;color:var(--ink-dim);font-size:14.5px;line-height:1.65}
+  .faq p a{color:var(--accent-hi);border-bottom:1px solid rgba(232,197,138,.4)}
 
   /* ===== FINAL CTA ===== */
-  .final-cta{text-align:center;padding:120px 24px;background:radial-gradient(ellipse 80% 60% at 50% 100%,rgba(255,42,104,.18),transparent 60%);position:relative}
+  .final-cta{position:relative;text-align:center;padding:140px 24px;overflow:hidden}
+  .final-cta::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 100%,rgba(212,165,116,.18),transparent 65%);z-index:-1}
 
   /* ===== FOOTER ===== */
   footer{border-top:1px solid var(--line);padding:60px 32px 40px;background:rgba(0,0,0,.4)}
@@ -219,121 +224,112 @@
   @media(max-width:820px){.foot-grid{grid-template-columns:1fr 1fr}}
   .foot-col h5{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:16px}
   .foot-col a{display:block;color:var(--ink-dim);font-size:14px;padding:6px 0;transition:color .15s}
-  .foot-col a:hover{color:var(--accent-2)}
+  .foot-col a:hover{color:var(--accent-hi)}
   .foot-tag{color:var(--ink-dim);font-size:14px;line-height:1.55;max-width:300px;margin-top:16px}
   .foot-legal{max-width:1200px;margin:40px auto 0;padding-top:24px;border-top:1px solid var(--line);display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint)}
 </style>
 </head>
 <body>
 
-<!-- SVG LOGO DEFINITION (reused via <use>) -->
-<svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <defs>
-    <linearGradient id="lg-armark" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#ff2a68"/>
-      <stop offset=".5" stop-color="#ff5722"/>
-      <stop offset="1" stop-color="#ffb066"/>
-    </linearGradient>
-    <symbol id="armark" viewBox="0 0 40 40">
-      <!-- AR viewfinder brackets -->
-      <path d="M4 12 L4 5 Q4 4 5 4 L12 4" stroke="url(#lg-armark)" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M28 4 L35 4 Q36 4 36 5 L36 12" stroke="url(#lg-armark)" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M4 28 L4 35 Q4 36 5 36 L12 36" stroke="url(#lg-armark)" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M28 36 L35 36 Q36 36 36 35 L36 28" stroke="url(#lg-armark)" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-      <!-- stacked dish: plate → food → garnish (isometric) -->
-      <ellipse cx="20" cy="26" rx="11" ry="2.6" fill="url(#lg-armark)" opacity=".35"/>
-      <ellipse cx="20" cy="24" rx="10" ry="2.4" fill="url(#lg-armark)" opacity=".6"/>
-      <ellipse cx="20" cy="21" rx="7.5" ry="1.9" fill="url(#lg-armark)"/>
-      <ellipse cx="20" cy="18" rx="4.5" ry="1.2" fill="#ff2a68"/>
-    </symbol>
-  </defs>
-</svg>
-
-<div class="aurora"><div class="blob"></div></div>
-<div class="grid-bg"></div>
 <div class="grain"></div>
-<div class="spotlight" id="spot"></div>
 
 <header id="hdr">
   <a class="brand" href="/">
-    <span class="armark"><svg><use href="#armark"/></svg></span>
+    <img class="armark" src="/favicon.svg" alt="AR Menu" />
     <span class="word"><span class="n1">ARMenu</span><span class="n2">South Africa</span></span>
   </a>
   <nav>
     <a href="#how">How it works</a>
     <a href="#features">Features</a>
-    <a href="/plans">Pricing</a>
     <a href="#faq">FAQs</a>
+    <a href="/contact">Contact</a>
     <a href="/portal/">Sign in</a>
-    <a href="/plans" class="nav-cta">Get started →</a>
+    <a href="/contact" class="nav-cta">Enquire →</a>
   </nav>
 </header>
 
 <section class="hero">
-  <div class="hero-copy">
+  <div class="hero-bg" id="heroBg" style="background-image:url('https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=2400&q=90&fm=jpg&auto=format')"></div>
+  <div class="hero-vignette"></div>
+  <div class="hero-glow"></div>
+
+  <div class="hero-inner">
     <span class="kicker"><span class="dot"></span> South Africa's immersive AR menu platform</span>
-    <h1 id="heroH">
-      <span class="line"><span class="word-wrap"><span class="word" style="animation-delay:.05s">The</span></span> <span class="word-wrap"><span class="word" style="animation-delay:.15s">decision</span></span></span>
-      <span class="line"><span class="word-wrap"><span class="word" style="animation-delay:.25s">happens</span></span></span>
-      <span class="line"><span class="word-wrap"><span class="word g" style="animation-delay:.40s">before&nbsp;the</span></span></span>
-      <span class="line"><span class="word-wrap"><span class="word g" style="animation-delay:.55s">first&nbsp;bite.</span></span></span>
-    </h1>
-    <p>Guests scan the QR at their table, tap a dish, and see it <em>life-size on their table</em> in augmented reality — no app, no download, one tap. Your kitchen (optionally) sees the order the second it's placed.</p>
-    <div class="cta-row">
-      <a href="/plans" class="btn btn-p"><span>Get started</span> <span class="arrow">→</span></a>
-      <a href="/dishes" class="btn btn-s">See a live dish</a>
+    <div class="brand-hero">
+      <img class="armark" src="/favicon.svg" alt="AR Menu" />
+      <span class="lockup">
+        <span class="n1">ARMenu</span>
+        <span class="n2">See it. Order it.</span>
+      </span>
     </div>
-    <div class="hero-badges">
-      <span>No app required</span><span>&lt; 2s load</span><span>iOS + Android AR</span><span>Cancel any time</span>
+    <h1 class="tag" id="heroH">
+      <span class="h-line"><span class="w" style="animation-delay:.4s">The&nbsp;decision&nbsp;happens</span></span>
+      <span class="h-line"><span class="w g" style="animation-delay:.55s">before&nbsp;the&nbsp;first&nbsp;bite.</span></span>
+    </h1>
+    <p class="hero-lead">Guests scan the QR at their table, tap a dish, and see it <em>life-size on their table</em> in augmented reality — no app, no download, one tap. Built for restaurants that <em>plate with pride.</em></p>
+    <div class="cta-row">
+      <a href="/contact" class="btn btn-p">Enquire for your restaurant <span class="arrow">→</span></a>
+      <a href="#dish" class="btn btn-s">See a live dish</a>
     </div>
   </div>
 
-  <div class="hero-stage">
-    <div class="stage-scene">
-      <div class="fx-ring"></div>
-      <div class="fx-corner tl"></div><div class="fx-corner tr"></div><div class="fx-corner bl"></div><div class="fx-corner br"></div>
-      <model-viewer id="heroMV"
-        src="https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Avocado/glTF-Binary/Avocado.glb"
-        alt="Live 3D dish preview"
-        auto-rotate camera-controls
-        rotation-per-second="18deg"
-        shadow-intensity="1.2"
-        exposure="1.15"
-        ar
-        ar-modes="webxr scene-viewer quick-look"
-        interaction-prompt="none"
-        loading="eager"
-        camera-orbit="0deg 75deg 0.4m"
-        min-camera-orbit="auto auto 0.2m"
-        max-camera-orbit="auto auto 0.8m"
-      ></model-viewer>
+  <div class="hero-scroll"><span>Scroll</span><span class="line"></span></div>
+</section>
+
+<!-- 3D dish showcase (further down, as user requested) -->
+<div class="dish-showcase" id="dish">
+  <div class="dish-inner reveal">
+    <div class="dish-stage">
+      <div class="dish-stage-inner">
+        <div class="fx-ring"></div>
+        <div class="fx-corner tl"></div><div class="fx-corner tr"></div><div class="fx-corner bl"></div><div class="fx-corner br"></div>
+        <model-viewer id="heroMV"
+          alt="Live 3D burger — drag to rotate, tap for AR on mobile"
+          auto-rotate camera-controls
+          rotation-per-second="20deg"
+          shadow-intensity="1.4"
+          exposure="1.2"
+          ar
+          ar-modes="webxr scene-viewer quick-look"
+          interaction-prompt="none"
+          loading="eager"
+          camera-orbit="-25deg 68deg 4m"
+          field-of-view="30deg"
+        ></model-viewer>
+      </div>
+      <div class="stage-tag tl">Live 3D · drag to rotate</div>
+      <div class="stage-tag br">tap for AR on mobile</div>
+      <div class="dish-plate">
+        <div class="dish-name" id="dName">The Signature Burger</div>
+        <div class="dish-price" id="dPrice">R 189</div>
+      </div>
     </div>
-    <div class="tag tl">Live 3D · drag to rotate</div>
-    <div class="tag br">tap for AR on mobile</div>
-    <div class="dish-plate">
-      <div class="dish-name">The Signature Avocado</div>
-      <div class="dish-price">R&nbsp;89</div>
+
+    <div class="dish-copy">
+      <span class="eyebrow">The 3D experience</span>
+      <h2>Every plate. <b>On every table.</b></h2>
+      <p>This is exactly what your diners see. Drag to rotate. On mobile, tap <em>See in AR</em> and the dish appears life-size on the table in front of them — real portion, real plating, real presence.</p>
+      <p>Your dishes are generated from a single photo through AR Studio, sized to millimetre accuracy, and hosted on your own subdomain. No app installs. No compromises.</p>
+      <div style="display:flex;gap:12px;margin-top:22px;flex-wrap:wrap">
+        <a href="/contact" class="btn btn-p" style="padding:14px 22px;font-size:14px">Enquire →</a>
+        <a href="/dishes" class="btn btn-s" style="padding:14px 22px;font-size:14px">See more dishes</a>
+      </div>
     </div>
   </div>
-</section>
-<style>
-  .hero-stage .dish-plate{position:absolute;bottom:-42px;left:50%;transform:translateX(-50%);padding:14px 22px;background:rgba(8,6,10,.9);backdrop-filter:blur(16px);border:1px solid var(--line-2);border-radius:16px;z-index:3;box-shadow:0 22px 44px rgba(0,0,0,.55);text-align:center;min-width:220px}
-  .hero-stage .dish-name{font-family:var(--serif);font-style:italic;font-size:19px;color:var(--ink);line-height:1;margin-bottom:4px}
-  .hero-stage .dish-price{font-family:var(--mono);font-size:14px;letter-spacing:.04em;color:var(--accent-2);font-weight:700}
-</style>
+</div>
 
 <div class="marquee" aria-hidden="true">
   <div class="marquee-track">
     <span><b>+34%</b> avg order value on visualised dishes</span>
     <span><b>&lt; 2s</b> to first render on 4G</span>
-    <span><b>0</b> apps to download</span>
     <span><b>8</b> languages, 8 currencies</span>
     <span><b>1</b> tap to life-size AR</span>
+    <span><b>Real</b> plating. Real portion. Real presence.</span>
     <span><b>+34%</b> avg order value on visualised dishes</span>
     <span><b>&lt; 2s</b> to first render on 4G</span>
-    <span><b>0</b> apps to download</span>
     <span><b>8</b> languages, 8 currencies</span>
     <span><b>1</b> tap to life-size AR</span>
+    <span><b>Real</b> plating. Real portion. Real presence.</span>
   </div>
 </div>
 
@@ -343,7 +339,7 @@
   <p class="sect-lead">The guest opens their phone's native camera, points at the QR, and everything is live. Nothing to install. Nothing to log in to.</p>
   <div class="flow">
     <div class="flow-step reveal"><div class="flow-body"><h3>Scan the QR</h3><p>Native camera opens the branded menu directly — no app, no permission popups, no waiting.</p></div><div class="flow-node">01</div><div></div></div>
-    <div class="flow-step reveal"><div></div><div class="flow-node">02</div><div class="flow-body"><h3>Menu loads instantly</h3><p>Your logo, your colours, your cover. Under 2 seconds anywhere on earth via global edge CDN.</p></div></div>
+    <div class="flow-step reveal"><div></div><div class="flow-node">02</div><div class="flow-body"><h3>Menu loads instantly</h3><p>Your logo, your colours, your cover. Under two seconds anywhere on earth via global edge CDN.</p></div></div>
     <div class="flow-step reveal"><div class="flow-body"><h3>Tap → life-size AR</h3><p>iOS Quick Look or Android Scene Viewer opens. The dish sits on their table at exact size, exact plating.</p></div><div class="flow-node">03</div><div></div></div>
     <div class="flow-step reveal"><div></div><div class="flow-node">04</div><div class="flow-body"><h3>Order · rate · walk out happy</h3><p>Optional order cart sends straight to the kitchen. Optional 1-tap review routes 4-5★ to Google.</p></div></div>
   </div>
@@ -353,67 +349,29 @@
   <div class="sect-kicker-wrap"><div class="sect-kicker">Every feature. Included.</div></div>
   <h2 class="sect-h">The whole toolkit. <b>Not sold à la carte.</b></h2>
   <p class="sect-lead">The AR menu is always on. Ordering, waiter call and kitchen display are optional modules — turn them on only if you don't already have a POS you love.</p>
-
   <div class="bento">
-    <div class="cell feature-ar w4 h2">
-      <div class="ico">🍽</div>
-      <h4>Life-size AR dishes</h4>
-      <p>Tap a dish, phone's native AR opens, the plate appears on the table. Real WebAR — iOS Quick Look + Android Scene Viewer. No gimmick, no app.</p>
-      <div class="demo-orb"></div>
-    </div>
-    <div class="cell w2"><div class="ico">🎨</div><h4>Custom branding</h4><p>Your logo, colours, cover video — the menu looks unmistakably yours.</p></div>
-    <div class="cell w2"><div class="ico">📊</div><h4>Live analytics</h4><p>Scans, orders, revenue, peak hours, top dishes — real time.</p></div>
-
-    <div class="cell w2"><div class="ico">⚡</div><h4>Real-time menu</h4><p>Change a price, mark sold-out, swap a photo — live within seconds.</p></div>
-    <div class="cell w2"><div class="ico">🌍</div><h4>Multi-language</h4><p>Up to 8 languages, 8 currencies. Auto-switch per guest.</p></div>
-    <div class="cell w2"><div class="ico">⭐</div><h4>Review routing</h4><p>4-5★ invited to Google; 1-3★ stays private for you. Honest growth.</p></div>
-
-    <div class="cell w2"><div class="ico">⏰</div><h4>Multi-menu scheduler</h4><p>Breakfast → lunch → dinner switches on the clock you set.</p></div>
-    <div class="cell w2"><div class="ico">🍹</div><h4>Happy hour</h4><p>Schedule discounts on the days & hours you pick. Fully automated.</p></div>
-    <div class="cell w2"><div class="ico">📷</div><h4>AR Studio</h4><p>One photo per dish → a life-size 3D model in minutes. Retry until you love it.</p></div>
-
-    <div class="cell optional w2"><div class="ico">🛒</div><h4>Order cart</h4><p>Guests build a cart, kitchen sees it live. Off by default.</p></div>
-    <div class="cell optional w2"><div class="ico">🛎</div><h4>Call the waiter</h4><p>One tap on the guest menu → alert on the staff console.</p></div>
-    <div class="cell optional w2"><div class="ico">👨‍🍳</div><h4>Staff + kitchen</h4><p>PIN sign-in, live orders, table board, kitchen display.</p></div>
+    <div class="cell feature-ar w4 h2"><div class="ico">◈</div><h4>Life-size AR dishes</h4><p>Tap a dish, phone's native AR opens, the plate appears on the table. Real WebAR — iOS Quick Look + Android Scene Viewer. No gimmick, no app.</p></div>
+    <div class="cell w2"><div class="ico">◉</div><h4>Custom branding</h4><p>Your logo, colours, cover video — the menu looks unmistakably yours.</p></div>
+    <div class="cell w2"><div class="ico">◇</div><h4>Live analytics</h4><p>Scans, orders, revenue, peak hours, top dishes — real time.</p></div>
+    <div class="cell w2"><div class="ico">↻</div><h4>Real-time menu</h4><p>Change a price, mark sold-out, swap a photo — live within seconds.</p></div>
+    <div class="cell w2"><div class="ico">✦</div><h4>Multi-language</h4><p>Up to 8 languages, 8 currencies. Auto-switch per guest.</p></div>
+    <div class="cell w2"><div class="ico">★</div><h4>Review routing</h4><p>4-5★ invited to Google; 1-3★ stays private for you. Honest growth.</p></div>
+    <div class="cell w2"><div class="ico">◔</div><h4>Multi-menu scheduler</h4><p>Breakfast → lunch → dinner switches on the clock you set.</p></div>
+    <div class="cell w2"><div class="ico">◆</div><h4>Happy hour</h4><p>Schedule discounts on the days & hours you pick. Fully automated.</p></div>
+    <div class="cell w2"><div class="ico">◐</div><h4>AR Studio</h4><p>One photo per dish → a life-size 3D model in minutes. Retry until you love it.</p></div>
+    <div class="cell optional w2"><div class="ico">▤</div><h4>Order cart</h4><p>Guests build a cart, kitchen sees it live. Off by default.</p></div>
+    <div class="cell optional w2"><div class="ico">◈</div><h4>Call the waiter</h4><p>One tap on the guest menu → alert on the staff console.</p></div>
+    <div class="cell optional w2"><div class="ico">◫</div><h4>Staff + kitchen</h4><p>PIN sign-in, live orders, table board, kitchen display.</p></div>
   </div>
 </section>
-
-<div class="stats-band reveal">
-  <div class="stats-grid">
-    <div class="stat"><div class="n"><b data-count="2">0</b>s</div><div class="l">Menu load</div></div>
-    <div class="stat"><div class="n"><b data-count="1">0</b></div><div class="l">Tap to AR</div></div>
-    <div class="stat"><div class="n"><b data-count="8">0</b></div><div class="l">Languages</div></div>
-    <div class="stat"><div class="n"><b data-count="0">0</b></div><div class="l">App downloads</div></div>
-  </div>
-</div>
 
 <section id="ecosystem" class="reveal">
   <div class="sect-kicker-wrap"><div class="sect-kicker">The ecosystem</div></div>
   <h2 class="sect-h">One platform. <b>Every module.</b></h2>
-  <p class="sect-lead">Most platforms tease you with the headline product and charge for the rest. AR Menu is the opposite.</p>
+  <p class="sect-lead">Most platforms tease you with the headline product and charge for the rest. ARMenu is the opposite.</p>
   <div class="eco">
-    <div class="eco-card">
-      <span class="tag">Admin</span>
-      <h3>Owner cockpit</h3>
-      <p>See live orders and reviews the moment they come in. Every module is one click away.</p>
-      <ul>
-        <li>Analytics — scans, orders, revenue, top dishes, peak hours</li>
-        <li>Menu control — categories, schedules, translations, allergens</li>
-        <li>Staff manager, table view, branding, feature toggles</li>
-        <li>AR Studio — photo → 3D dish, life-size, retryable</li>
-      </ul>
-    </div>
-    <div class="eco-card">
-      <span class="tag">Staff</span>
-      <h3>Floor console</h3>
-      <p>Built for the floor. Waiters sign in with a PIN and drive the whole shift from one screen.</p>
-      <ul>
-        <li>Live order board — start prep → ready → served</li>
-        <li>Take staff-side orders with notes and complimentary items</li>
-        <li>Real-time waiter-call queue</li>
-        <li>Table board — set available / occupied / reserved / VIP</li>
-      </ul>
-    </div>
+    <div class="eco-card"><span class="tag">Admin</span><h3>Owner cockpit</h3><p>See live orders and reviews the moment they come in. Every module is one click away.</p><ul><li>Analytics — scans, orders, revenue, top dishes, peak hours</li><li>Menu control — categories, schedules, translations, allergens</li><li>Staff manager, table view, branding, feature toggles</li><li>AR Studio — photo → 3D dish, life-size, retryable</li></ul></div>
+    <div class="eco-card"><span class="tag">Staff</span><h3>Floor console</h3><p>Built for the floor. Waiters sign in with a PIN and drive the whole shift from one screen.</p><ul><li>Live order board — start prep → ready → served</li><li>Take staff-side orders with notes and complimentary items</li><li>Real-time waiter-call queue</li><li>Table board — set available / occupied / reserved / VIP</li></ul></div>
   </div>
 </section>
 
@@ -422,10 +380,10 @@
   <h2 class="sect-h">You'd probably ask about <b>this.</b></h2>
   <div class="faq">
     <details><summary>Do guests need to download an app?</summary><p>Never. The whole experience runs through the phone's native camera and browser. AR uses iOS Quick Look and Android Scene Viewer — both installed on every modern phone by default.</p></details>
-    <details><summary>How long does setup take?</summary><p>An afternoon. Sign up, add your restaurant, upload a few dishes, print QRs, place them on tables. If you'd like us to onboard you live, we do that free of charge.</p></details>
+    <details><summary>How long does setup take?</summary><p>An afternoon. We onboard you personally so it's live before your next dinner service.</p></details>
     <details><summary>Do I have to use your ordering system?</summary><p>No. The AR menu is the core. Order cart, waiter call and kitchen display are optional modules — leave them off if you already have a POS you love.</p></details>
     <details><summary>How do the 3D dish models get made?</summary><p>Upload a well-lit photo to AR Studio. Our platform generates a life-size 3D model in a few minutes. Not happy with it? Retry with one tap. Adjust the size with a slider before publishing.</p></details>
-    <details><summary>What does it cost?</summary><p>Starter from R349/month, Pro from R899/month, Premium from R2379/month. Yearly billing saves 17%. Cancel any time. <a href="/plans" style="color:var(--accent-2)">Full pricing →</a></p></details>
+    <details><summary>What does it cost?</summary><p>Pricing is on a per-restaurant basis. <a href="/contact">Get in touch</a> and we'll build a proposal for you.</p></details>
     <details><summary>Do you support Afrikaans, Zulu, Xhosa?</summary><p>Yes. Up to 8 languages per menu with per-dish translations. Guests pick their language and the menu adapts instantly.</p></details>
   </div>
 </section>
@@ -433,37 +391,50 @@
 <section class="final-cta reveal">
   <div class="sect-kicker-wrap"><div class="sect-kicker">Get started</div></div>
   <h2 class="sect-h">Ready to elevate <b>your menu?</b></h2>
-  <p class="sect-lead">Live in an afternoon. Cancel any time.</p>
+  <p class="sect-lead">Live in an afternoon. We'll walk you through the whole setup.</p>
   <div class="cta-row" style="justify-content:center">
-    <a href="/plans" class="btn btn-p"><span>Get started</span> <span class="arrow">→</span></a>
-    <a href="/contact" class="btn btn-s">Talk to the team</a>
+    <a href="/contact" class="btn btn-p">Enquire for your restaurant <span class="arrow">→</span></a>
+    <a href="/portal/" class="btn btn-s">Restaurant sign-in</a>
   </div>
 </section>
 
 <footer>
   <div class="foot-grid">
     <div class="foot-col">
-      <a class="brand" href="/"><span class="armark"><svg><use href="#armark"/></svg></span><span class="word"><span class="n1">ARMenu</span><span class="n2">South Africa</span></span></a>
-      <p class="foot-tag">South Africa's first self-serve AR menu platform for restaurants. We make dining visible in a new dimension.</p>
+      <a class="brand" href="/"><img class="armark" src="/favicon.svg" alt="AR Menu" /><span class="word"><span class="n1">ARMenu</span><span class="n2">South Africa</span></span></a>
+      <p class="foot-tag">South Africa's immersive AR menu platform for restaurants that plate with pride.</p>
     </div>
-    <div class="foot-col"><h5>Product</h5><a href="/plans">Plans & Pricing</a><a href="#how">How it works</a><a href="/dishes">Live demo</a><a href="/faq">FAQs</a></div>
+    <div class="foot-col"><h5>Product</h5><a href="#how">How it works</a><a href="/dishes">Live demo</a><a href="#features">Features</a><a href="#faq">FAQs</a></div>
     <div class="foot-col"><h5>Company</h5><a href="/contact">Contact</a><a href="/contact?type=billing">Support</a><a href="/contact?type=enterprise">Enterprise</a><a href="/staff">Staff sign in</a></div>
     <div class="foot-col"><h5>Legal</h5><a href="/legal#terms">Terms of Service</a><a href="/legal#privacy">Privacy Policy</a><a href="/legal#refund">Refund Policy</a></div>
   </div>
   <div class="foot-legal">
-    <span>© 2026 AR Menu · All rights reserved</span>
+    <span>© 2026 ARMenu · All rights reserved</span>
     <span>Johannesburg · Cape Town · Durban</span>
   </div>
 </footer>
 
 <script>
-  // Spotlight follows cursor
-  const spot = document.getElementById('spot');
-  addEventListener('pointermove', e => { spot.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`; }, { passive: true });
-
-  // Nav shadow on scroll
+  // Nav shrink on scroll
   const hdr = document.getElementById('hdr');
   addEventListener('scroll', () => hdr.classList.toggle('scrolled', scrollY > 20), { passive: true });
+
+  // Hero background parallax on scroll (subtle "movement" of the burger photo)
+  const heroBg = document.getElementById('heroBg');
+  addEventListener('scroll', () => {
+    const y = Math.min(scrollY, 900);
+    heroBg.style.transform = `scale(${1.08 + y * 0.00015}) translateY(${y * 0.25}px)`;
+    heroBg.style.opacity = String(Math.max(0.35, 1 - y / 900));
+  }, { passive: true });
+
+  // Hero background parallax on mouse move (subtle drift)
+  addEventListener('pointermove', e => {
+    if (scrollY > 100) return;
+    const cx = (e.clientX / innerWidth - 0.5) * 20;
+    const cy = (e.clientY / innerHeight - 0.5) * 20;
+    heroBg.style.setProperty('--px', cx + 'px');
+    heroBg.style.setProperty('--py', cy + 'px');
+  }, { passive: true });
 
   // Reveal on scroll
   const io = new IntersectionObserver(es => es.forEach(e => e.isIntersecting && e.target.classList.add('on')), { threshold: 0.12, rootMargin: '0px 0px -60px 0px' });
@@ -478,15 +449,29 @@
     });
   });
 
-  // Count-up
-  const countIO = new IntersectionObserver(es => es.forEach(e => {
-    if (!e.isIntersecting) return; countIO.unobserve(e.target);
-    const el = e.target, target = +el.dataset.count, dur = 1200, t0 = performance.now();
-    const tick = t => { const p = Math.min(1, (t - t0) / dur), v = Math.round(target * (1 - Math.pow(1 - p, 3))); el.textContent = v; if (p < 1) requestAnimationFrame(tick); };
-    requestAnimationFrame(tick);
-  }), { threshold: 0.4 });
-  document.querySelectorAll('[data-count]').forEach(el => countIO.observe(el));
+  // Load a burger 3D model — try multiple public URLs, fall back to Avocado on error
+  const mv = document.getElementById('heroMV');
+  const BURGER_SOURCES = [
+    'https://cdn.jsdelivr.net/gh/nasa/NASA-3D-Resources@master/3D%20Models/Cheeseburger/Cheeseburger.glb',
+    'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Avocado/glTF-Binary/Avocado.glb'
+  ];
+  const AVOCADO_URL = 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Avocado/glTF-Binary/Avocado.glb';
 
+  let currentSrcIndex = 0;
+  function tryNextSrc() {
+    if (currentSrcIndex >= BURGER_SOURCES.length) {
+      // Final fallback — Avocado, and rebrand plate
+      mv.setAttribute('src', AVOCADO_URL);
+      mv.setAttribute('camera-orbit', '0deg 75deg 0.4m');
+      document.getElementById('dName').textContent = 'The Signature Avocado';
+      document.getElementById('dPrice').textContent = 'R 89';
+      return;
+    }
+    mv.setAttribute('src', BURGER_SOURCES[currentSrcIndex]);
+    currentSrcIndex++;
+  }
+  mv.addEventListener('error', tryNextSrc, { once: false });
+  tryNextSrc();
 </script>
 </body>
 </html>

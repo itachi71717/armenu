@@ -3,163 +3,93 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Plans & Pricing — AR Menu</title>
-<meta name="description" content="AR Menu pricing — Starter, Pro, Premium, Enterprise. Cancel any time." />
+<title>Pricing — ARMenu</title>
+<meta name="description" content="Pricing for ARMenu is set per restaurant. Contact us for a proposal." />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 <style>
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-  :root{--bg:#0a0806;--ink:#f5efe6;--ink-dim:#9a9388;--ink-faint:#564f45;--accent:#ff5722;--accent-2:#ffb066;--line:rgba(255,239,220,.08);--serif:'Instrument Serif',serif;--mono:'JetBrains Mono',monospace}
+  :root{--bg:#0a0806;--ink:#f5ecd8;--ink-dim:#a89d84;--ink-faint:#4d4638;--accent:#d4a574;--accent-hi:#e8c58a;--accent-deep:#a8763b;--line:rgba(245,236,216,.08);--serif:'Instrument Serif',serif;--mono:'JetBrains Mono',monospace}
   body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;-webkit-font-smoothing:antialiased}
   a{color:inherit;text-decoration:none}
   header{padding:20px 32px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line)}
-  .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:13px;letter-spacing:.06em;text-transform:uppercase}
-  .brand .mark{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative}
-  .brand b{font-weight:800}.brand i{font-style:normal;color:var(--ink-dim);font-weight:500;margin-left:3px}
-  nav a{margin:0 12px;font-size:14px;color:var(--ink-dim)}
+  .brand{display:flex;align-items:center;gap:12px;font-weight:800}
+  .brand img{width:32px;height:32px}
+  .brand .word{display:flex;flex-direction:column;line-height:1;gap:2px}
+  .brand .word .n1{font-family:var(--serif);font-style:italic;font-size:18px;color:var(--ink);font-weight:400}
+  .brand .word .n2{font-family:var(--mono);font-size:9px;letter-spacing:.28em;color:var(--ink-dim);text-transform:uppercase}
+  nav a{margin:0 10px;font-size:14px;color:var(--ink-dim)}
   nav a:hover{color:var(--ink)}
+  nav .btn{background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:10px;font-weight:700;margin-left:8px}
 
-  .hero{padding:60px 24px 24px;text-align:center;background:radial-gradient(ellipse 100% 80% at 50% 0%,rgba(255,87,34,.14),transparent 60%)}
-  .hero .kicker{font-family:var(--mono);font-size:11px;color:var(--accent);letter-spacing:.22em;text-transform:uppercase}
-  .hero h1{font-family:var(--serif);font-style:italic;font-size:clamp(38px,7vw,64px);font-weight:400;letter-spacing:-.02em;margin:14px 0 12px;background:linear-gradient(180deg,#fff,var(--accent-2));-webkit-background-clip:text;color:transparent}
-  .hero p{color:var(--ink-dim);max-width:520px;margin:0 auto;font-size:16px;line-height:1.5}
+  .hero{padding:100px 24px 40px;text-align:center;background:radial-gradient(ellipse 100% 80% at 50% 0%,rgba(212,165,116,.14),transparent 60%)}
+  .hero .kicker{display:inline-block;font-family:var(--mono);font-size:11px;color:var(--accent-hi);letter-spacing:.22em;text-transform:uppercase;padding:7px 15px;border:1px solid rgba(232,197,138,.22);border-radius:999px;background:rgba(212,165,116,.06);margin-bottom:16px}
+  .hero h1{font-family:var(--serif);font-style:italic;font-size:clamp(42px,7vw,72px);font-weight:400;letter-spacing:-.02em;margin:14px 0 18px;color:var(--ink)}
+  .hero h1 b{font-style:normal;font-family:'Inter';font-weight:900;color:var(--accent-hi)}
+  .hero p{color:var(--ink-dim);max-width:600px;margin:0 auto;font-size:17px;line-height:1.55}
 
-  .toggle-row{display:flex;justify-content:center;align-items:center;gap:14px;margin:36px 0 24px;font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-dim)}
-  .toggle-row .save-tag{background:rgba(125,216,125,.12);color:#7dd87d;padding:3px 9px;border-radius:999px;font-size:10px;letter-spacing:.14em}
-  .switch{position:relative;width:52px;height:28px;background:rgba(255,239,220,.08);border-radius:999px;cursor:pointer;transition:.2s}
-  .switch::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:.2s}
-  .switch.year{background:var(--accent)}.switch.year::after{left:27px}
-  .toggle-row span.on{color:var(--ink)}
+  .cards{max-width:1000px;margin:60px auto;padding:0 24px;display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  @media(max-width:880px){.cards{grid-template-columns:1fr}}
+  .card{padding:36px 28px;border-radius:20px;border:1px solid var(--line);background:linear-gradient(180deg,rgba(245,236,216,.03),rgba(245,236,216,.005));position:relative;text-align:center}
+  .card.hero-c{border-color:rgba(212,165,116,.4);background:linear-gradient(180deg,rgba(212,165,116,.08),rgba(212,165,116,.02))}
+  .card h3{font-family:var(--serif);font-style:italic;font-size:28px;font-weight:400;margin-bottom:10px}
+  .card p{color:var(--ink-dim);font-size:14px;line-height:1.55;margin-bottom:24px;min-height:66px}
+  .card .btn{display:inline-block;padding:14px 26px;border-radius:12px;background:var(--ink);color:var(--bg);font-weight:700;font-size:14px;transition:background .2s}
+  .card.hero-c .btn{background:linear-gradient(135deg,var(--accent-hi),var(--accent));color:var(--bg);box-shadow:0 12px 30px rgba(212,165,116,.32)}
+  .card .btn:hover{background:var(--accent-hi)}
 
-  .plans{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;max-width:1280px;margin:0 auto;padding:12px 24px 60px}
-  @media(max-width:1080px){.plans{grid-template-columns:repeat(2,1fr)}}
-  @media(max-width:620px){.plans{grid-template-columns:1fr}}
-  .plan{border-radius:20px;border:1px solid var(--line);background:linear-gradient(180deg,rgba(255,239,220,.02),rgba(255,239,220,.005));padding:26px;display:flex;flex-direction:column;gap:14px;position:relative}
-  .plan.popular{border-color:rgba(255,87,34,.35);background:linear-gradient(180deg,rgba(255,87,34,.05),rgba(255,87,34,.01))}
-  .plan-tag{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,var(--accent),#c93d00);color:#fff;padding:4px 12px;border-radius:999px;font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
-  .plan h3{font-family:var(--serif);font-style:italic;font-size:26px;font-weight:400}
-  .plan .tag{color:var(--ink-dim);font-size:13px;line-height:1.4;min-height:38px}
-  .plan .price{font-family:var(--serif);font-style:italic;font-size:14px;color:var(--ink-dim)}
-  .plan .price b{font-family:'Inter',sans-serif;font-style:normal;font-size:44px;font-weight:800;letter-spacing:-.02em;color:var(--ink);display:inline-block;margin-right:4px}
-  .plan .price .old{text-decoration:line-through;color:var(--ink-faint);margin-right:6px;font-size:14px}
-  .plan ul{list-style:none;flex:1;display:flex;flex-direction:column;gap:8px;margin:12px 0}
-  .plan li{font-size:13px;color:var(--ink);display:flex;gap:8px;align-items:flex-start;line-height:1.4}
-  .plan li::before{content:"✓";color:var(--accent);font-weight:800;flex-shrink:0}
-  .plan li.no{color:var(--ink-faint)}
-  .plan li.no::before{content:"—";color:var(--ink-faint)}
-  .plan .cta{margin-top:auto;padding:14px;border-radius:12px;background:rgba(255,239,220,.05);border:1px solid var(--line);color:var(--ink);font-weight:700;text-align:center;font-size:13px;letter-spacing:.05em;text-transform:uppercase;cursor:pointer}
-  .plan.popular .cta{background:linear-gradient(135deg,var(--accent),#c93d00);color:#fff;border:none;box-shadow:0 8px 20px rgba(255,87,34,.3)}
+  .promise{max-width:900px;margin:40px auto 80px;padding:36px 32px;border-radius:20px;background:linear-gradient(180deg,rgba(245,236,216,.03),transparent);border:1px solid var(--line);text-align:center}
+  .promise h4{font-family:var(--serif);font-style:italic;font-size:22px;margin-bottom:14px;color:var(--accent-hi)}
+  .promise p{color:var(--ink-dim);font-size:14.5px;line-height:1.65;max-width:640px;margin:0 auto 8px}
 
-  .footer{padding:40px 24px 60px;text-align:center;border-top:1px solid var(--line);color:var(--ink-faint);font-size:13px}
-  .footer .fine{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;margin-top:6px}
+  footer{padding:40px 24px 60px;text-align:center;border-top:1px solid var(--line);color:var(--ink-faint);font-size:13px}
+  footer .fine{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;margin-top:6px}
 </style>
 </head>
 <body>
 
 <header>
-  <a class="brand" href="/"><img src="/favicon.svg" alt="" style="width:28px;height:28px;flex-shrink:0" /><b>AR</b><i>Menu</i></a>
-  <nav><a href="/how">How it works</a><a href="/dishes">Demo</a><a href="/faq">FAQs</a><a href="/portal/">Sign in</a></nav>
+  <a class="brand" href="/"><img src="/favicon.svg" alt="AR Menu" /><span class="word"><span class="n1">ARMenu</span><span class="n2">South Africa</span></span></a>
+  <nav><a href="/#how">How it works</a><a href="/dishes">Demo</a><a href="/faq">FAQs</a><a href="/portal/">Sign in</a><a href="/contact" class="btn">Enquire →</a></nav>
 </header>
 
 <section class="hero">
-  <div class="kicker">Plans & Pricing</div>
-  <h1>Pick the future of dining.</h1>
-  <p>Every plan is a full AR menu — the immersive dishes are included in even the Starter tier. Add ordering, staff console and table view when you're ready. Cancel any time.</p>
+  <span class="kicker">Pricing</span>
+  <h1>Priced <b>per restaurant.</b></h1>
+  <p>Every kitchen is different — number of dishes, tables, staff, languages, and modules. We build a proposal that fits, not a one-size-fits-all tier. Get in touch and we'll walk you through the options.</p>
 </section>
 
-<div class="toggle-row">
-  <span class="on" id="lbl-m">Monthly</span>
-  <div class="switch" id="cycleToggle" role="switch" aria-label="Billing cycle"></div>
-  <span id="lbl-y">Yearly <span class="save-tag">Save 17%</span></span>
-</div>
-
-<div class="plans">
-  <div class="plan">
-    <h3>Starter</h3>
-    <div class="tag">A clean digital menu with real 4D dishes.</div>
-    <div class="price"><span class="old" data-m="R529" data-y="R4390">R529</span><b data-m="R349" data-y="R2890">R349</b>/month</div>
-    <ul>
-      <li>Up to 50 dishes</li>
-      <li>Up to 5 dishes in AR</li>
-      <li>Custom subdomain</li>
-      <li>Full admin console</li>
-      <li>Analytics</li>
-      <li class="no">Order cart / waiter call</li>
-      <li class="no">Multi-menu schedule</li>
-      <li class="no">Staff & table view</li>
-    </ul>
-    <div class="cta" onclick="location.href='/portal/'">Get started →</div>
+<div class="cards">
+  <div class="card">
+    <h3>Single restaurant</h3>
+    <p>An independent kitchen ready to bring life-size AR to every table. Full platform, your own subdomain, unlimited menu updates.</p>
+    <a href="/contact?type=general" class="btn">Enquire →</a>
   </div>
 
-  <div class="plan popular">
-    <div class="plan-tag">Most popular</div>
-    <h3>Pro</h3>
-    <div class="tag">Bring the whole menu to life. Ordering + waiter call included.</div>
-    <div class="price"><span class="old" data-m="R1449" data-y="R14000">R1449</span><b data-m="R899" data-y="R7490">R899</b>/month</div>
-    <ul>
-      <li>Up to 250 dishes</li>
-      <li>Up to 25 dishes in AR</li>
-      <li>Custom branding & theme</li>
-      <li>Order cart & waiter call</li>
-      <li>Staff console & table view</li>
-      <li>Multi-menu schedule</li>
-      <li>Google Reviews routing</li>
-      <li>Happy-hour scheduler</li>
-    </ul>
-    <div class="cta" onclick="location.href='/portal/'">Get started →</div>
+  <div class="card hero-c">
+    <h3>Multi-site</h3>
+    <p>Two or more locations under one brand. Shared branding, per-site menus, group analytics dashboard.</p>
+    <a href="/contact?type=general" class="btn">Enquire →</a>
   </div>
 
-  <div class="plan">
-    <h3>Premium</h3>
-    <div class="tag">For ambitious restaurants ready to scale.</div>
-    <div class="price"><span class="old" data-m="R3099" data-y="R31000">R3099</span><b data-m="R2379" data-y="R19800">R2379</b>/month</div>
-    <ul>
-      <li>Up to 500 dishes</li>
-      <li>Up to 125 dishes in AR</li>
-      <li>Everything in Pro</li>
-      <li>Priority email support</li>
-      <li>Multi-language (up to 8)</li>
-      <li>Multi-currency (up to 8)</li>
-      <li>Kitchen display</li>
-      <li>10 admin seats · 50 staff seats</li>
-    </ul>
-    <div class="cta" onclick="location.href='/portal/'">Get started →</div>
-  </div>
-
-  <div class="plan">
+  <div class="card">
     <h3>Enterprise</h3>
-    <div class="tag">Chains, hotels and luxury venues.</div>
-    <div class="price"><b>Custom</b></div>
-    <ul>
-      <li>Unlimited dishes & AR</li>
-      <li>Max-quality 4D + custom animation</li>
-      <li>Bespoke branding</li>
-      <li>VIP support · SLA</li>
-      <li>Unlimited seats</li>
-      <li>Multi-location dashboard</li>
-      <li>Custom integrations</li>
-    </ul>
-    <div class="cta" onclick="location.href='mailto:hello@armenu.co.za?subject=Enterprise%20enquiry'">Contact sales →</div>
+    <p>Chains, hotel groups, luxury venues. Bespoke onboarding, dedicated support, custom animation, unlimited seats.</p>
+    <a href="/contact?type=enterprise" class="btn">Enquire →</a>
   </div>
 </div>
 
-<footer class="footer">
-  No setup fees. Cancel any time. Prices in ZAR.
-  <div class="fine">© 2026 AR Menu · armenu.co.za</div>
+<div class="promise">
+  <h4>What every proposal includes</h4>
+  <p>Your own subdomain · unlimited menu edits · full admin console · analytics · AR Studio for generating dishes from photos · optional order cart, waiter call, staff and kitchen consoles · multi-language and multi-currency · Google-reviews routing · print-ready QR sheets.</p>
+</div>
+
+<footer>
+  Prices in ZAR. Contact us to discuss your setup.
+  <div class="fine">© 2026 ARMenu</div>
 </footer>
 
-<script>
-  const t = document.getElementById('cycleToggle');
-  let yearly = false;
-  t.onclick = () => {
-    yearly = !yearly;
-    t.classList.toggle('year', yearly);
-    document.getElementById('lbl-m').classList.toggle('on', !yearly);
-    document.getElementById('lbl-y').classList.toggle('on', yearly);
-    document.querySelectorAll('[data-m][data-y]').forEach(el => el.textContent = yearly ? el.dataset.y : el.dataset.m);
-  };
-</script>
 </body>
 </html>

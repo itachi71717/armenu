@@ -1,18 +1,30 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
   <defs>
     <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#ff2a68"/>
-      <stop offset=".5" stop-color="#ff5722"/>
-      <stop offset="1" stop-color="#ffb066"/>
+      <stop offset="0" stop-color="#e8c58a"/>
+      <stop offset="1" stop-color="#c9903c"/>
     </linearGradient>
   </defs>
-  <rect width="40" height="40" rx="9" fill="#08060a"/>
-  <path d="M6 12 L6 7 Q6 6 7 6 L12 6" stroke="url(#g)" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M28 6 L33 6 Q34 6 34 7 L34 12" stroke="url(#g)" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M6 28 L6 33 Q6 34 7 34 L12 34" stroke="url(#g)" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M28 34 L33 34 Q34 34 34 33 L34 28" stroke="url(#g)" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-  <ellipse cx="20" cy="26" rx="11" ry="2.6" fill="url(#g)" opacity=".35"/>
-  <ellipse cx="20" cy="24" rx="10" ry="2.4" fill="url(#g)" opacity=".6"/>
-  <ellipse cx="20" cy="21" rx="7.5" ry="1.9" fill="url(#g)"/>
-  <ellipse cx="20" cy="18" rx="4.5" ry="1.2" fill="#ff2a68"/>
+  <!-- rounded dark square background -->
+  <rect width="48" height="48" rx="12" fill="#0a0806"/>
+  <!-- AR viewfinder corner brackets -->
+  <path d="M8 16 L8 10 Q8 8 10 8 L16 8"  stroke="url(#g)" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M32 8 L38 8 Q40 8 40 10 L40 16" stroke="url(#g)" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M8 32 L8 38 Q8 40 10 40 L16 40" stroke="url(#g)" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M32 40 L38 40 Q40 40 40 38 L40 32" stroke="url(#g)" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Stylised burger inside — top bun (dome), patty (bar), bottom bun (dome) -->
+  <!-- top bun -->
+  <path d="M14 22 Q14 16 24 16 Q34 16 34 22 Z" fill="url(#g)"/>
+  <!-- sesame seeds -->
+  <ellipse cx="19" cy="19" rx="0.9" ry="1.3" fill="#0a0806" opacity=".55"/>
+  <ellipse cx="24" cy="18" rx="0.9" ry="1.3" fill="#0a0806" opacity=".55"/>
+  <ellipse cx="29" cy="19" rx="0.9" ry="1.3" fill="#0a0806" opacity=".55"/>
+  <!-- lettuce (wavy strip) -->
+  <path d="M13 23 Q16 24 19 23 Q22 24 25 23 Q28 24 31 23 Q34 24 35 23 L35 24.4 Q34 25 31 24 Q28 25 25 24 Q22 25 19 24 Q16 25 13 24 Z" fill="#a8bd6a"/>
+  <!-- patty -->
+  <rect x="12.5" y="25" width="23" height="3.6" rx="1.4" fill="#8a5a2b"/>
+  <!-- cheese drip -->
+  <path d="M13 27 L14 30 L16 28 L18 31 L20 28 L22 30 L24 28 L26 31 L28 28 L30 30 L32 28 L34 30 L35 27 Z" fill="#e8c58a" opacity=".95"/>
+  <!-- bottom bun -->
+  <path d="M14 30 L34 30 Q34 33 30 34 Q24 35 18 34 Q14 33 14 30 Z" fill="url(#g)" opacity=".92"/>
 </svg>
