@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Contact — AR Menu</title>
+<title>Contact. AR Menu</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -57,12 +57,12 @@
     <div class="row"><label>Message</label><textarea required id="message" rows="5"></textarea></div>
     <input type="hidden" id="type" value="general" />
     <button class="btn" type="submit">Send →</button>
-    <div class="ok" id="ok" style="display:none">✓ Thanks — we'll be in touch within a business day.</div>
+    <div class="ok" id="ok" style="display:none">✓ Thanks. we'll be in touch within a business day.</div>
   </form>
 
   <div class="contact-info">
     <strong>Email:</strong> hello@armenu.co.za<br>
-    <strong>WhatsApp:</strong> +27 —<br>
+    <strong>WhatsApp:</strong> +27 , <br>
     <strong>Address:</strong> Johannesburg, South Africa
   </div>
 </main>
@@ -90,7 +90,7 @@
       const r = await fetch('/api/portal/pending-signup', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: body.email, restaurant_name: body.restaurant, phone: '', message: `[${body.type}] ${body.name}: ${body.message}` }) });
       if (r.ok) { document.getElementById('ok').style.display = 'block'; e.target.reset(); return; }
     } catch {}
-    location.href = `mailto:hello@armenu.co.za?subject=${encodeURIComponent('[' + body.type + '] ' + body.name)}&body=${encodeURIComponent(body.message + '\n\n— ' + body.name + ' (' + body.email + ') · ' + body.restaurant)}`;
+    location.href = `mailto:hello@armenu.co.za?subject=${encodeURIComponent('[' + body.type + '] ' + body.name)}&body=${encodeURIComponent(body.message + '\n\n,  ' + body.name + ' (' + body.email + ') · ' + body.restaurant)}`;
   };
 </script>
 </body>
