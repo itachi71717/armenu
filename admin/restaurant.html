@@ -263,21 +263,59 @@
 <div class="view" id="view-ai-generate">
   <div class="card">
     <h2>AR Studio</h2>
-    <div class="sub">Turn a photo of a dish into a life-size AR-ready 3D model. Upload → preview → adjust the scale → publish. Not happy with the result? Retry with one tap.</div>
+    <div class="sub">Two ways to add a dish. Pick one.</div>
+
+    <div style="display:flex;gap:8px;margin-bottom:20px;background:rgba(245,236,216,.03);padding:6px;border-radius:12px;border:1px solid var(--line)">
+      <button id="ars_mode_ai"      class="btn" style="flex:1;padding:12px;background:linear-gradient(135deg,var(--accent-hi),var(--accent));color:var(--bg)">✨ Generate from photo</button>
+      <button id="ars_mode_upload"  class="btn btn-ghost" style="flex:1;padding:12px">📤 Upload your own 3D model</button>
+    </div>
 
     <div id="ars-step1">
-      <div class="row"><label>Dish name (used for the file + record)</label><input id="ars_name" placeholder="Signature Avocado" /></div>
-      <div class="row"><label>Price (optional)</label><input id="ars_price" placeholder="R 89" /></div>
-      <div class="row">
-        <label>Photo of the dish — well-lit, top-down or ¾ angle works best</label>
-        <div id="ars_drop" style="border:2px dashed var(--line);border-radius:14px;padding:32px;text-align:center;cursor:pointer;transition:all .2s">
-          <div id="ars_drop_msg" style="color:var(--ink-dim);font-size:14px"><strong>Click to select</strong> or drag a photo here</div>
-          <small style="color:var(--ink-faint);font-size:11px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.12em;display:block;margin-top:8px">JPG or PNG · &lt; 8 MB</small>
+      <div class="row"><label>Dish name (used for the file + record)</label><input id="ars_name" placeholder="Signature Burger" /></div>
+      <div class="row"><label>Price (optional)</label><input id="ars_price" placeholder="R 189" /></div>
+
+      <!-- AI mode: photo upload -->
+      <div id="ars_ai_body">
+        <div class="row">
+          <label>Photo of the dish — well-lit, top-down or ¾ angle works best</label>
+          <div id="ars_drop" style="border:2px dashed var(--line);border-radius:14px;padding:32px;text-align:center;cursor:pointer;transition:all .2s">
+            <div id="ars_drop_msg" style="color:var(--ink-dim);font-size:14px"><strong>Click to select</strong> or drag a photo here</div>
+            <small style="color:var(--ink-faint);font-size:11px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.12em;display:block;margin-top:8px">JPG or PNG · &lt; 8 MB</small>
+          </div>
+          <input type="file" id="ars_file" accept="image/*" style="display:none" />
         </div>
-        <input type="file" id="ars_file" accept="image/*" style="display:none" />
+        <button class="btn" id="ars_go" disabled style="opacity:.55">Generate 3D model →</button>
+        <div class="sub" style="margin-top:12px;font-size:12px">Generation takes 1–3 minutes. You'll see a preview when it's ready.</div>
       </div>
-      <button class="btn" id="ars_go" disabled style="opacity:.55">Generate 3D model →</button>
-      <div class="sub" style="margin-top:12px;font-size:12px">Generation takes 1–3 minutes. You'll see a preview when it's ready.</div>
+
+      <!-- UPLOAD mode: direct .glb / .usdz -->
+      <div id="ars_upload_body" style="display:none">
+        <div class="row">
+          <label>.glb file (required — for Android AR + 3D viewer)</label>
+          <div id="ars_glb_drop" style="border:2px dashed var(--line);border-radius:14px;padding:24px;text-align:center;cursor:pointer;transition:all .2s">
+            <div id="ars_glb_msg" style="color:var(--ink-dim);font-size:14px"><strong>Click to select</strong> or drag a .glb here</div>
+            <small style="color:var(--ink-faint);font-size:11px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.12em;display:block;margin-top:8px">glTF Binary · up to 200 MB</small>
+          </div>
+          <input type="file" id="ars_glb_file" accept=".glb,model/gltf-binary" style="display:none" />
+        </div>
+        <div class="row">
+          <label>.usdz file (optional — for iPhone Quick Look AR)</label>
+          <div id="ars_usdz_drop" style="border:2px dashed var(--line);border-radius:14px;padding:20px;text-align:center;cursor:pointer;transition:all .2s">
+            <div id="ars_usdz_msg" style="color:var(--ink-dim);font-size:13px"><strong>Click to select</strong> or drag a .usdz here</div>
+            <small style="color:var(--ink-faint);font-size:11px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.12em;display:block;margin-top:8px">Optional but recommended for iOS</small>
+          </div>
+          <input type="file" id="ars_usdz_file" accept=".usdz,model/vnd.usdz+zip" style="display:none" />
+        </div>
+        <div class="row">
+          <label>Thumbnail photo (optional — used in the menu list)</label>
+          <div id="ars_thumb_drop" style="border:2px dashed var(--line);border-radius:14px;padding:20px;text-align:center;cursor:pointer;transition:all .2s">
+            <div id="ars_thumb_msg" style="color:var(--ink-dim);font-size:13px"><strong>Click to select</strong> a JPG or PNG</div>
+          </div>
+          <input type="file" id="ars_thumb_file" accept="image/*" style="display:none" />
+        </div>
+        <button class="btn" id="ars_upload_go" disabled style="opacity:.55;width:100%;padding:14px">Upload & preview →</button>
+        <div class="sub" style="margin-top:12px;font-size:12px">We upload your files to secure storage, then let you scale + preview before publishing.</div>
+      </div>
     </div>
 
     <div id="ars-step2" style="display:none">
@@ -636,17 +674,95 @@ $('air_scan').onclick = async () => {
 };
 
 // ===== AR STUDIO =====
-const ars = { file: null, imageUrl: null, jobId: null, previewGlb: null, scale: 1, timer: null };
+const ars = { file: null, imageUrl: null, jobId: null, previewGlb: null, scale: 1, timer: null,
+              mode: 'ai', glbFile: null, usdzFile: null, thumbFile: null,
+              glbUrl: null, usdzUrl: null, thumbUrl: null };
+
+// Mode toggle: AI-generate vs direct upload
+$('ars_mode_ai').onclick = () => switchArsMode('ai');
+$('ars_mode_upload').onclick = () => switchArsMode('upload');
+function switchArsMode(m) {
+  ars.mode = m;
+  const ai = m === 'ai';
+  $('ars_ai_body').style.display = ai ? '' : 'none';
+  $('ars_upload_body').style.display = ai ? 'none' : '';
+  $('ars_mode_ai').className     = ai ? 'btn' : 'btn btn-ghost';
+  $('ars_mode_upload').className = ai ? 'btn btn-ghost' : 'btn';
+  if (ai) { $('ars_mode_ai').style.cssText = 'flex:1;padding:12px;background:linear-gradient(135deg,var(--accent-hi),var(--accent));color:var(--bg)'; $('ars_mode_upload').style.cssText = 'flex:1;padding:12px'; }
+  else    { $('ars_mode_upload').style.cssText = 'flex:1;padding:12px;background:linear-gradient(135deg,var(--accent-hi),var(--accent));color:var(--bg)'; $('ars_mode_ai').style.cssText = 'flex:1;padding:12px'; }
+}
+
+// Direct upload handlers
+function bindDrop(dropId, fileId, msgId, extRe, sizeMB, onPick) {
+  const drop = $(dropId), input = $(fileId);
+  drop.onclick = () => input.click();
+  input.onchange = e => { const f = e.target.files[0]; if (f) pick(f); };
+  ['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.style.borderColor = 'rgba(212,165,116,.6)'; }));
+  ['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); if (ev === 'drop') { const f = e.dataTransfer.files[0]; if (f) pick(f); } drop.style.borderColor = 'var(--line)'; }));
+  function pick(f) {
+    if (extRe && !extRe.test(f.name)) return toast('Wrong file type', 'err');
+    if (f.size > sizeMB * 1024 * 1024) return toast('File too big (' + sizeMB + ' MB max)', 'err');
+    $(msgId).innerHTML = `<strong>${escapeHTML(f.name)}</strong> · ${(f.size / 1024 / 1024).toFixed(1)} MB ready`;
+    drop.style.borderColor = 'rgba(212,165,116,.4)';
+    onPick(f);
+  }
+}
+bindDrop('ars_glb_drop',   'ars_glb_file',   'ars_glb_msg',   /\.glb$/i,        200, f => { ars.glbFile = f; refreshUploadBtn(); });
+bindDrop('ars_usdz_drop',  'ars_usdz_file',  'ars_usdz_msg',  /\.usdz$/i,       200, f => { ars.usdzFile = f; refreshUploadBtn(); });
+bindDrop('ars_thumb_drop', 'ars_thumb_file', 'ars_thumb_msg', /\.(jpg|jpeg|png|webp)$/i, 8, f => { ars.thumbFile = f; refreshUploadBtn(); });
+function refreshUploadBtn() {
+  const ok = !!ars.glbFile && !!$('ars_name').value.trim();
+  $('ars_upload_go').disabled = !ok;
+  $('ars_upload_go').style.opacity = ok ? '1' : '.55';
+}
+$('ars_name').addEventListener('input', refreshUploadBtn);
+
+async function uploadOne(file, kind) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  const sign = await api('/api/admin/upload-url', { method: 'POST', body: JSON.stringify({ filename: `${slug}-${kind}-${Date.now()}.${ext}` }) });
+  const ct = kind === 'glb' ? 'model/gltf-binary' : kind === 'usdz' ? 'model/vnd.usdz+zip' : file.type || 'image/jpeg';
+  const up = await fetch(sign.signed_url, { method: 'PUT', headers: { 'content-type': ct, 'x-upsert': 'false' }, body: file });
+  if (!up.ok) throw new Error(`${kind} upload failed (${up.status})`);
+  return sign.public_url;
+}
+
+$('ars_upload_go').onclick = async () => {
+  if (!ars.glbFile) return toast('Pick a .glb first', 'err');
+  const btn = $('ars_upload_go'); btn.disabled = true; btn.textContent = 'Uploading…';
+  $('ars-step1').style.display = 'none'; $('ars-step2').style.display = '';
+  try {
+    arsSetStage('Uploading .glb…', ars.glbFile.name, 10);
+    ars.glbUrl = await uploadOne(ars.glbFile, 'glb');
+    if (ars.usdzFile) {
+      arsSetStage('Uploading .usdz…', ars.usdzFile.name, 40);
+      ars.usdzUrl = await uploadOne(ars.usdzFile, 'usdz');
+    }
+    if (ars.thumbFile) {
+      arsSetStage('Uploading thumbnail…', ars.thumbFile.name, 70);
+      ars.thumbUrl = await uploadOne(ars.thumbFile, 'thumb');
+    }
+    arsSetStage('Ready!', 'Preview + adjust size', 100);
+    setTimeout(() => showPreview(ars.glbUrl, /* isUpload */ true), 300);
+  } catch (e) {
+    toast(e.message, 'err'); arsReset();
+  }
+};
 
 function arsReset() {
-  ars.file = null; ars.imageUrl = null; ars.jobId = null; ars.previewGlb = null; ars.scale = 1;
+  Object.assign(ars, { file: null, imageUrl: null, jobId: null, previewGlb: null, scale: 1, glbFile: null, usdzFile: null, thumbFile: null, glbUrl: null, usdzUrl: null, thumbUrl: null, isUpload: false });
   if (ars.timer) { clearInterval(ars.timer); ars.timer = null; }
   $('ars-step1').style.display = ''; $('ars-step2').style.display = 'none'; $('ars-step3').style.display = 'none'; $('ars-step4').style.display = 'none';
   $('ars_name').value = ''; $('ars_price').value = ''; $('ars_file').value = '';
+  $('ars_glb_file').value = ''; $('ars_usdz_file').value = ''; $('ars_thumb_file').value = '';
   $('ars_drop_msg').innerHTML = '<strong>Click to select</strong> or drag a photo here';
-  $('ars_drop').style.borderColor = 'var(--line)';
+  $('ars_glb_msg').innerHTML = '<strong>Click to select</strong> or drag a .glb here';
+  $('ars_usdz_msg').innerHTML = '<strong>Click to select</strong> or drag a .usdz here';
+  $('ars_thumb_msg').innerHTML = '<strong>Click to select</strong> a JPG or PNG';
+  ['ars_drop','ars_glb_drop','ars_usdz_drop','ars_thumb_drop'].forEach(id => $(id).style.borderColor = 'var(--line)');
   $('ars_go').disabled = true; $('ars_go').style.opacity = '.55';
+  $('ars_upload_go').disabled = true; $('ars_upload_go').style.opacity = '.55';
   $('ars_scale').value = 1; $('ars_scale_val').textContent = '1.00';
+  switchArsMode(ars.mode || 'ai');
 }
 function arsSetStage(msg, sub, pct) {
   $('ars_stage').textContent = msg;
@@ -701,10 +817,13 @@ $('ars_go').onclick = async () => {
   } catch (e) { toast(e.message, 'err'); arsReset(); }
 };
 
-function showPreview(glbUrl) {
+function showPreview(glbUrl, isUpload) {
   ars.previewGlb = glbUrl;
+  ars.isUpload = !!isUpload;
   $('ars-step2').style.display = 'none'; $('ars-step3').style.display = '';
   const mv = $('ars_preview'); mv.setAttribute('src', glbUrl);
+  // Retry button doesn't apply to direct-upload flow
+  $('ars_retry').style.display = isUpload ? 'none' : '';
   applyScale();
 }
 function applyScale() {
@@ -738,11 +857,31 @@ $('ars_another').onclick = () => arsReset();
 $('ars_publish').onclick = async () => {
   const btn = $('ars_publish'); btn.disabled = true; btn.textContent = 'Publishing…';
   try {
-    const d = await api('/api/admin/ai-generate', {
-      method: 'POST',
-      body: JSON.stringify({ finalize: true, job_id: ars.jobId, restaurant_slug: slug, name: $('ars_name').value.trim(), price: $('ars_price').value.trim() })
-    });
-    // Save scale via dishes PATCH
+    let d;
+    if (ars.isUpload) {
+      // Direct upload path: create the dish record with the URLs we already uploaded
+      d = await api('/api/admin/dishes', {
+        method: 'POST',
+        body: JSON.stringify({
+          restaurant_slug: slug,
+          name: $('ars_name').value.trim(),
+          price: $('ars_price').value.trim() || null,
+          glb_url: ars.glbUrl,
+          usdz_url: ars.usdzUrl || null,
+          thumb_url: ars.thumbUrl || null,
+          scale: ars.scale,
+          ar_source: 'upload'
+        })
+      });
+      d.dish_id = d.id;
+    } else {
+      // AI-generated path: server downloads + rehosts + attaches
+      d = await api('/api/admin/ai-generate', {
+        method: 'POST',
+        body: JSON.stringify({ finalize: true, job_id: ars.jobId, restaurant_slug: slug, name: $('ars_name').value.trim(), price: $('ars_price').value.trim() })
+      });
+    }
+    // Save scale via dishes PATCH (works for both paths)
     if (d.dish_id && ars.scale !== 1) {
       await api('/api/admin/dishes?id=' + d.dish_id, { method: 'PATCH', body: JSON.stringify({ scale: ars.scale }) });
     }
