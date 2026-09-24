@@ -142,11 +142,24 @@ export default async function handler(req, res) {
       const nameHint = body.name || 'dish';
       const base = `${slug}/${slugify(nameHint)}-${uid}`;
 
-      const [outGlb, outUsdz, outThumb] = await Promise.all([
-        downloadTo(BUCKET, base + '/model.glb', glbUrl, 'model/gltf-binary'),
-        usdzUrl  ? downloadTo(BUCKET, base + '/model.usdz', usdzUrl, 'model/vnd.usdz+zip') : Promise.resolve(null),
-        thumbUrl ? downloadTo(BUCKET, base + '/thumb.jpg', thumbUrl, 'image/jpeg')          : Promise.resolve(null)
-      ]);
+      // Each upload wrapped individually so one R2 hiccup doesn't nuke the whole
+      // finalize — .glb is required, .usdz + thumb are best-effort with warnings.
+      const warnings = [];
+      const safeUpload = async (label, fn) => {
+        try { return await fn(); }
+        catch (e) { warnings.push(`${label}: ${scrub(e.message)}`); return null; }
+      };
+      const outGlb = await safeUpload('glb', () =>
+        downloadTo(BUCKET, base + '/model.glb', glbUrl, 'model/gltf-binary'));
+      if (!outGlb) {
+        return res.status(502).json({ error: 'Could not save generated model', warnings });
+      }
+      const outUsdz = usdzUrl
+        ? await safeUpload('usdz', () => downloadTo(BUCKET, base + '/model.usdz', usdzUrl, 'model/vnd.usdz+zip'))
+        : null;
+      const outThumb = thumbUrl
+        ? await safeUpload('thumbnail', () => downloadTo(BUCKET, base + '/thumb.jpg', thumbUrl, 'image/jpeg'))
+        : null;
 
       // Either UPDATE an existing dish or CREATE a new one.
       let dish_id = body.dish_id;
@@ -177,7 +190,8 @@ export default async function handler(req, res) {
         dish_id,
         glb_url: outGlb,
         usdz_url: outUsdz,
-        thumbnail_url: outThumb
+        thumbnail_url: outThumb,
+        warnings: warnings.length ? warnings : undefined
       });
     }
 

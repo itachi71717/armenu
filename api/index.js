@@ -45,6 +45,19 @@ const ROUTES = {
 
 const cache = {};
 
+// Simple in-memory rate limiter: 60 req/min per (ip, path-prefix).
+// Map is wiped wholesale every 60s so it can never grow unbounded.
+const RATE_LIMIT = 60;
+const RATE_WINDOW_MS = 60_000;
+let rateMap = new Map();
+setInterval(() => { rateMap = new Map(); }, RATE_WINDOW_MS).unref?.();
+
+function clientIp(req) {
+  const xf = req.headers['x-forwarded-for'];
+  if (xf) return String(xf).split(',')[0].trim();
+  return req.headers['x-real-ip'] || req.socket?.remoteAddress || 'unknown';
+}
+
 export default async function handler(req, res) {
   // Resolve URL path — either from Vercel [...path] or from req.url directly
   let key = '';
@@ -56,6 +69,16 @@ export default async function handler(req, res) {
   }
   const modPath = ROUTES[key];
   if (!modPath) return res.status(404).json({ error: 'not found: /api/' + key });
+
+  // Rate limit by (ip, top-level prefix) — e.g. all admin/* share a bucket per ip.
+  const prefix = key.split('/')[0] || key;
+  const rlKey = clientIp(req) + '|' + prefix;
+  const count = (rateMap.get(rlKey) || 0) + 1;
+  rateMap.set(rlKey, count);
+  if (count > RATE_LIMIT) {
+    res.setHeader('Retry-After', '60');
+    return res.status(429).json({ error: 'rate_limited', message: 'Too many requests, slow down.' });
+  }
 
   try {
     let mod = cache[modPath];

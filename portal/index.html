@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>AR Menu · Restaurant Portal</title>
 
+<meta name="theme-color" content="#0a0806" />
+<meta property="og:title" content="AR Menu Restaurant Portal" />
+<meta property="og:description" content="Restaurant portal for AR Menu." />
+<meta property="og:image" content="https://armenu.co.za/favicon.svg" />
+<meta property="og:url" content="https://armenu.co.za/portal/" />
+<link rel="canonical" href="https://armenu.co.za/portal/" />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -135,6 +142,40 @@
 
   #app{display:none}
   #app.ready{display:block}
+
+  /* Welcome banner */
+  .welcome-banner{position:fixed;top:78px;left:50%;transform:translateX(-50%) translateY(-20px);z-index:30;padding:14px 20px;border-radius:14px;background:linear-gradient(135deg,rgba(255,87,34,.18),rgba(255,176,102,.12));border:1px solid rgba(255,176,102,.35);backdrop-filter:blur(14px);box-shadow:0 12px 40px rgba(0,0,0,.5);display:none;align-items:center;gap:14px;max-width:92vw;opacity:0;transition:opacity .35s ease,transform .35s ease}
+  .welcome-banner.show{display:flex;opacity:1;transform:translateX(-50%) translateY(0)}
+  .welcome-banner .wb-txt{font-size:14px;color:var(--ink);font-weight:500}
+  .welcome-banner .wb-txt b{color:var(--accent-2);font-weight:700}
+  .welcome-banner .wb-close{background:transparent;border:none;color:var(--ink-dim);cursor:pointer;font-size:18px;padding:0 4px;line-height:1;transition:color .15s}
+  .welcome-banner .wb-close:hover{color:var(--ink)}
+
+  /* Copy URL button */
+  .copy-url{display:inline-flex;align-items:center;gap:6px;margin-left:10px;padding:5px 10px;border-radius:8px;background:rgba(255,239,220,.05);border:1px solid var(--line);color:var(--ink-dim);font-family:var(--mono);font-size:10px;letter-spacing:.06em;cursor:pointer;text-transform:uppercase;transition:all .15s}
+  .copy-url:hover{background:rgba(255,87,34,.1);border-color:rgba(255,87,34,.3);color:var(--accent-2)}
+  .copy-url.copied{color:#7dd87d;border-color:rgba(125,216,125,.4)}
+
+  /* Scan pill */
+  .pill.scan-pill{background:rgba(255,87,34,.08);border-color:rgba(255,87,34,.25);color:var(--accent-2);display:none}
+  .pill.scan-pill.show{display:inline-block}
+  .pill.scan-pill .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#7dd87d;margin-right:6px;vertical-align:middle;animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+  /* Mobile tap-friendly actions */
+  @media(max-width:760px){
+    .action{min-height:80px;padding:20px}
+    .action .ico{width:56px;height:56px;font-size:26px;border-radius:16px}
+    .action h3{font-size:17px}
+    .welcome-banner{top:70px;padding:12px 16px;font-size:13px}
+    .copy-url{margin-left:6px;padding:4px 8px}
+  }
+
+  /* WhatsApp QR in lead success */
+  .wa-qr-block{margin-top:14px;padding:16px;border-radius:12px;background:rgba(10,8,6,.5);border:1px solid var(--line);text-align:center}
+  .wa-qr-block .wa-qr-label{font-family:var(--mono);font-size:10px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.14em;margin-bottom:10px}
+  .wa-qr-block img{width:160px;height:160px;background:#fff;padding:8px;border-radius:10px;display:block;margin:0 auto 10px}
+  .wa-qr-block .wa-cta{display:inline-flex;align-items:center;gap:6px;color:#25D366;font-weight:600;font-size:13px}
 </style>
 </head>
 <body>
@@ -160,6 +201,11 @@
       </div>
       <div class="lead-success" id="leadSuccess" style="display:none">
         ✓ <strong>Got it.</strong> AR Menu will reach out via WhatsApp within 1 business day to activate your portal.
+        <div class="wa-qr-block" id="leadWaBlock" style="display:none">
+          <div class="wa-qr-label">Scan to chat now on WhatsApp</div>
+          <img id="leadWaQr" alt="WhatsApp QR" />
+          <a id="leadWaLink" href="#" target="_blank" class="wa-cta">Open WhatsApp →</a>
+        </div>
       </div>
       <button class="btn" id="signOutLink" style="margin-top:14px;width:100%;justify-content:center">Sign out</button>
     </div>
@@ -173,12 +219,19 @@
       <span class="mark"></span><b>AR</b><i>Menu</i>
       <span class="div">|</span>
       <span class="venue" id="navVenue">—</span>
+      <button class="copy-url" id="copyUrlBtn" title="Copy your menu URL">⧉ Copy URL</button>
     </div>
     <div class="nav-right">
+      <span class="pill scan-pill" id="navScans">0 scans this week</span>
       <span class="pill" id="navDishCount">0 dishes live</span>
       <button class="btn" id="signOutBtn">Sign out</button>
     </div>
   </nav>
+
+  <div class="welcome-banner" id="welcomeBanner">
+    <span class="wb-txt">Welcome, <b id="wbName">—</b>. Your AR menu is ready.</span>
+    <button class="wb-close" id="wbClose" aria-label="Dismiss">×</button>
+  </div>
 
   <main>
     <div class="hello">
@@ -420,8 +473,18 @@
     }
     $('leadForm').style.display = 'none';
     $('leadSuccess').style.display = 'block';
+    // Generate WhatsApp QR so support can be reached in one tap.
+    try {
+      const waMsg = `Hi AR Menu, this is ${restaurant_name}. I just submitted my restaurant details in the portal — please activate my account.`;
+      const waUrl = `https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent(waMsg)}`;
+      const dataUrl = await qrDataUrl(waUrl, 500);
+      $('leadWaQr').src = dataUrl;
+      $('leadWaLink').href = waUrl;
+      $('leadWaBlock').style.display = 'block';
+    } catch (e) { console.error('lead WA QR failed:', e); }
   });
   $('signOutBtn').addEventListener('click', async () => { await clerk.signOut(); location.reload(); });
+  $('wbClose').addEventListener('click', () => $('welcomeBanner').classList.remove('show'));
 
   $('contactAction').addEventListener('click', () => {
     window.open(`https://wa.me/${SUPPORT_WHATSAPP}?text=Hi%20AR%20Menu%2C%20I%20need%20support%20with%20my%20portal.`, '_blank');
@@ -439,7 +502,37 @@
     const r = data.restaurant;
     $('navVenue').textContent = r.name;
     $('navDishCount').textContent = `${data.dishes.length} dish${data.dishes.length === 1 ? '' : 'es'} live`;
+    // Scan pill — only show if backend provides scans_7d (followup field).
+    if (typeof data.scans_7d === 'number') {
+      $('navScans').innerHTML = `<span class="dot"></span>${data.scans_7d} scan${data.scans_7d === 1 ? '' : 's'} this week`;
+      $('navScans').classList.add('show');
+    }
     $('welcomeName').textContent = r.name;
+    $('wbName').textContent = r.name;
+    // First-time welcome banner: show for 5 seconds after sign-in, once per session.
+    try {
+      if (!sessionStorage.getItem('armenu_welcomed')) {
+        const wb = $('welcomeBanner');
+        wb.classList.add('show');
+        sessionStorage.setItem('armenu_welcomed', '1');
+        setTimeout(() => wb.classList.remove('show'), 5000);
+      }
+    } catch (e) { /* private mode — skip */ }
+    // Wire copy-URL button now that we know the slug.
+    const menuUrl = `armenu.co.za/m/${r.slug}`;
+    $('copyUrlBtn').onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(menuUrl);
+        const btn = $('copyUrlBtn');
+        const orig = btn.innerHTML;
+        btn.innerHTML = '✓ Copied';
+        btn.classList.add('copied');
+        toast(`Copied ${menuUrl}`, 'ok');
+        setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('copied'); }, 2000);
+      } catch (e) {
+        toast('Copy failed — ' + menuUrl, 'err');
+      }
+    };
     $('welcomeSub').textContent = data.dishes.length
       ? `Your AR menu is live with ${data.dishes.length} dish${data.dishes.length === 1 ? '' : 'es'}. Performance reports are emailed by AR Menu monthly.`
       : `Your account is set up. AR Menu will publish your first dishes after the kitchen visit.`;

@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://armenu.co.za/</loc><priority>1.0</priority></url>
-  <url><loc>https://armenu.co.za/#how</loc><priority>0.8</priority></url>
-  <url><loc>https://armenu.co.za/#dishes</loc><priority>0.8</priority></url>
-  <url><loc>https://armenu.co.za/#why</loc><priority>0.8</priority></url>
-  <url><loc>https://armenu.co.za/#faq</loc><priority>0.6</priority></url>
-  <url><loc>https://armenu.co.za/#contact</loc><priority>0.9</priority></url>
+  <url><loc>https://armenu.co.za/how.html</loc><priority>0.8</priority></url>
+  <url><loc>https://armenu.co.za/why.html</loc><priority>0.8</priority></url>
+  <url><loc>https://armenu.co.za/dishes.html</loc><priority>0.8</priority></url>
+  <url><loc>https://armenu.co.za/faq.html</loc><priority>0.7</priority></url>
+  <url><loc>https://armenu.co.za/plans.html</loc><priority>0.8</priority></url>
+  <url><loc>https://armenu.co.za/contact.html</loc><priority>0.9</priority></url>
+  <url><loc>https://armenu.co.za/legal.html</loc><priority>0.3</priority></url>
 </urlset>

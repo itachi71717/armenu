@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="theme-color" content="#0a0806" />
 <title>FAQ. AR Menu</title>
+<meta property="og:title" content="FAQ. AR Menu" />
+<meta property="og:description" content="Common questions about AR Menu. How it works, which phones it supports, setup time, and what a monthly report looks like." />
+<meta property="og:image" content="https://armenu.co.za/favicon.svg" />
+<meta property="og:url" content="https://armenu.co.za/faq.html" />
+<link rel="canonical" href="https://armenu.co.za/faq.html" />
 <meta name="description" content="Common questions about AR Menu. how it works, which phones it supports, setup time, and what a monthly report looks like." />
 
 <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -16,8 +21,8 @@
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
   :root{
     --bg:#0a0806;--ink:#f5efe6;--ink-dim:#9a9388;--ink-faint:#564f45;
-    --accent:#ff5722;--accent-2:#ffb066;
-    --line:rgba(255,239,220,.08);--serif:'Instrument Serif',serif;--mono:'JetBrains Mono',monospace;
+    --accent:#d4a574;--accent-2:#e8c58a;
+    --line:rgba(245,236,216,.08);--serif:'Instrument Serif',serif;--mono:'JetBrains Mono',monospace;
   }
   html{-webkit-font-smoothing:antialiased;scroll-behavior:smooth}
   body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);overflow-x:hidden;line-height:1.5}
@@ -27,29 +32,29 @@
   .grain{position:fixed;inset:0;z-index:60;pointer-events:none;opacity:.07;mix-blend-mode:overlay;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>")}
   .vignette{position:fixed;inset:0;z-index:59;pointer-events:none;background:radial-gradient(ellipse at center,transparent 35%,rgba(0,0,0,.55) 100%)}
   .cursor{position:fixed;width:14px;height:14px;border-radius:50%;background:var(--accent);pointer-events:none;z-index:200;transform:translate(-50%,-50%);transition:width .25s,height .25s;mix-blend-mode:difference}
-  .cursor-ring{position:fixed;width:42px;height:42px;border-radius:50%;border:1px solid rgba(255,87,34,.5);pointer-events:none;z-index:200;transform:translate(-50%,-50%);transition:transform .12s ease-out}
+  .cursor-ring{position:fixed;width:42px;height:42px;border-radius:50%;border:1px solid rgba(212,165,116,.5);pointer-events:none;z-index:200;transform:translate(-50%,-50%);transition:transform .12s ease-out}
   @media(pointer:coarse){.cursor,.cursor-ring{display:none}}
 
   nav{position:fixed;top:0;left:0;right:0;z-index:80;display:flex;justify-content:space-between;align-items:center;padding:20px 32px;transition:background .3s,border-color .3s;border-bottom:1px solid transparent}
   nav.scrolled{background:rgba(10,8,6,.7);backdrop-filter:blur(18px) saturate(1.4);-webkit-backdrop-filter:blur(18px) saturate(1.4);border-bottom-color:var(--line)}
   .logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px;letter-spacing:.04em;text-transform:uppercase}
-  .logo .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#ff5722,#ffb066);position:relative;box-shadow:0 4px 16px rgba(255,87,34,.4),inset 0 1px 0 rgba(255,255,255,.3)}
-  .logo .mark::after{content:"";position:absolute;inset:6px;border-radius:3px;background:#0a0806;box-shadow:inset 0 0 0 2px rgba(255,87,34,.6)}
+  .logo .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#d4a574,#e8c58a);position:relative;box-shadow:0 4px 16px rgba(212,165,116,.4),inset 0 1px 0 rgba(255,255,255,.3)}
+  .logo .mark::after{content:"";position:absolute;inset:6px;border-radius:3px;background:#0a0806;box-shadow:inset 0 0 0 2px rgba(212,165,116,.6)}
   .logo b{font-weight:800}.logo i{font-style:normal;color:var(--ink-dim);font-weight:500;margin-left:4px}
   .nav-links{display:flex;gap:4px;align-items:center}
   .nav-links a{padding:9px 16px;font-size:13px;color:var(--ink-dim);font-weight:500;border-radius:999px;transition:color .2s,background .2s;letter-spacing:.02em}
   .nav-links a:hover{color:var(--ink)}
-  .nav-links a.active{color:var(--ink);background:rgba(255,239,220,.06)}
+  .nav-links a.active{color:var(--ink);background:rgba(245,236,216,.06)}
   .btn{display:inline-flex;align-items:center;gap:8px;padding:12px 22px;border-radius:999px;background:var(--ink);color:#0a0806;font-weight:600;font-size:13px;letter-spacing:.02em;border:none;cursor:pointer;font-family:inherit;transition:transform .25s cubic-bezier(.2,.9,.2,1),background .25s}
   .btn:hover{transform:translateY(-2px);background:var(--accent-2)}
-  .btn-primary{background:linear-gradient(135deg,#ff5722,#c93d00);color:#fff;box-shadow:0 4px 20px rgba(255,87,34,.55),0 0 0 1px rgba(255,87,34,.3),inset 0 1px 0 rgba(255,255,255,.18)}
-  .btn-primary:hover{background:linear-gradient(135deg,#ff6b35,#ff5722);color:#fff;box-shadow:0 8px 32px rgba(255,87,34,.65),0 0 0 1px rgba(255,87,34,.4),inset 0 1px 0 rgba(255,255,255,.22)}
+  .btn-primary{background:linear-gradient(135deg,#d4a574,#a8763b);color:#fff;box-shadow:0 4px 20px rgba(212,165,116,.55),0 0 0 1px rgba(212,165,116,.3),inset 0 1px 0 rgba(255,255,255,.18)}
+  .btn-primary:hover{background:linear-gradient(135deg,#e8c58a,#d4a574);color:#fff;box-shadow:0 8px 32px rgba(212,165,116,.65),0 0 0 1px rgba(212,165,116,.4),inset 0 1px 0 rgba(255,255,255,.22)}
   .btn-ghost{background:transparent;border:1px solid var(--line);color:var(--ink)}
-  .btn-ghost:hover{background:rgba(255,239,220,.06)}
+  .btn-ghost:hover{background:rgba(245,236,216,.06)}
   @media(max-width:760px){.nav-links a:not(.btn){display:none}}
 
-  nav .btn-primary{background:rgba(255,239,220,.92);color:#c93d00;box-shadow:0 4px 16px rgba(255,87,34,.2),0 0 0 1px rgba(255,87,34,.15)}
-  nav .btn-primary:hover{background:#fff;color:#ff5722;transform:translateY(-2px);box-shadow:0 8px 24px rgba(255,87,34,.28),0 0 0 1px rgba(255,87,34,.25)}
+  nav .btn-primary{background:rgba(245,236,216,.92);color:#a8763b;box-shadow:0 4px 16px rgba(212,165,116,.2),0 0 0 1px rgba(212,165,116,.15)}
+  nav .btn-primary:hover{background:#fff;color:#d4a574;transform:translateY(-2px);box-shadow:0 8px 24px rgba(212,165,116,.28),0 0 0 1px rgba(212,165,116,.25)}
 
   .page-hero{position:relative;height:100vh;min-height:640px;display:grid;place-items:center;text-align:center;overflow:hidden}
   .page-hero-bg{position:absolute;inset:-5%;z-index:0;background-size:cover;background-position:center;transform:scale(1.05);filter:saturate(1.1) brightness(.72)}
@@ -81,7 +86,7 @@
   .contact-strip{padding:80px 32px;max-width:760px;margin:0 auto;text-align:center}
   .contact-strip h3{font-family:var(--serif);font-style:italic;font-size:clamp(32px,4vw,52px);font-weight:400;letter-spacing:-.025em;margin-bottom:16px}
   .contact-strip p{color:var(--ink-dim);font-size:16px;margin-bottom:28px;line-height:1.55}
-  .contact-strip a.email{font-family:var(--mono);font-size:15px;color:var(--accent-2);letter-spacing:.04em;border-bottom:1px solid rgba(255,176,102,.3);padding-bottom:2px;transition:color .2s,border-color .2s}
+  .contact-strip a.email{font-family:var(--mono);font-size:15px;color:var(--accent-2);letter-spacing:.04em;border-bottom:1px solid rgba(232,197,138,.3);padding-bottom:2px;transition:color .2s,border-color .2s}
   .contact-strip a.email:hover{color:var(--ink);border-color:var(--ink)}
 
   .final{position:relative;height:90vh;min-height:600px;display:grid;place-items:center;text-align:center;overflow:hidden}
@@ -108,16 +113,35 @@
 <div class="cursor" id="cursor"></div>
 <div class="cursor-ring" id="cursorRing"></div>
 
-<nav id="nav" class="scrolled">
-  <a href="/" class="logo"><img src="/favicon.svg" alt="" style="width:28px;height:28px;flex-shrink:0" /><b>AR</b><i>Menu</i></a>
-  <div class="nav-links">
+<!-- ar-unified-header -->
+<style>
+  .ar-hdr{position:fixed;top:0;left:0;right:0;z-index:100;padding:14px 32px;display:flex;justify-content:space-between;align-items:center;background:rgba(10,8,6,.9);backdrop-filter:blur(20px) saturate(1.4);-webkit-backdrop-filter:blur(20px) saturate(1.4);border-bottom:1px solid rgba(245,236,216,.08);font-family:'Inter',system-ui,sans-serif}
+  .ar-hdr .ar-brand{display:flex;align-items:center;gap:12px;font-weight:800;text-decoration:none;color:#f5ecd8}
+  .ar-hdr .ar-brand img{width:32px;height:32px;display:block}
+  .ar-hdr .ar-brand-w{display:flex;flex-direction:column;line-height:1;gap:3px}
+  .ar-hdr .ar-brand-n1{font-family:'Instrument Serif',serif;font-style:italic;font-size:19px;color:#f5ecd8;font-weight:400}
+  .ar-hdr .ar-brand-n2{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:8.5px;letter-spacing:.28em;color:#a89d84;text-transform:uppercase;font-weight:500}
+  .ar-nav{display:flex;align-items:center;gap:2px}
+  .ar-nav a{padding:9px 16px;border-radius:9px;font-size:14px;font-weight:500;color:#a89d84;text-decoration:none;transition:color .15s,background .15s}
+  .ar-nav a:hover{color:#f5ecd8;background:rgba(245,236,216,.05)}
+  .ar-nav a.ar-cta{background:#f5ecd8;color:#0a0806;padding:11px 22px;border-radius:11px;font-weight:700;margin-left:6px}
+  .ar-nav a.ar-cta:hover{background:#e8c58a}
+  @media(max-width:820px){.ar-nav a:not(.ar-cta){display:none}.ar-hdr{padding:12px 18px}}
+</style>
+<header class="ar-hdr">
+  <a class="ar-brand" href="/"><img src="/favicon.svg" alt="ARMenu" /><span class="ar-brand-w"><span class="ar-brand-n1">ARMenu</span><span class="ar-brand-n2">South Africa</span></span></a>
+  <nav class="ar-nav">
     <a href="/how">How</a>
-    <a href="/dishes">Dishes</a>
-    <a href="/why">Why</a>
-    <a href="/faq" class="active">FAQ</a>
-    <a href="/portal/" class="btn btn-primary">Restaurant login →</a>
-  </div>
-</nav>
+    <a href="/#features">Features</a>
+    <a href="/plans">Pricing</a>
+    <a href="/faq">FAQ</a>
+    <a href="/contact">Contact</a>
+    <a href="/portal/">Sign in</a>
+    <a href="/contact" class="ar-cta">Enquire &rarr;</a>
+  </nav>
+</header>
+<!-- /ar-unified-header -->
+
 
 <section class="page-hero">
   <div class="page-hero-bg" style="background-image:url('https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=1920&q=85&fm=jpg&auto=format')"></div>
@@ -167,6 +191,22 @@
       <summary>Is there a contract or minimum term?</summary>
       <p>We currently onboard restaurants as pilot partners. Terms are discussed in person and structured to be fair for both sides. We'd rather earn your long-term business than lock you in.</p>
     </details>
+    <details class="reveal">
+      <summary>What does it cost?</summary>
+      <p>Pricing is per restaurant, not a fixed tier. Every kitchen is different. dish count, table count, languages, staff, and which optional modules you switch on. We build a proposal that fits. <a href="/contact" style="color:var(--accent-2)">Get in touch</a> and we'll walk you through what your setup looks like.</p>
+    </details>
+    <details class="reveal">
+      <summary>Do you actually come to our kitchen?</summary>
+      <p>Yes. Our team visits on a booked date to scan your top dishes with the calibrated rig. one session usually covers a full menu. If you're outside Johannesburg, Cape Town, or Durban we travel to you. costs are folded into the proposal so there are no surprise line items.</p>
+    </details>
+    <details class="reveal">
+      <summary>What quality are the 3D dish files?</summary>
+      <p>Each dish ships as a compressed GLB, typically 2-4 MB, tuned to render in under two seconds on 4G. Textures are 2K PBR, geometry is decimated for mobile GPUs, and every model is validated in iOS Quick Look and Android Scene Viewer before it goes live. The result feels photoreal at arm's length. exactly where a diner holds their phone.</p>
+    </details>
+    <details class="reveal">
+      <summary>How fast is WhatsApp support?</summary>
+      <p>Business hours (Mon-Sat, 08:00-20:00 SAST) we reply on WhatsApp within roughly 30 minutes. usually much faster. Overnight and Sunday messages are answered by 09:00 the next morning. For anything that stops service, message us and we escalate immediately.</p>
+    </details>
   </div>
 </section>
 
@@ -186,34 +226,39 @@
   </div>
 </section>
 
-<footer>
-  <div>
-    <a href="/" class="logo" style="margin-bottom:14px"><img src="/favicon.svg" alt="" style="width:28px;height:28px;flex-shrink:0" /><b>AR</b><i>Menu</i></a>
-    <p style="color:var(--ink-faint);font-size:13px;max-width:280px;line-height:1.55">South Africa's first augmented-reality menu platform. Made in Cape Town, served everywhere.</p>
+<!-- ar-unified-footer -->
+<style>
+  .ar-ft{border-top:1px solid rgba(245,236,216,.08);padding:60px 32px 40px;background:rgba(0,0,0,.4);color:#f5ecd8;font-family:'Inter',system-ui,sans-serif;margin-top:60px}
+  .ar-ft-grid{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:40px}
+  @media(max-width:820px){.ar-ft-grid{grid-template-columns:1fr 1fr}}
+  .ar-ft h5{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#4d4638;margin-bottom:16px;font-weight:500}
+  .ar-ft a{display:block;color:#a89d84;font-size:14px;padding:6px 0;text-decoration:none;transition:color .15s}
+  .ar-ft a:hover{color:#e8c58a}
+  .ar-ft .ar-brand{display:flex;align-items:center;gap:12px;text-decoration:none;margin-bottom:14px;color:#f5ecd8}
+  .ar-ft .ar-brand img{width:32px;height:32px}
+  .ar-ft .ar-brand-w{display:flex;flex-direction:column;line-height:1;gap:3px}
+  .ar-ft .ar-brand-n1{font-family:'Instrument Serif',serif;font-style:italic;font-size:19px;color:#f5ecd8}
+  .ar-ft .ar-brand-n2{font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:.28em;color:#a89d84;text-transform:uppercase}
+  .ar-ft-tag{color:#a89d84;font-size:14px;line-height:1.55;max-width:300px}
+  .ar-ft-legal{max-width:1200px;margin:40px auto 0;padding-top:24px;border-top:1px solid rgba(245,236,216,.08);display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#4d4638}
+</style>
+<footer class="ar-ft">
+  <div class="ar-ft-grid">
+    <div>
+      <a class="ar-brand" href="/"><img src="/favicon.svg" alt="ARMenu" /><span class="ar-brand-w"><span class="ar-brand-n1">ARMenu</span><span class="ar-brand-n2">South Africa</span></span></a>
+      <p class="ar-ft-tag">South Africa's immersive AR menu platform for restaurants that plate with pride.</p>
+    </div>
+    <div><h5>Product</h5><a href="/how">How it works</a><a href="/dishes">Live demo</a><a href="/#features">Features</a><a href="/faq">FAQs</a></div>
+    <div><h5>Company</h5><a href="/contact">Contact</a><a href="/plans">Pricing</a><a href="/contact?type=enterprise">Enterprise</a></div>
+    <div><h5>Legal</h5><a href="/legal#terms">Terms</a><a href="/legal#privacy">Privacy</a><a href="/legal#refund">Refund</a></div>
   </div>
-  <div>
-    <h5>Navigate</h5>
-    <a href="/how">How it works</a>
-    <a href="/dishes">Dishes</a>
-    <a href="/why">Why it works</a>
-    <a href="/faq">FAQ</a>
-  </div>
-  <div>
-    <h5>Contact</h5>
-    <a href="/contact">Get in touch</a>
-    <a href="/portal/">Restaurant login</a>
-  </div>
-  <div>
-    <h5>Follow</h5>
-    <a href="#">Instagram</a>
-    <a href="#">TikTok</a>
-    <a href="#">LinkedIn</a>
-  </div>
-  <div class="foot-bottom">
-    <span>© 2026 AR Menu (Pty) Ltd</span>
-    <span>armenu.co.za</span>
+  <div class="ar-ft-legal">
+    <span>&copy; 2026 ARMenu. All rights reserved</span>
+    <span>Johannesburg &middot; Cape Town &middot; Durban</span>
   </div>
 </footer>
+<!-- /ar-unified-footer -->
+
 
 <script>
   const cur=document.getElementById('cursor');

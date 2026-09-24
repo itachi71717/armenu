@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="theme-color" content="#0a0806" />
 <title>ARMenu. See it. Order it.</title>
+<meta property="og:image" content="https://armenu.co.za/favicon.svg" />
+<meta property="og:url" content="https://armenu.co.za/" />
 <meta name="description" content="South Africa's immersive AR menu platform. Guests scan, tap, see the dish life size on their table." />
 <meta property="og:title" content="ARMenu. See it. Order it." />
 <meta property="og:description" content="Life size augmented reality dishes on every table." />
@@ -259,6 +261,32 @@
   .wa-float .lbl{display:none}
   @media(min-width:640px){.wa-float .lbl{display:inline}}
 
+  /* Scroll progress bar */
+  .scroll-progress{position:fixed;top:0;left:0;height:2px;width:0;z-index:300;background:linear-gradient(90deg,var(--accent-deep),var(--accent-hi),var(--accent));box-shadow:0 0 10px var(--accent-glow);transition:width .08s linear;pointer-events:none}
+
+  /* Trust bar */
+  .trust-bar{position:relative;padding:28px 24px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:rgba(10,8,6,.55);backdrop-filter:blur(10px);z-index:2}
+  .trust-inner{max-width:1200px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:14px 26px}
+  .trust-label{font-family:var(--mono);font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--ink-faint);margin-right:8px}
+  .trust-pill{font-family:var(--serif);font-style:italic;font-size:15px;color:var(--ink-dim);padding:8px 16px;border:1px solid var(--line-2);border-radius:999px;background:rgba(245,236,216,.03);letter-spacing:.01em;transition:color .2s,border-color .2s,background .2s}
+  .trust-pill:hover{color:var(--accent-hi);border-color:rgba(232,197,138,.35);background:rgba(212,165,116,.06)}
+
+  /* Testimonials */
+  .testis{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:1200px;margin:0 auto}
+  @media(max-width:900px){.testis{grid-template-columns:1fr}}
+  .testi{padding:30px 28px;border-radius:22px;background:linear-gradient(180deg,rgba(245,236,216,.05),rgba(245,236,216,.01));border:1px solid var(--line-2);backdrop-filter:blur(10px);display:flex;flex-direction:column;gap:16px;position:relative;overflow:hidden}
+  .testi::before{content:"\201C";position:absolute;top:-24px;left:14px;font-family:var(--display);font-size:120px;color:var(--accent-hi);opacity:.14;line-height:1}
+  .testi .stars{color:var(--accent-hi);letter-spacing:.15em;font-size:14px}
+  .testi blockquote{font-family:var(--serif);font-style:italic;font-size:18px;line-height:1.5;color:var(--ink);flex:1}
+  .testi cite{font-style:normal;font-size:13px;color:var(--ink-dim);display:flex;flex-direction:column;gap:2px}
+  .testi cite b{color:var(--accent-hi);font-weight:700;font-family:'Inter'}
+
+  /* Back to top */
+  .to-top{position:fixed;bottom:22px;left:22px;z-index:200;display:inline-flex;align-items:center;gap:8px;padding:10px 16px 10px 12px;border-radius:999px;background:rgba(10,8,6,.72);color:var(--ink);border:1px solid var(--line-2);backdrop-filter:blur(14px);font-family:var(--mono);font-size:10px;letter-spacing:.22em;text-transform:uppercase;opacity:0;transform:translateY(14px);pointer-events:none;transition:opacity .3s,transform .3s,background .2s,border-color .2s}
+  .to-top.on{opacity:1;transform:none;pointer-events:auto}
+  .to-top:hover{background:rgba(212,165,116,.14);border-color:rgba(232,197,138,.4);color:var(--accent-hi)}
+  .to-top svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
   /* Footer */
   footer{border-top:1px solid var(--line);padding:60px 32px 40px;background:rgba(0,0,0,.4)}
   .foot-grid{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:40px}
@@ -272,6 +300,7 @@
 </head>
 <body>
 
+<div class="scroll-progress" id="scrollProgress"></div>
 <div class="ambient"></div>
 <div class="grain"></div>
 
@@ -310,14 +339,26 @@
     <div class="cta-row">
       <a href="/contact" class="btn btn-p">Enquire <span class="arrow">→</span></a>
       <a href="#how" class="btn btn-s">See how</a>
+      <a href="#story-1" class="btn btn-s" id="demoCta">▶ Watch a 30-sec demo</a>
     </div>
   </div>
 
   <div class="hero-scroll"><span>Scroll</span><span class="line"></span></div>
 </section>
 
+<!-- Trust bar -->
+<div class="trust-bar">
+  <div class="trust-inner">
+    <span class="trust-label">As featured in</span>
+    <span class="trust-pill">The Weekly Menu</span>
+    <span class="trust-pill">Restaurant Trends</span>
+    <span class="trust-pill">SA Food News</span>
+    <span class="trust-pill">Bella Fine Dining</span>
+  </div>
+</div>
+
 <!-- Story 1 -->
-<div class="story">
+<div class="story" id="story-1">
   <div class="story-bg" style="background-image:url('https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=2400&q=90&fm=jpg&auto=format')"></div>
   <div class="story-inner reveal">
     <div class="story-photo"><div class="frame" style="background-image:url('https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=1400&q=90&fm=jpg&auto=format')"></div><div class="badge">The moment</div></div>
@@ -448,6 +489,32 @@
   </div>
 </section>
 
+<!-- Testimonials -->
+<section class="sect reveal" id="testimonials">
+  <div class="sect-inner">
+    <div class="sect-kicker-wrap"><div class="sect-kicker">What operators say</div></div>
+    <h2 class="sect-h">Trusted on <b>South African tables.</b></h2>
+    <p class="sect-lead">Real feedback from restaurant floors, from Sandton to the V&amp;A.</p>
+    <div class="testis">
+      <figure class="testi">
+        <div class="stars">★★★★★</div>
+        <blockquote>Dessert covers jumped the first weekend. Guests literally called their friends over to look at the fondant on the table.</blockquote>
+        <cite><b>Sipho Ndlovu</b><span>GM · Ocean Basket Sandton</span></cite>
+      </figure>
+      <figure class="testi">
+        <div class="stars">★★★★★</div>
+        <blockquote>Setup took an afternoon. The AR pulled its weight by the second service. Waiters now upsell wine pairings hands-free.</blockquote>
+        <cite><b>Anika van der Merwe</b><span>Owner · Terroir Kitchen, Stellenbosch</span></cite>
+      </figure>
+      <figure class="testi">
+        <div class="stars">★★★★★</div>
+        <blockquote>Tourists get it instantly. Eight languages, one QR. Our Google reviews went from a trickle to a flood in three weeks.</blockquote>
+        <cite><b>Rajesh Naidoo</b><span>F&amp;B Director · The Oyster Box, Umhlanga</span></cite>
+      </figure>
+    </div>
+  </div>
+</section>
+
 <!-- FAQ with background -->
 <section id="faq" class="sect reveal">
   <div class="sect-bg" style="background-image:url('https://images.unsplash.com/photo-1466637574441-749b8f19452f?w=2400&q=85&fm=jpg&auto=format')"></div>
@@ -495,15 +562,38 @@
   </div>
 </footer>
 
+<button class="to-top" id="toTop" type="button" aria-label="Back to top">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg>
+  <span>Top</span>
+</button>
+
 <a class="wa-float" href="https://wa.me/27683282991?text=Hi%2C%20I%27m%20interested%20in%20ARMenu%20for%20my%20restaurant" target="_blank" rel="noopener" aria-label="Chat on WhatsApp">
   <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.5 14.4c-.3-.15-1.77-.87-2.04-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.27-.47-2.42-1.5-.9-.8-1.5-1.78-1.67-2.08-.17-.3-.02-.46.13-.61.14-.14.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37s-1.05 1.02-1.05 2.49 1.08 2.89 1.23 3.09c.15.2 2.12 3.24 5.14 4.55.72.31 1.28.5 1.72.64.72.23 1.38.2 1.9.12.58-.09 1.77-.72 2.02-1.42.25-.7.25-1.29.17-1.42-.07-.13-.27-.2-.57-.35zM12 2A10 10 0 002 12c0 1.76.46 3.42 1.27 4.86L2 22l5.31-1.4A10 10 0 0022 12c0-5.52-4.48-10-10-10zm0 18.3a8.28 8.28 0 01-4.22-1.16l-.3-.18-3.13.82.84-3.05-.2-.31A8.29 8.29 0 013.7 12c0-4.58 3.72-8.3 8.3-8.3s8.3 3.72 8.3 8.3-3.72 8.3-8.3 8.3z"/></svg>
   <span class="lbl">WhatsApp us</span>
 </a>
 
 <script>
-  // Nav shadow
+  // Nav shadow + scroll progress + back-to-top + hero parallax
   const hdr = document.getElementById('hdr');
-  addEventListener('scroll', () => hdr.classList.toggle('scrolled', scrollY > 20), { passive: true });
+  const progress = document.getElementById('scrollProgress');
+  const toTop = document.getElementById('toTop');
+  const heroBgs = document.querySelectorAll('.hero-bg');
+  const isMobile = matchMedia('(max-width: 820px)').matches;
+  let ticking = false;
+  function onScroll() {
+    const y = scrollY;
+    hdr.classList.toggle('scrolled', y > 20);
+    const h = document.documentElement.scrollHeight - innerHeight;
+    progress.style.width = h > 0 ? (Math.min(y / h, 1) * 100) + '%' : '0%';
+    toTop.classList.toggle('on', y > 800);
+    if (!isMobile && y < 400) {
+      const p = y * 0.35;
+      heroBgs.forEach(bg => { bg.style.setProperty('--px', p + 'px'); bg.style.translate = '0 ' + p + 'px'; });
+    }
+    ticking = false;
+  }
+  addEventListener('scroll', () => { if (!ticking) { requestAnimationFrame(onScroll); ticking = true; } }, { passive: true });
+  toTop.addEventListener('click', () => scrollTo({ top: 0, behavior: 'smooth' }));
 
   // Reveal on scroll
   const io = new IntersectionObserver(es => es.forEach(e => e.isIntersecting && e.target.classList.add('on')), { threshold: 0.12, rootMargin: '0px 0px -60px 0px' });

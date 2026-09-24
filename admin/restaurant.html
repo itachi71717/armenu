@@ -166,11 +166,25 @@
     <h2>Brand appearance</h2>
     <div class="sub">These show up on the guest menu.</div>
     <div class="row"><label>Logo URL</label><input id="b_logo" /></div>
+    <div class="row">
+      <label>Upload logo (auto-extract accent)</label>
+      <div class="row-inline" style="align-items:center;gap:8px">
+        <input id="b_logo_file" type="file" accept="image/*" style="flex:1" />
+        <button type="button" class="btn" id="b_logo_extract">Extract from logo</button>
+      </div>
+    </div>
     <div class="row"><label>Cover image URL</label><input id="b_cover" /></div>
     <div class="row-inline">
-      <div class="row" style="flex:1"><label>Accent colour</label><input id="b_primary" type="color" style="height:44px;padding:4px" /></div>
+      <div class="row" style="flex:1">
+        <label>Theme Primary</label>
+        <div class="row-inline" style="align-items:center;gap:8px">
+          <input id="b_primary" type="text" placeholder="#ff5722" style="flex:1;padding:11px 13px;border-radius:10px;background:rgba(255,239,220,.03);border:1px solid var(--line);font-size:14px" />
+          <span id="b_primary_swatch" title="Live preview" style="display:inline-block;width:36px;height:36px;border-radius:8px;border:1px solid var(--line);background:#ff5722"></span>
+        </div>
+      </div>
       <div class="row" style="flex:1"><label>Background colour</label><input id="b_bg" type="color" style="height:44px;padding:4px" /></div>
     </div>
+    <canvas id="b_logo_canvas" width="64" height="64" style="display:none"></canvas>
     <div class="row"><label>Tagline</label><input id="b_tagline" placeholder="Tap any dish to see it life-size on your table." /></div>
     <button class="btn" id="b_save">Save branding</button>
   </div>
@@ -500,7 +514,7 @@ async function load(tab) {
     if (tab === 'branding') {
       const { settings: s } = await api('/api/admin/settings?slug=' + slug);
       $('b_logo').value = s.logo_url || ''; $('b_cover').value = s.cover_url || '';
-      $('b_primary').value = s.theme_primary || '#ff5722';
+      $('b_primary').value = s.theme_primary || '#ff5722'; _updateSwatch($('b_primary').value);
       $('b_bg').value = s.theme_bg || '#0a0806';
       $('b_tagline').value = s.tagline || '';
     }
@@ -573,6 +587,98 @@ $('s_saveLocale').onclick = async () => {
 };
 $('s_saveGoogle').onclick = async () => { try { await api('/api/admin/settings?slug=' + slug, { method: 'PATCH', body: JSON.stringify({ google_review_url: $('s_gurl').value.trim() }) }); toast('Saved', 'ok'); } catch (e) { toast(e.message, 'err'); } };
 $('s_savePlan').onclick = async () => { try { await api('/api/admin/settings?slug=' + slug, { method: 'PATCH', body: JSON.stringify({ plan: $('s_plan').value }) }); toast('Plan saved', 'ok'); } catch (e) { toast(e.message, 'err'); } };
+
+// ----- Dominant-color extraction from uploaded logo -----
+function _rgbToHsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h = 0, s = 0; const l = (max + min) / 2;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+      case g: h = (b - r) / d + 2; break;
+      case b: h = (r - g) / d + 4; break;
+    }
+    h /= 6;
+  }
+  return [h, s, l];
+}
+function _hslToRgb(h, s, l) {
+  let r, g, b;
+  if (s === 0) { r = g = b = l; }
+  else {
+    const hue2rgb = (p, q, t) => {
+      if (t < 0) t += 1; if (t > 1) t -= 1;
+      if (t < 1/6) return p + (q - p) * 6 * t;
+      if (t < 1/2) return q;
+      if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+      return p;
+    };
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+    r = hue2rgb(p, q, h + 1/3); g = hue2rgb(p, q, h); b = hue2rgb(p, q, h - 1/3);
+  }
+  return [Math.round(r*255), Math.round(g*255), Math.round(b*255)];
+}
+function _toHex(r, g, b) {
+  return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
+}
+function extractDominantColor(imgUrl) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const canvas = $('b_logo_canvas') || document.createElement('canvas');
+        canvas.width = 64; canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, 64, 64);
+        ctx.drawImage(img, 0, 0, 64, 64);
+        const data = ctx.getImageData(0, 0, 64, 64).data;
+        let R = 0, G = 0, B = 0, W = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i], g = data[i+1], b = data[i+2], a = data[i+3];
+          if (a <= 200) continue;
+          const sum = r + g + b;
+          if (sum < 20 || sum > 705) continue; // skip near-black / near-white
+          const [, sat] = _rgbToHsl(r, g, b);
+          const w = 0.25 + sat; // weight saturated pixels more
+          R += r * w; G += g * w; B += b * w; W += w;
+        }
+        if (W === 0) return reject(new Error('No usable pixels in logo'));
+        const ar = R / W, ag = G / W, ab = B / W;
+        const [h] = _rgbToHsl(ar, ag, ab);
+        const [nr, ng, nb] = _hslToRgb(h, 0.55, 0.65); // lift to S=55%, L=65%
+        resolve(_toHex(nr, ng, nb));
+      } catch (e) { reject(e); }
+    };
+    img.onerror = () => reject(new Error('Failed to load image'));
+    img.src = imgUrl;
+  });
+}
+function _updateSwatch(hex) {
+  const sw = $('b_primary_swatch'); if (sw) sw.style.background = hex;
+}
+async function _runLogoExtract(file) {
+  if (!file) { toast('Choose a logo file first', 'err'); return; }
+  const url = URL.createObjectURL(file);
+  try {
+    const hex = await extractDominantColor(url);
+    $('b_primary').value = hex;
+    _updateSwatch(hex);
+    toast('Accent set to ' + hex, 'ok');
+  } catch (e) { toast(e.message, 'err'); }
+  finally { URL.revokeObjectURL(url); }
+}
+(function wireLogoExtract() {
+  const f = $('b_logo_file'), btn = $('b_logo_extract'), prim = $('b_primary');
+  if (!f && !btn && !prim) { document.addEventListener('DOMContentLoaded', wireLogoExtract); return; }
+  if (f) f.addEventListener('change', () => _runLogoExtract(f.files && f.files[0]));
+  if (btn) btn.addEventListener('click', () => _runLogoExtract(f && f.files && f.files[0]));
+  if (prim) { prim.addEventListener('input', () => _updateSwatch(prim.value)); _updateSwatch(prim.value || '#ff5722'); }
+})();
 
 $('b_save').onclick = async () => {
   try { await api('/api/admin/settings?slug=' + slug, { method: 'PATCH', body: JSON.stringify({ logo_url: $('b_logo').value.trim() || null, cover_url: $('b_cover').value.trim() || null, theme_primary: $('b_primary').value, theme_bg: $('b_bg').value, tagline: $('b_tagline').value.trim() || null }) }); toast('Branding saved ✓', 'ok'); }

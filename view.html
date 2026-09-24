@@ -5,7 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="theme-color" content="#0a0806" />
 <title>AR Menu. See your meal</title>
+<meta property="og:url" content="https://armenu.co.za/view.html" />
+<link rel="canonical" href="https://armenu.co.za/view.html" />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <meta name="description" content="See this dish in augmented reality on your table." />
+<meta property="og:title" content="AR Menu. See your meal" />
+<meta property="og:description" content="See this dish in augmented reality on your table." />
+<meta property="og:image" id="ogImage" content="" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" id="twImage" content="" />
 
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -15,7 +23,8 @@
 
 <style>
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-  html,body{height:100%;overflow:hidden}
+  html,body{height:100%}
+  body{overflow:hidden}
   body{
     font-family:'Inter',system-ui,sans-serif;
     background:#0a0806;color:#f5efe6;
@@ -132,6 +141,96 @@
   }
   @keyframes spin{to{transform:rotate(360deg)}}
 
+  /* Shimmer skeleton over the model area */
+  .skeleton{
+    position:fixed;inset:0;z-index:4;pointer-events:none;
+    display:grid;place-items:center;
+    background:radial-gradient(ellipse 60% 40% at 50% 45%,rgba(255,239,220,.03),transparent 70%);
+    transition:opacity .6s ease;
+  }
+  .skeleton.gone{opacity:0;visibility:hidden}
+  .skeleton-blob{
+    width:min(58vw,320px);aspect-ratio:1;border-radius:50%;
+    background:linear-gradient(110deg,
+      rgba(255,239,220,.04) 20%,
+      rgba(255,239,220,.12) 40%,
+      rgba(255,87,34,.08) 55%,
+      rgba(255,239,220,.04) 75%);
+    background-size:220% 100%;
+    animation:shimmer 1.8s linear infinite;
+    filter:blur(6px);
+  }
+  @keyframes shimmer{
+    0%{background-position:220% 0}
+    100%{background-position:-120% 0}
+  }
+
+  /* Life-size scale indicator */
+  .scale-badge{
+    position:fixed;top:70px;left:50%;transform:translateX(-50%) translateY(-6px);
+    z-index:9;pointer-events:none;
+    display:flex;align-items:center;gap:8px;
+    padding:8px 14px;border-radius:999px;
+    background:rgba(10,8,6,.72);
+    border:1px solid rgba(255,239,220,.12);
+    backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+    color:#f5efe6;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+    opacity:0;transition:opacity .6s ease,transform .6s ease;
+  }
+  .scale-badge.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .scale-badge .dot{width:6px;height:6px;border-radius:50%;background:#ff5722;box-shadow:0 0 8px rgba(255,87,34,.9);animation:pulseDot 1.6s ease-in-out infinite}
+  .scale-badge em{font-family:'Instrument Serif',serif;font-style:italic;color:#9a9388;font-weight:400;text-transform:none;letter-spacing:0;font-size:12px}
+  @keyframes pulseDot{50%{opacity:.4}}
+
+  /* Sticky AR button on mobile */
+  @media (max-width:640px){
+    .ar-button{position:sticky;bottom:0}
+  }
+  .ar-button{
+    background:linear-gradient(135deg,#ff7043 0%,#ff5722 45%,#c93d00 100%);
+    transition:transform .18s cubic-bezier(.34,1.6,.64,1),box-shadow .2s;
+    will-change:transform;
+  }
+  .ar-button:active{transform:scale(.94)}
+  .ar-button.tap{animation:tapHaptic .32s cubic-bezier(.34,1.6,.64,1)}
+  @keyframes tapHaptic{
+    0%{transform:scale(1)}
+    30%{transform:scale(.93)}
+    60%{transform:scale(1.03)}
+    100%{transform:scale(1)}
+  }
+
+  /* Retry button */
+  .retry-btn{
+    display:inline-flex;align-items:center;gap:8px;margin-top:18px;
+    padding:12px 22px;border-radius:12px;border:1px solid rgba(255,87,34,.5);
+    background:rgba(255,87,34,.12);color:#f5efe6;
+    font-family:inherit;font-weight:600;font-size:14px;cursor:pointer;
+    transition:background .2s;
+  }
+  .retry-btn:hover{background:rgba(255,87,34,.22)}
+  .retry-btn svg{width:16px;height:16px}
+
+  /* Scroll cue arrows */
+  .scroll-cue{
+    position:fixed;left:50%;transform:translateX(-50%);
+    z-index:9;pointer-events:none;
+    color:#ff5722;opacity:0;transition:opacity .4s;
+  }
+  .scroll-cue.show{opacity:.85;animation:bounce 1.8s ease-in-out infinite}
+  .scroll-cue.top{top:56px}
+  .scroll-cue.bot{bottom:150px}
+  .scroll-cue svg{width:22px;height:22px;filter:drop-shadow(0 2px 6px rgba(0,0,0,.6))}
+  @keyframes bounce{
+    0%,100%{transform:translateX(-50%) translateY(0)}
+    50%{transform:translateX(-50%) translateY(6px)}
+  }
+  .scroll-cue.top.show{animation-name:bounceTop}
+  @keyframes bounceTop{
+    0%,100%{transform:translateX(-50%) translateY(0)}
+    50%{transform:translateX(-50%) translateY(-6px)}
+  }
+
   /* Error state */
   .err{
     position:fixed;inset:20px;display:none;place-items:center;text-align:center;z-index:6;
@@ -217,13 +316,25 @@
     exposure="1.05"
     interaction-prompt="none">
   </model-viewer>
+  <div class="skeleton" id="skeleton" aria-hidden="true"><div class="skeleton-blob"></div></div>
   <div class="err" id="err">
     <div>
       <h2>This dish hasn't been set up yet.</h2>
       <p>If you're a customer, ask the restaurant. If you're the restaurant, sign in to your portal at <strong>armenu.co.za/portal</strong>.</p>
+      <button class="retry-btn" id="retryBtn" style="display:none">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15A9 9 0 1 1 5.64 5.64L23 10"/></svg>
+        Retry loading
+      </button>
     </div>
   </div>
 </div>
+
+<div class="scale-badge" id="scaleBadge">
+  <span class="dot"></span>Real portion size <em>· tap AR button below</em>
+</div>
+
+<div class="scroll-cue top" id="scrollCueTop"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg></div>
+<div class="scroll-cue bot" id="scrollCueBot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></div>
 
 <div class="ar-hint" id="arHint"><em>Your device doesn't support live AR.</em><br/>You can still <strong>drag to rotate</strong> and <strong>pinch to zoom</strong> the 3D model above.</div>
 
@@ -302,7 +413,18 @@
       document.body.classList.add('has-error');
       document.getElementById('err').classList.add('show');
       document.getElementById('loader').classList.add('gone');
+      document.getElementById('skeleton').classList.add('gone');
       return;
+    }
+
+    // og:image from dish thumb
+    if (meal.thumb || meal.image || meal.poster) {
+      const img = meal.thumb || meal.image || meal.poster;
+      const abs = new URL(img, location.href).href;
+      const og = document.getElementById('ogImage');
+      const tw = document.getElementById('twImage');
+      if (og) og.setAttribute('content', abs);
+      if (tw) tw.setAttribute('content', abs);
     }
 
     document.getElementById('dish').textContent = meal.dish;
@@ -329,6 +451,21 @@
 
     mv.addEventListener('load', ()=>{
       document.getElementById('loader').classList.add('gone');
+      document.getElementById('skeleton').classList.add('gone');
+      setTimeout(()=>document.getElementById('scaleBadge').classList.add('show'), 1000);
+    });
+
+    mv.addEventListener('error', ()=>{
+      document.body.classList.add('has-error');
+      const errEl = document.getElementById('err');
+      errEl.querySelector('h2').textContent = "Couldn't load this dish.";
+      errEl.querySelector('p').textContent = "Check your connection and try again.";
+      errEl.classList.add('show');
+      document.getElementById('loader').classList.add('gone');
+      document.getElementById('skeleton').classList.add('gone');
+      const retry = document.getElementById('retryBtn');
+      retry.style.display = 'inline-flex';
+      retry.onclick = () => location.reload();
     });
 
     // Track scan (fire-and-forget)
@@ -411,6 +548,9 @@
   });
 
   arBtn.addEventListener('click', () => {
+    // haptic-feel tap animation + real vibration if available
+    arBtn.classList.remove('tap'); void arBtn.offsetWidth; arBtn.classList.add('tap');
+    if (navigator.vibrate) { try { navigator.vibrate(12); } catch(e){} }
     if (ios) {
       // iOS non-Safari: Quick Look not supported → guide them to Safari
       if (!supportsQuickLook()) { showSafariNag(); return; }
@@ -495,6 +635,39 @@
       '#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=' + fallback + ';end';
     window.location.href = intentUrl;
   });
+
+  // ── Scroll cues ─────────────────────────────────────────────────
+  // Shown when the page (or the panel content) is scrollable, and
+  // hidden as the user scrolls to that edge. Also targets any
+  // #dishes / .dishes-list element if present in the layout.
+  (function initScrollCues(){
+    const topCue = document.getElementById('scrollCueTop');
+    const botCue = document.getElementById('scrollCueBot');
+    const target = document.getElementById('dishes')
+                || document.querySelector('.dishes-list')
+                || document.scrollingElement
+                || document.documentElement;
+
+    function update(){
+      const el = target;
+      const scrollTop = (el === document.scrollingElement || el === document.documentElement)
+        ? (window.scrollY || document.documentElement.scrollTop) : el.scrollTop;
+      const scrollH = el.scrollHeight;
+      const clientH = el.clientHeight || window.innerHeight;
+      const scrollable = scrollH - clientH > 8;
+      if (!scrollable) { topCue.classList.remove('show'); botCue.classList.remove('show'); return; }
+      const atTop = scrollTop < 12;
+      const atBot = scrollTop + clientH > scrollH - 12;
+      topCue.classList.toggle('show', !atTop);
+      botCue.classList.toggle('show', !atBot);
+    }
+
+    const listen = (target === document.scrollingElement || target === document.documentElement) ? window : target;
+    listen.addEventListener('scroll', update, {passive:true});
+    window.addEventListener('resize', update);
+    setTimeout(update, 400);
+    setTimeout(update, 1500);
+  })();
 </script>
 </body>
 </html>
