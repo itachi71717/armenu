@@ -10,6 +10,10 @@ const ROUTES = {
   'waiter-call':  'waiter-call',
   'review':       'review',
   'events':       'events',
+  'reservation':  'reservation',
+
+  'push/subscribe': 'push/subscribe',
+  'push/vapid-key': 'push/vapid-key',
 
   'admin/settings':      'admin/settings',
   'admin/categories':    'admin/categories',
@@ -30,6 +34,7 @@ const ROUTES = {
   'admin/overview':      'admin/overview',
   'admin/pending':       'admin/pending',
   'admin/upload-url':    'admin/upload-url',
+  'admin/reservations':  'admin/reservations',
 
   'staff/login':  'staff/login',
   'staff/orders': 'staff/orders',

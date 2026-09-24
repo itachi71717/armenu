@@ -3,6 +3,7 @@
 // Public — gated by restaurant_settings.orders_enabled.
 
 import { supabase } from '../_db.js';
+import { sendPush } from './push/_send.js';
 
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -69,6 +70,16 @@ export default async function handler(req, res) {
 
   const rows = resolved.map(it => ({ order_id: order.id, ...it }));
   await supabase.from('order_items').insert(rows);
+
+  // Fire-and-forget push to kitchen + manager
+  const itemCount = resolved.reduce((s, i) => s + i.qty, 0);
+  const body = `${itemCount} item${itemCount === 1 ? '' : 's'}${table_label ? ' · Table ' + table_label : ''}`;
+  sendPush(restaurant.id, {
+    title: 'New order',
+    body,
+    url: '/kitchen/',
+    tag: 'order-' + order.id
+  }).catch(() => {});
 
   return res.status(200).json({ ok: true, order_id: order.id });
 }

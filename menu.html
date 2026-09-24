@@ -195,6 +195,7 @@
 <!-- Bottom action bar: shown only when at least one action is enabled -->
 <div class="actionbar" id="actionbar" style="display:none">
   <button class="btn-secondary" id="waiterBtn" style="display:none">🛎 Call Waiter</button>
+  <button class="btn-secondary" id="reserveBtn">🗓 Book table</button>
   <button class="btn-primary" id="cartBtn" style="display:none">Order <span class="cart-count" id="cartCount">0</span></button>
   <button class="btn-secondary" id="reviewBtn" style="display:none">★ Review</button>
 </div>
@@ -449,12 +450,49 @@ function renderDish(d) {
 function updateActionbar() {
   const f = state.settings.features;
   const bar = $('actionbar');
-  const any = f.orders || f.waiter_call || f.reviews;
+  const any = f.orders || f.waiter_call || f.reviews || f.reservations !== false;
   bar.style.display = any ? 'flex' : 'none';
   $('waiterBtn').style.display  = f.waiter_call ? 'flex' : 'none';
   $('cartBtn').style.display    = f.orders ? 'flex' : 'none';
   $('reviewBtn').style.display  = f.reviews ? 'flex' : 'none';
+  // Reservations always on unless a future flag disables them
+  $('reserveBtn').style.display = 'flex';
   $('cartCount').textContent = state.cart.reduce((s, i) => s + i.qty, 0);
+}
+
+// ============ RESERVATION ============
+function openReserve() {
+  const now = new Date();
+  now.setMinutes(now.getMinutes() + 30 - (now.getMinutes() % 30));
+  const isoLocal = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  openSheet(`
+    <h3>Book a table</h3>
+    <div class="sh-sub">${state.settings.restaurant.name} · we'll confirm on WhatsApp</div>
+    <div class="field"><label>Your name</label><input id="rvName" type="text" placeholder="Full name" /></div>
+    <div class="field"><label>WhatsApp phone</label><input id="rvPhone" type="tel" placeholder="071 234 5678" /></div>
+    <div class="field"><label>Party size</label><input id="rvSize" type="number" min="1" max="20" value="2" /></div>
+    <div class="field"><label>Date &amp; time</label><input id="rvWhen" type="datetime-local" value="${isoLocal}" min="${isoLocal}" /></div>
+    <div class="field"><label>Anything else? (optional)</label><textarea id="rvNotes" rows="2" placeholder="High chair, allergies, occasion…"></textarea></div>
+    <button class="submit" id="rvSubmit">Request booking →</button>
+  `);
+  $('rvSubmit').onclick = async () => {
+    const name = $('rvName').value.trim();
+    const phone = $('rvPhone').value.trim();
+    const size = parseInt($('rvSize').value) || 2;
+    const when = $('rvWhen').value;
+    const notes = $('rvNotes').value.trim();
+    if (!name || !when) return toast('Name and date/time required', 'err');
+    $('rvSubmit').disabled = true; $('rvSubmit').textContent = 'Sending…';
+    const res = await fetch('/api/reservation', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ r, guest_name: name, guest_phone: phone, party_size: size, reserved_at: new Date(when).toISOString(), notes })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { $('rvSubmit').disabled = false; $('rvSubmit').textContent = 'Request booking →'; return toast(data.error || 'Failed', 'err'); }
+    closeSheet();
+    toast('Booking request sent — the restaurant will confirm on WhatsApp', 'ok');
+  };
 }
 
 function addToCart(slug) {
@@ -596,6 +634,7 @@ function wireActions() {
   $('cartBtn').onclick   = openCart;
   $('waiterBtn').onclick = openWaiter;
   $('reviewBtn').onclick = openReview;
+  $('reserveBtn').onclick = openReserve;
 
   const langs = state.settings.locale.languages || ['en'];
   $('langBtn').onclick = () => {

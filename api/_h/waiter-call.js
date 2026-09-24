@@ -1,6 +1,7 @@
 // POST /api/waiter-call  { r, table?, reason? }
 // Public — gated by restaurant_settings.waiter_call_enabled.
 import { supabase } from '../_db.js';
+import { sendPush } from './push/_send.js';
 
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -30,6 +31,13 @@ export default async function handler(req, res) {
     table_id, table_label,
     reason: String(reason || 'help').slice(0, 40)
   });
+
+  sendPush(restaurant.id, {
+    title: 'Guest calling waiter',
+    body: table_label ? `Table ${table_label}${reason ? ' · ' + reason : ''}` : (reason || 'Help requested'),
+    url: '/staff/',
+    tag: 'call-' + Math.random().toString(36).slice(2, 8)
+  }).catch(() => {});
 
   return res.status(200).json({ ok: true });
 }
