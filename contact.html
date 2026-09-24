@@ -61,7 +61,7 @@
   </form>
 
   <div class="contact-info">
-    <strong>Email:</strong> hello@armenu.co.za<br>
+    <strong>Contact:</strong> <a href="/contact" style="color:#e8c58a">via our contact form</a><br>
     <strong>WhatsApp:</strong> <a href="https://wa.me/27000000000" target="_blank" rel="noopener" style="color:#25D366;text-decoration:none">Chat on WhatsApp →</a><br>
     <strong>Address:</strong> Johannesburg, South Africa
   </div>
@@ -90,7 +90,8 @@
       const r = await fetch('/api/portal/pending-signup', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: body.email, restaurant_name: body.restaurant, phone: '', message: `[${body.type}] ${body.name}: ${body.message}` }) });
       if (r.ok) { document.getElementById('ok').style.display = 'block'; e.target.reset(); return; }
     } catch {}
-    location.href = `mailto:hello@armenu.co.za?subject=${encodeURIComponent('[' + body.type + '] ' + body.name)}&body=${encodeURIComponent(body.message + '\n\n,  ' + body.name + ' (' + body.email + ') · ' + body.restaurant)}`;
+    // Fallback: open WhatsApp
+    location.href = `https://wa.me/27000000000?text=${encodeURIComponent('[' + body.type + '] ' + body.name + ' from ' + body.restaurant + ': ' + body.message)}`;
   };
 </script>
 </body>
