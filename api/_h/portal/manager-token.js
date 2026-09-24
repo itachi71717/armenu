@@ -35,8 +35,22 @@ export default async function handler(req, res) {
   const auth = await requireManager(req);
   if (!auth) return res.status(401).json({ error: 'Sign-in required' });
 
-  const { data: rest } = await supabaseAdmin.from('restaurants').select('id, slug').ilike('email', auth.email).maybeSingle();
-  if (!rest) return res.status(404).json({ error: 'no_restaurant_linked' });
+  // Optional ?slug= narrows to a specific restaurant (multi-location case).
+  // Without it, we return a token for the primary (alphabetically first) one.
+  const wantedSlug = req.query.slug;
+  let rest;
+  if (wantedSlug) {
+    const { data } = await supabaseAdmin.from('restaurants').select('id, slug, email').eq('slug', wantedSlug).maybeSingle();
+    if (!data) return res.status(404).json({ error: 'no_restaurant_linked' });
+    if (String(data.email || '').toLowerCase() !== String(auth.email || '').toLowerCase()) {
+      return res.status(403).json({ error: 'not your restaurant' });
+    }
+    rest = data;
+  } else {
+    const { data } = await supabaseAdmin.from('restaurants').select('id, slug').ilike('email', auth.email).order('name').limit(1).maybeSingle();
+    if (!data) return res.status(404).json({ error: 'no_restaurant_linked' });
+    rest = data;
+  }
 
   return res.status(200).json({
     token: issueManagerToken(rest.id),

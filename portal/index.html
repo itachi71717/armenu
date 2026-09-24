@@ -82,6 +82,45 @@
   .req-row input{flex:1;min-width:240px;padding:13px 16px;border-radius:10px;background:rgba(10,8,6,.5);border:1px solid var(--line);color:var(--ink);font-family:inherit;font-size:14px}
   .req-row input:focus{outline:none;border-color:rgba(255,87,34,.5)}
 
+  /* Multi-location org overview */
+  .org-overview{margin-bottom:36px;padding:24px;border-radius:20px;background:linear-gradient(180deg,rgba(232,197,138,.06),rgba(232,197,138,.01));border:1px solid rgba(232,197,138,.18)}
+  .org-head{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:20px;flex-wrap:wrap}
+  .org-eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:6px}
+  .org-title{font-family:var(--serif);font-style:italic;font-size:28px;font-weight:400;color:var(--ink)}
+  .org-stats{display:flex;gap:24px;flex-wrap:wrap}
+  .org-stats > div{text-align:center}
+  .org-stats b{display:block;font-size:22px;font-weight:800;color:#e8c58a;letter-spacing:-.02em}
+  .org-stats span{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint)}
+  .locations-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+  .loc-card{padding:16px;border-radius:14px;background:rgba(10,8,6,.5);border:1px solid var(--line);transition:border-color .2s}
+  .loc-card:hover{border-color:rgba(232,197,138,.3)}
+  .loc-name{font-weight:700;font-size:15px;color:var(--ink);margin-bottom:2px}
+  .loc-slug{font-family:var(--mono);font-size:10px;color:var(--ink-faint);letter-spacing:.06em;margin-bottom:10px}
+  .loc-metrics{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--ink-dim);margin-bottom:10px}
+  .loc-metrics b{color:#e8c58a;font-weight:700;margin-right:2px}
+  .loc-actions{display:flex;gap:6px}
+  .loc-btn{flex:1;padding:8px;border-radius:8px;background:rgba(255,239,220,.04);border:1px solid var(--line);color:var(--ink-dim);font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;text-align:center;cursor:pointer;text-decoration:none}
+  .loc-btn:hover{background:rgba(232,197,138,.08);color:#e8c58a}
+
+  /* Onboarding wizard */
+  .wiz-overlay{position:fixed;inset:0;z-index:900;background:rgba(10,8,6,.88);backdrop-filter:blur(10px);display:none;place-items:center;padding:20px;overflow-y:auto}
+  .wiz-overlay.on{display:grid}
+  .wiz-card{width:min(560px,100%);padding:36px 32px;border-radius:22px;background:linear-gradient(180deg,rgba(18,16,11,.98),rgba(10,8,6,.98));border:1px solid rgba(232,197,138,.22);box-shadow:0 40px 100px rgba(0,0,0,.6)}
+  .wiz-progress{display:flex;gap:6px;margin-bottom:22px}
+  .wiz-dot{flex:1;height:4px;border-radius:2px;background:rgba(245,236,216,.08)}
+  .wiz-dot.done{background:linear-gradient(90deg,#e8c58a,#d4a574)}
+  .wiz-dot.on{background:#e8c58a}
+  .wiz-kicker{font-family:var(--mono);font-size:11px;letter-spacing:.18em;color:#d4a574;text-transform:uppercase;margin-bottom:6px}
+  .wiz-title{font-family:var(--serif);font-style:italic;font-size:28px;font-weight:400;margin-bottom:8px;color:var(--ink)}
+  .wiz-body{color:var(--ink-dim);font-size:14.5px;line-height:1.55;margin-bottom:22px}
+  .wiz-body ul{padding-left:20px;margin-top:8px}
+  .wiz-body ul li{margin-bottom:6px}
+  .wiz-actions{display:flex;gap:8px;flex-wrap:wrap}
+  .wiz-actions button, .wiz-actions a{flex:1;min-width:120px;padding:12px;border-radius:10px;font-weight:700;font-size:13.5px;cursor:pointer;border:none;text-align:center;text-decoration:none}
+  .wiz-actions .wiz-primary{background:linear-gradient(135deg,#e8c58a,#d4a574);color:#0a0806;box-shadow:0 10px 24px rgba(212,165,116,.28)}
+  .wiz-actions .wiz-secondary{background:rgba(245,236,216,.06);color:var(--ink-dim);border:1px solid var(--line)}
+  .wiz-close{position:absolute;top:16px;right:20px;color:var(--ink-faint);background:none;border:none;font-size:22px;cursor:pointer}
+
   .empty-state{padding:60px 24px;text-align:center;color:var(--ink-dim);border-radius:18px;border:1px dashed var(--line)}
   .empty-state h3{font-family:var(--serif);font-style:italic;font-size:22px;color:var(--ink);margin-bottom:8px;font-weight:400}
   .empty-state p{font-size:14px;max-width:380px;margin:0 auto}
@@ -314,6 +353,18 @@
       <button class="btn" id="qrClose">Close</button>
       <a class="btn btn-primary" id="qrDownload" download>Download PNG</a>
     </div>
+  </div>
+</div>
+
+<!-- Onboarding wizard overlay -->
+<div class="wiz-overlay" id="wizOverlay">
+  <div class="wiz-card" style="position:relative">
+    <button class="wiz-close" id="wizClose" aria-label="Close">×</button>
+    <div class="wiz-progress" id="wizProgress"></div>
+    <div class="wiz-kicker" id="wizKicker">Step 1 of 5</div>
+    <div class="wiz-title" id="wizTitle">Welcome</div>
+    <div class="wiz-body" id="wizBody">—</div>
+    <div class="wiz-actions" id="wizActions"></div>
   </div>
 </div>
 
@@ -572,6 +623,74 @@
       ? `Your AR menu is live with ${data.dishes.length} dish${data.dishes.length === 1 ? '' : 'es'}. Performance reports are emailed by AR Menu monthly.`
       : `Your account is set up. AR Menu will publish your first dishes after the kitchen visit.`;
 
+    // Multi-location roll-up: if the manager has >1 restaurant linked, render
+    // an org overview card + a grid of location cards ABOVE the primary dishes.
+    if (data.is_multi && Array.isArray(data.locations) && data.locations.length > 1) {
+      const totals = data.locations.reduce((a, l) => ({
+        scans: a.scans + (l.metrics_7d?.scans || 0),
+        orders: a.orders + (l.metrics_7d?.orders || 0),
+        revenue_cents: a.revenue_cents + (l.metrics_7d?.revenue_cents || 0),
+        dishes: a.dishes + (l.dishes?.length || 0)
+      }), { scans: 0, orders: 0, revenue_cents: 0, dishes: 0 });
+      const zar = (c) => 'R' + (c / 100).toFixed(0);
+      const orgBlock = document.createElement('div');
+      orgBlock.className = 'org-overview';
+      orgBlock.innerHTML = `
+        <div class="org-head">
+          <div>
+            <div class="org-eyebrow">Your locations · last 7 days</div>
+            <div class="org-title">${data.locations.length} restaurants</div>
+          </div>
+          <div class="org-stats">
+            <div><b>${totals.scans}</b><span>scans</span></div>
+            <div><b>${totals.orders}</b><span>orders</span></div>
+            <div><b>${zar(totals.revenue_cents)}</b><span>revenue</span></div>
+            <div><b>${totals.dishes}</b><span>dishes</span></div>
+          </div>
+        </div>
+        <div class="locations-grid">${data.locations.map(l => `
+          <div class="loc-card" data-loc="${l.slug}">
+            <div class="loc-name">${l.name}</div>
+            <div class="loc-slug">${l.slug}.armenu.co.za</div>
+            <div class="loc-metrics">
+              <span><b>${l.metrics_7d.scans}</b> scans</span>
+              <span><b>${l.metrics_7d.orders}</b> orders</span>
+              <span><b>${zar(l.metrics_7d.revenue_cents)}</b></span>
+              ${l.metrics_7d.avg_rating ? `<span><b>${l.metrics_7d.avg_rating.toFixed(1)}★</b></span>` : ''}
+            </div>
+            <div class="loc-actions">
+              <a class="loc-btn" data-open="admin" data-slug="${l.slug}">Manage</a>
+              <a class="loc-btn" data-open="menu" data-slug="${l.slug}">Menu</a>
+              <a class="loc-btn" data-open="kitchen" data-slug="${l.slug}">Kitchen</a>
+            </div>
+          </div>`).join('')}</div>`;
+      // Insert before dishesWrap
+      $('dishesWrap').parentNode.insertBefore(orgBlock, $('dishesWrap'));
+      // Wire per-location links — reuses the manager-token for all locations
+      // (token is bound to the primary restaurant only; siblings must be owned
+      // by the same email so we issue per-location tokens on demand).
+      orgBlock.addEventListener('click', async (e) => {
+        const btn = e.target.closest('[data-open]');
+        if (!btn) return;
+        e.preventDefault();
+        const slug = btn.dataset.slug;
+        if (btn.dataset.open === 'menu') { window.open(`/m/${slug}`, '_blank'); return; }
+        // For admin/kitchen we mint a fresh scoped token via the API
+        try {
+          const t = await authFetch(`/api/portal/manager-token?slug=${encodeURIComponent(slug)}`);
+          const tok = t.ok ? t.data.token : '';
+          const map = { admin: `/admin/restaurant.html?slug=${slug}&portal_token=${encodeURIComponent(tok)}`, kitchen: `/kitchen/?r=${slug}&portal_token=${encodeURIComponent(tok)}` };
+          window.open(map[btn.dataset.open], '_blank');
+        } catch (err) { toast('Could not open — try again', 'err'); }
+      });
+    }
+
+    // First-time onboarding wizard: if this is the primary restaurant and it
+    // has zero dishes, show a step-by-step modal (once per session).
+    if (data.dishes.length === 0 && !sessionStorage.getItem('armenu_wizard_seen')) {
+      setTimeout(() => showOnboardingWizard(r), 800);
+    }
+
     $('dishesWrap').innerHTML = data.dishes.length
       ? `<div class="dishes-grid">${data.dishes.map(d => `
           <div class="dish-tile">
@@ -683,6 +802,88 @@
     loadMe();
   } else {
     showSignIn();
+  }
+
+  // ============================================================
+  // Onboarding wizard — first-time managers with no dishes.
+  // ============================================================
+  function showOnboardingWizard(rest) {
+    sessionStorage.setItem('armenu_wizard_seen', '1');
+    const adminBase = `/admin/restaurant.html?slug=${rest.slug}`;
+    let tokenPromise = authFetch('/api/portal/manager-token').then(r => r.ok ? r.data.token : '').catch(() => '');
+    const withTok = async (extra) => { const t = await tokenPromise; return `${adminBase}&portal_token=${encodeURIComponent(t)}${extra || ''}`; };
+
+    const STEPS = [
+      { kicker: 'Welcome', title: `Hi ${rest.name.split(' ')[0]}, let's set you up.`, body:
+        `<p>This 5-minute wizard walks you through the essentials so your AR menu is live before dinner tonight.</p>
+         <ul><li>Upload your logo &amp; pick a colour</li><li>Add your first category and first dish</li><li>Set a kitchen PIN &amp; print your QR</li></ul>`,
+        actions: async () => [
+          { label: 'Get started →', primary: true, next: 1 },
+          { label: 'Skip for now', secondary: true, close: true }
+        ]
+      },
+      { kicker: 'Step 1 · Branding', title: 'Upload your logo.', body:
+        `<p>Your logo replaces the ARMenu mark on every diner's phone. When you upload it, the system auto-picks your brand colour and applies it to your menu.</p>`,
+        actions: async () => [
+          { label: 'Open Branding →', primary: true, href: await withTok('#branding'), openNew: true, next: 2 },
+          { label: 'Skip', secondary: true, next: 2 }
+        ]
+      },
+      { kicker: 'Step 2 · Menu', title: 'Add your first category and dish.', body:
+        `<p>Categories organise the menu (Starters, Mains, Desserts…). Under Menu → Dishes you can upload a photo or 3D file and set the price.</p>`,
+        actions: async () => [
+          { label: 'Open Menu editor →', primary: true, href: await withTok('#dishes'), openNew: true, next: 3 },
+          { label: 'Skip', secondary: true, next: 3 }
+        ]
+      },
+      { kicker: 'Step 3 · Kitchen', title: 'Set staff &amp; kitchen PINs.', body:
+        `<p>Give your kitchen tablet a 4-digit PIN (e.g. <b>1234</b>) and your waiters a separate PIN. They log in once per shift and stay signed in.</p>`,
+        actions: async () => [
+          { label: 'Open Staff tab →', primary: true, href: await withTok('#staff'), openNew: true, next: 4 },
+          { label: 'Skip', secondary: true, next: 4 }
+        ]
+      },
+      { kicker: 'Step 4 · Go live', title: 'Print your QR codes.', body:
+        `<p>Download the master menu QR (one for each table tent) and per-dish QRs (place beside items on the printed menu). Diners scan, everything opens.</p>`,
+        actions: async () => [
+          { label: 'Download master QR', primary: true, next: 5, click: () => document.getElementById('masterQrAction').click() },
+          { label: 'Skip', secondary: true, next: 5 }
+        ]
+      },
+      { kicker: 'You\'re live', title: 'You\'re ready. 🎉', body:
+        `<p>Your menu is at <b>armenu.co.za/m/${rest.slug}</b>. Place a QR on every table and you're live.</p>
+         <p>Want us to walk you through it live on WhatsApp? Tap the support button anytime.</p>`,
+        actions: async () => [
+          { label: 'Done', primary: true, close: true }
+        ]
+      }
+    ];
+
+    async function render(i) {
+      const step = STEPS[i];
+      $('wizKicker').textContent = step.kicker + (i > 0 && i < STEPS.length - 1 ? ` · Step ${i} of ${STEPS.length - 2}` : '');
+      $('wizTitle').innerHTML = step.title;
+      $('wizBody').innerHTML = step.body;
+      const dots = STEPS.map((_, k) => `<span class="wiz-dot ${k < i ? 'done' : (k === i ? 'on' : '')}"></span>`).join('');
+      $('wizProgress').innerHTML = dots;
+      const acts = await step.actions();
+      $('wizActions').innerHTML = acts.map((a, ai) =>
+        a.href
+          ? `<a class="${a.primary ? 'wiz-primary' : 'wiz-secondary'}" href="${a.href}" ${a.openNew ? 'target="_blank"' : ''} data-ai="${ai}">${a.label}</a>`
+          : `<button class="${a.primary ? 'wiz-primary' : 'wiz-secondary'}" data-ai="${ai}">${a.label}</button>`
+      ).join('');
+      $('wizActions').querySelectorAll('[data-ai]').forEach(el => {
+        el.addEventListener('click', (e) => {
+          const a = acts[parseInt(el.dataset.ai)];
+          if (a.click) a.click();
+          if (a.close) return $('wizOverlay').classList.remove('on');
+          if (typeof a.next === 'number') { setTimeout(() => render(a.next), 200); }
+        });
+      });
+    }
+    $('wizClose').onclick = () => $('wizOverlay').classList.remove('on');
+    $('wizOverlay').classList.add('on');
+    render(0);
   }
 
   // ============================================================

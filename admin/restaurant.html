@@ -88,6 +88,18 @@
   .login-card input:focus{border-color:rgba(232,197,138,.5);outline:none}
   .login-card .btn{width:100%;padding:16px;margin-top:6px;background:linear-gradient(135deg,#e8c58a,#d4a574);color:#0a0806;font-weight:700;box-shadow:0 14px 30px rgba(212,165,116,.35);border:none;border-radius:12px;font-size:14px;cursor:pointer}
   .err-line{color:var(--err);font-size:12px;min-height:18px;margin:6px 0}
+
+  /* Live preview pane — docks phone-shaped iframe on the right */
+  .preview-toggle{position:fixed;top:16px;right:16px;z-index:60;padding:10px 14px;border-radius:10px;background:linear-gradient(135deg,#e8c58a,#d4a574);color:#0a0806;font-weight:700;font-size:12px;letter-spacing:.05em;text-transform:uppercase;border:none;cursor:pointer;box-shadow:0 10px 24px rgba(212,165,116,.32)}
+  .preview-toggle.on{background:rgba(245,236,216,.06);color:#e8c58a;border:1px solid rgba(232,197,138,.3)}
+  .preview-pane{position:fixed;top:0;right:0;bottom:0;width:400px;z-index:55;background:rgba(10,8,6,.98);border-left:1px solid rgba(232,197,138,.2);box-shadow:-20px 0 60px rgba(0,0,0,.5);transform:translateX(100%);transition:transform .3s cubic-bezier(.2,.9,.3,1);display:flex;flex-direction:column}
+  .preview-pane.on{transform:translateX(0)}
+  .preview-head{padding:12px 16px;border-bottom:1px solid rgba(232,197,138,.15);display:flex;justify-content:space-between;align-items:center;gap:10px;background:rgba(18,16,11,.9)}
+  .preview-head .title{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#e8c58a}
+  .preview-head button{padding:6px 10px;border-radius:8px;background:rgba(245,236,216,.06);border:1px solid var(--line);color:#e8c58a;font-size:11px;cursor:pointer}
+  .preview-frame-wrap{flex:1;padding:14px;overflow:hidden}
+  .preview-frame{width:100%;height:100%;border:1px solid rgba(232,197,138,.15);border-radius:14px;background:#0a0806}
+  @media(max-width:900px){.preview-pane{width:100%}}
 </style>
 </head>
 <body>
@@ -126,6 +138,21 @@
   <button class="tab" data-tab="dishes">Dishes</button>
   <button class="tab" data-tab="billing">Billing</button>
 </nav>
+
+<button class="preview-toggle" id="previewToggle" title="Live preview of the guest menu">👁 Live preview</button>
+<aside class="preview-pane" id="previewPane" aria-hidden="true">
+  <div class="preview-head">
+    <span class="title">Guest view · <span id="previewSlug">—</span></span>
+    <div style="display:flex;gap:6px">
+      <button id="previewRefresh" title="Reload preview">↻</button>
+      <button id="previewOpen" title="Open in new tab">↗</button>
+      <button id="previewClose" title="Close preview">×</button>
+    </div>
+  </div>
+  <div class="preview-frame-wrap">
+    <iframe class="preview-frame" id="previewFrame" title="Live guest menu preview"></iframe>
+  </div>
+</aside>
 
 <main>
 
@@ -439,14 +466,70 @@ if (!slug) { document.body.innerHTML = '<p style="padding:60px;text-align:center
 const SECRET_KEY = 'armenu_admin_secret';
 let SECRET = sessionStorage.getItem(SECRET_KEY);
 
-const toast = (m, k='ok') => { const t = $('toast'); t.textContent = m; t.className = 'toast show ' + k; setTimeout(() => t.classList.remove('show'), 2600); };
+const _origToast = (m, k='ok') => { const t = $('toast'); t.textContent = m; t.className = 'toast show ' + k; setTimeout(() => t.classList.remove('show'), 2600); };
+// Wrap toast so every 'ok' save auto-refreshes the live preview iframe
+const toast = (m, k='ok') => { _origToast(m, k); if (k === 'ok' && $('previewPane')?.classList.contains('on')) schedulePreviewReload(); };
+
+// ============= LIVE PREVIEW PANE =============
+let _previewTimer = null;
+function schedulePreviewReload() {
+  clearTimeout(_previewTimer);
+  _previewTimer = setTimeout(() => {
+    try {
+      const f = $('previewFrame');
+      if (f && f.contentWindow) f.contentWindow.location.reload();
+      else f.src = `/m/${slug}?preview=1&t=` + Math.random().toString(36).slice(2, 8);
+    } catch { $('previewFrame').src = `/m/${slug}?preview=1`; }
+  }, 350);
+}
+(function initPreview() {
+  if (!slug) return;
+  $('previewSlug').textContent = slug;
+  $('previewFrame').src = `/m/${slug}?preview=1`;
+  $('previewToggle').onclick = () => {
+    const pane = $('previewPane');
+    const on = !pane.classList.contains('on');
+    pane.classList.toggle('on', on);
+    $('previewToggle').classList.toggle('on', on);
+    pane.setAttribute('aria-hidden', on ? 'false' : 'true');
+    $('previewToggle').textContent = on ? '✕ Close preview' : '👁 Live preview';
+    if (on) schedulePreviewReload();
+  };
+  $('previewClose').onclick = () => $('previewToggle').click();
+  $('previewRefresh').onclick = schedulePreviewReload;
+  $('previewOpen').onclick = () => window.open(`/m/${slug}`, '_blank');
+})();
+
+// Manager hand-off from portal: /admin/restaurant.html?slug=xxx&portal_token=yyy
+// stores the token in sessionStorage and skips the admin password prompt.
+const PORTAL_TOKEN_KEY = 'armenu_portal_token';
+let PORTAL_TOKEN = sessionStorage.getItem(PORTAL_TOKEN_KEY);
+(function absorbPortalToken() {
+  const tk = params.get('portal_token');
+  if (tk) {
+    PORTAL_TOKEN = tk;
+    sessionStorage.setItem(PORTAL_TOKEN_KEY, tk);
+    // Clean URL so the token doesn't linger visible in the address bar
+    const url = new URL(location.href);
+    url.searchParams.delete('portal_token');
+    history.replaceState({}, '', url.toString());
+  }
+  // If we have a token (fresh or from a previous visit), hide the login flash
+  if (PORTAL_TOKEN) { const l = $('login'); if (l) l.style.display = 'none'; }
+})();
 
 async function api(path, opts = {}) {
-  const res = await fetch(path, {
-    ...opts,
-    headers: { 'content-type': 'application/json', 'x-admin-secret': SECRET || '', ...(opts.headers || {}) }
-  });
-  if (res.status === 401) { sessionStorage.removeItem(SECRET_KEY); SECRET = null; $('login').style.display = 'grid'; throw new Error('unauth'); }
+  const headers = { 'content-type': 'application/json', ...(opts.headers || {}) };
+  if (PORTAL_TOKEN) headers['x-portal-token'] = PORTAL_TOKEN;
+  else if (SECRET) headers['x-admin-secret'] = SECRET;
+  const res = await fetch(path, { ...opts, headers });
+  if (res.status === 401) {
+    // Portal token expired → drop it and demand admin password
+    if (PORTAL_TOKEN) { PORTAL_TOKEN = null; sessionStorage.removeItem(PORTAL_TOKEN_KEY); }
+    sessionStorage.removeItem(SECRET_KEY); SECRET = null;
+    $('login').style.display = 'grid';
+    throw new Error('unauth');
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || 'Request failed');
   return data;
@@ -458,6 +541,14 @@ $('loginBtn').onclick = async () => {
   try { await api('/api/admin/settings?slug=' + slug); $('login').style.display = 'none'; boot(); }
   catch { SECRET = null; sessionStorage.removeItem(SECRET_KEY); $('loginErr').textContent = 'Wrong password'; }
 };
+
+// If we came in with a valid portal token, skip the password screen entirely
+if (PORTAL_TOKEN) {
+  (async () => {
+    try { await api('/api/admin/settings?slug=' + slug); $('login').style.display = 'none'; if (typeof boot === 'function') boot(); }
+    catch { /* token invalid — falls through to password gate */ }
+  })();
+}
 $('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') $('loginBtn').click(); });
 
 document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
