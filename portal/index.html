@@ -691,28 +691,38 @@
       setTimeout(() => showOnboardingWizard(r), 800);
     }
 
-    $('dishesWrap').innerHTML = data.dishes.length
-      ? `<div class="dishes-grid">${data.dishes.map(d => `
-          <div class="dish-tile">
-            <div class="thumb" ${d.thumb_url ? `style="background-image:url('${d.thumb_url}')"` : ''}>
-              ${d.thumb_url ? '' : `<span class="thumb-fallback">${d.name[0]}</span>`}
-            </div>
-            <div class="info">
-              <div class="name">${d.name}</div>
-              <div class="lbl">${d.price || 'Live on menu'}</div>
-            </div>
-            <div class="actions-row">
-              <button class="qr-btn" data-action="view-qr" data-slug="${d.slug}" data-name="${d.name}">⬇ QR Code</button>
-              <button class="qr-btn" data-action="open-ar" data-slug="${d.slug}">↗ Preview AR</button>
-            </div>
-          </div>`).join('')}</div>`
-      : `<div class="empty-state"><h3>No dishes yet.</h3><p>AR Menu will add your first dishes after the kitchen visit. Use the request form below to suggest dishes you'd like added.</p></div>`;
+    $('dishesWrap').innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div class="section-sub" style="margin:0">Tap a dish to edit price, description or hide it. Add new dishes with the + button.</div>
+        <button class="btn btn-primary" id="addDishBtn" style="padding:9px 16px">+ New dish</button>
+      </div>
+      ${data.dishes.length
+        ? `<div class="dishes-grid">${data.dishes.map(d => `
+            <div class="dish-tile" data-dish="${d.slug}">
+              <div class="thumb" ${d.thumb_url ? `style="background-image:url('${d.thumb_url}')"` : ''}>
+                ${d.thumb_url ? '' : `<span class="thumb-fallback">${d.name[0]}</span>`}
+              </div>
+              <div class="info">
+                <div class="name">${d.name}</div>
+                <div class="lbl">${d.price || 'Live on menu'}</div>
+              </div>
+              <div class="actions-row">
+                <button class="qr-btn" data-action="edit-dish" data-slug="${d.slug}" data-name="${d.name}" data-price="${d.price || ''}" data-desc="${(d.description || '').replace(/"/g,'&quot;')}">✎ Edit</button>
+                <button class="qr-btn" data-action="view-qr" data-slug="${d.slug}" data-name="${d.name}">⬇ QR</button>
+                <button class="qr-btn" data-action="open-ar" data-slug="${d.slug}">↗ AR</button>
+              </div>
+            </div>`).join('')}</div>`
+        : `<div class="empty-state"><h3>No dishes yet.</h3><p>Tap <b>+ New dish</b> above to add your first one. You can upload a photo, a 3D file (GLB), or just create it and add the model later.</p></div>`}
+    `;
+    // Wire the + New button
+    $('addDishBtn').onclick = () => openDishEditor(null);
 
     $('dishesWrap').addEventListener('click', e => {
       const btn = e.target.closest('[data-action]');
       if (!btn) return;
-      if (btn.dataset.action === 'view-qr') openQr(btn.dataset.slug, btn.dataset.name);
-      if (btn.dataset.action === 'open-ar') window.open(`/view.html?r=${r.slug}&d=${btn.dataset.slug}`, '_blank');
+      if (btn.dataset.action === 'view-qr')   openQr(btn.dataset.slug, btn.dataset.name);
+      if (btn.dataset.action === 'open-ar')   window.open(`/view.html?r=${r.slug}&d=${btn.dataset.slug}`, '_blank');
+      if (btn.dataset.action === 'edit-dish') openDishEditor({ slug: btn.dataset.slug, name: btn.dataset.name, price: btn.dataset.price, description: btn.dataset.desc });
     }, { once: false });
 
     $('gate').style.display = 'none';
@@ -802,6 +812,115 @@
     loadMe();
   } else {
     showSignIn();
+  }
+
+  // ============================================================
+  // Manager admin fetch — uses the cached portal manager token so calls to
+  // /api/admin/* are authorised without an admin password.
+  // ============================================================
+  let _cachedMgrToken = null;
+  async function mgrToken(slug) {
+    if (_cachedMgrToken?.token && _cachedMgrToken.slug === slug && _cachedMgrToken.expires > Date.now() + 60_000) return _cachedMgrToken.token;
+    const { ok, data } = await authFetch('/api/portal/manager-token' + (slug ? `?slug=${encodeURIComponent(slug)}` : ''));
+    if (!ok) throw new Error(data?.error || 'Could not authorise');
+    _cachedMgrToken = { token: data.token, slug, expires: Date.now() + 11 * 3600 * 1000 };
+    return data.token;
+  }
+  async function mgrFetch(path, opts = {}) {
+    const tok = await mgrToken(CURRENT?.restaurant?.slug);
+    const res = await fetch(path, {
+      ...opts,
+      headers: { 'content-type': 'application/json', 'x-portal-token': tok, ...(opts.headers || {}) }
+    });
+    const data = await res.json().catch(() => ({}));
+    return { ok: res.ok, status: res.status, data };
+  }
+
+  // ============================================================
+  // Dish editor — add new OR edit existing dish inline (no separate admin trip).
+  // ============================================================
+  function openDishEditor(existing) {
+    // Reuse the wizard overlay chrome for a familiar modal look
+    const isEdit = !!existing;
+    $('wizKicker').textContent = isEdit ? 'Edit dish' : 'New dish';
+    $('wizTitle').textContent  = isEdit ? existing.name : 'Add a new dish';
+    $('wizProgress').innerHTML = '';
+    $('wizBody').innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:4px">Dish name</div>
+          <input id="dishName" style="width:100%;padding:11px 13px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:14px" value="${(existing?.name || '').replace(/"/g,'&quot;')}" placeholder="e.g. Signature Burger" /></div>
+        <div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:4px">Price (as shown)</div>
+          <input id="dishPrice" style="width:100%;padding:11px 13px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:14px" value="${(existing?.price || '').replace(/"/g,'&quot;')}" placeholder="e.g. R 165" /></div>
+        <div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:4px">Description</div>
+          <textarea id="dishDesc" rows="2" style="width:100%;padding:11px 13px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:14px;font-family:inherit;resize:vertical" placeholder="Aged beef patty, sharp cheddar, brioche.">${existing?.description || ''}</textarea></div>
+        ${isEdit ? '' : `
+        <div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:4px">3D file (.glb) — optional</div>
+          <input type="file" id="dishGlb" accept=".glb,model/gltf-binary" style="width:100%;padding:9px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink-dim);font-size:12.5px" />
+          <div style="font-size:11px;color:var(--ink-faint);margin-top:4px">Skip for now — you can add it later from Manage.</div></div>`}
+        <div id="dishEditorErr" style="color:#f87171;font-size:12.5px;min-height:16px"></div>
+      </div>`;
+    $('wizActions').innerHTML = `
+      ${isEdit ? '<button class="wiz-secondary" id="dishDelBtn" style="background:rgba(248,113,113,.12);color:#f87171;border-color:rgba(248,113,113,.3)">Delete</button>' : ''}
+      <button class="wiz-secondary" id="dishCancelBtn">Cancel</button>
+      <button class="wiz-primary" id="dishSaveBtn">${isEdit ? 'Save changes' : 'Create dish →'}</button>`;
+    $('wizOverlay').classList.add('on');
+    $('wizClose').onclick = () => $('wizOverlay').classList.remove('on');
+    $('dishCancelBtn').onclick = () => $('wizOverlay').classList.remove('on');
+    if (isEdit) $('dishDelBtn').onclick = async () => {
+      if (!confirm(`Delete "${existing.name}"? This can't be undone.`)) return;
+      // Look up dish id first via /api/dish then DELETE by id.
+      // Simpler: PATCH active=false so we don't lose historical order data.
+      try {
+        // We need the dish's id; portal /me only returns slug. Fetch it via admin/dishes list? There's no GET.
+        // Use PATCH on /api/admin/dishes?id=<id> — but we need the id. Fall back to fetching /api/dish?r=&d=.
+        const dinfo = await fetch(`/api/dish?r=${CURRENT.restaurant.slug}&d=${existing.slug}`).then(r => r.json());
+        // Not enough — we need the dishes table id. Use an admin categories-style lookup would help. Fastest: POST an inactive PATCH via a helper we still need to build; for now skip delete unless we build the list endpoint. Instead, hide by setting active=false via slug lookup on the server. We'll route through a small compatibility endpoint:
+        const { ok, data } = await mgrFetch(`/api/admin/dishes?slug=${CURRENT.restaurant.slug}&dish_slug=${existing.slug}`, { method: 'DELETE' });
+        if (!ok) { $('dishEditorErr').textContent = data.error || 'Failed to delete'; return; }
+        toast('Dish deleted', 'ok');
+        $('wizOverlay').classList.remove('on');
+        loadMe();
+      } catch (e) { $('dishEditorErr').textContent = e.message; }
+    };
+    $('dishSaveBtn').onclick = async () => {
+      const name = $('dishName').value.trim();
+      const price = $('dishPrice').value.trim();
+      const description = $('dishDesc').value.trim();
+      if (!name) { $('dishEditorErr').textContent = 'Name is required'; return; }
+      $('dishSaveBtn').disabled = true; $('dishSaveBtn').textContent = 'Saving…';
+      try {
+        if (isEdit) {
+          // PATCH by slug — dispatcher needs to resolve slug→id server-side.
+          const { ok, data } = await mgrFetch(`/api/admin/dishes?slug=${CURRENT.restaurant.slug}&dish_slug=${existing.slug}`, {
+            method: 'PATCH', body: JSON.stringify({ name, price, description })
+          });
+          if (!ok) throw new Error(data.error || 'Save failed');
+          toast('Saved', 'ok');
+        } else {
+          // Upload GLB first if provided
+          let glb_url = 'https://pub-6aeed51a836145e5be4673a4c349f0a9.r2.dev/vendor/models/dish.glb';
+          const file = $('dishGlb')?.files?.[0];
+          if (file) {
+            const up = await mgrFetch('/api/admin/upload-url', { method: 'POST', body: JSON.stringify({ filename: file.name }) });
+            if (!up.ok) throw new Error(up.data.error || 'Upload URL failed');
+            const put = await fetch(up.data.signed_url, { method: 'PUT', body: file });
+            if (!put.ok) throw new Error('Upload failed');
+            glb_url = up.data.public_url;
+          }
+          const { ok, data } = await mgrFetch('/api/admin/dishes', {
+            method: 'POST',
+            body: JSON.stringify({ restaurant_slug: CURRENT.restaurant.slug, name, price, description, glb_url, ar_source: file ? 'upload' : 'vendor' })
+          });
+          if (!ok) throw new Error(data.error || 'Create failed');
+          toast('Dish added', 'ok');
+        }
+        $('wizOverlay').classList.remove('on');
+        loadMe();
+      } catch (e) {
+        $('dishEditorErr').textContent = e.message;
+        $('dishSaveBtn').disabled = false; $('dishSaveBtn').textContent = isEdit ? 'Save changes' : 'Create dish →';
+      }
+    };
   }
 
   // ============================================================

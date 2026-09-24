@@ -29,6 +29,22 @@ export function getScopedRestaurantId(req) {
   return v ? v.restaurant_id : null;
 }
 
+// One-shot scope guard for admin handlers. Call it right after resolving a
+// restaurant by slug — if a manager portal_token is in play AND the resolved
+// restaurant isn't theirs, we return a 403-shaped object. Master admin
+// (ADMIN_SECRET) bypasses the check.
+//   const guard = assertScope(req, restaurant.id);
+//   if (guard) return res.status(guard.status).json({ error: guard.error });
+export function assertScope(req, restaurant_id) {
+  const scope = getScopedRestaurantId(req);
+  if (scope === null) return null;          // master admin, no scope enforced
+  if (!restaurant_id) return null;          // nothing to check
+  if (String(scope) !== String(restaurant_id)) {
+    return { status: 403, error: 'out_of_scope' };
+  }
+  return null;
+}
+
 export async function requireManager(req) {
   const auth = req.headers.authorization || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;

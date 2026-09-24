@@ -39,8 +39,22 @@ export default async function handler(req, res) {
     return res.status(201).json(data);
   }
 
+  // Resolve target dish id — either directly from ?id=<uuid> OR by
+  // (restaurant_slug + dish_slug) which is what the portal manager UI uses.
+  async function resolveDishId() {
+    if (req.query.id) return req.query.id;
+    const restSlug = req.query.slug;
+    const dishSlug = req.query.dish_slug;
+    if (!restSlug || !dishSlug) return null;
+    const { data: rest } = await supabase.from('restaurants').select('id').eq('slug', restSlug).maybeSingle();
+    if (!rest) return null;
+    const { data: d } = await supabase.from('dishes').select('id').eq('restaurant_id', rest.id).eq('slug', dishSlug).maybeSingle();
+    return d?.id || null;
+  }
+
   if (req.method === 'PATCH') {
-    const { id } = req.query;
+    const id = await resolveDishId();
+    if (!id) return res.status(404).json({ error: 'dish not found' });
     let body = {};
     try { body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body; } catch {}
     const patch = {};
@@ -54,7 +68,8 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'DELETE') {
-    const { id } = req.query;
+    const id = await resolveDishId();
+    if (!id) return res.status(404).json({ error: 'dish not found' });
     await supabaseAdmin.from('dishes').delete().eq('id', id);
     return res.status(200).json({ ok: true });
   }

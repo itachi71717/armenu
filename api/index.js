@@ -86,6 +86,59 @@ export default async function handler(req, res) {
     return res.status(429).json({ error: 'rate_limited', message: 'Too many requests, slow down.' });
   }
 
+  // ============================================================
+  // Global scope guard for /api/admin/* routes.
+  //
+  // When a manager comes through the portal, they carry a portal_token that
+  // is bound to ONE restaurant. If they hit an admin route with a `slug` (or
+  // `restaurant_slug`) that isn't theirs, we reject with 403 BEFORE the
+  // handler runs — so no admin/*.js has to think about it individually.
+  //
+  // Master admin (x-admin-secret == ADMIN_SECRET) bypasses this check.
+  // ============================================================
+  if (key.startsWith('admin/')) {
+    const isMasterAdmin = req.headers['x-admin-secret'] === process.env.ADMIN_SECRET;
+    if (!isMasterAdmin) {
+      const portalTok = req.headers['x-portal-token'] || req.query?.portal_token;
+      if (portalTok) {
+        try {
+          const [{ verifyManagerToken }, { supabase }] = await Promise.all([
+            import('./_h/portal/manager-token.js'),
+            import('./_db.js')
+          ]);
+          const v = verifyManagerToken(portalTok);
+          if (!v) return res.status(401).json({ error: 'invalid_portal_token' });
+
+          // If the request names a slug, verify it maps to the token's restaurant
+          let requestedSlug = req.query?.slug;
+          if (!requestedSlug) {
+            // POST /api/admin/dishes uses body.restaurant_slug
+            let body = {};
+            try { body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {}); } catch {}
+            requestedSlug = body?.restaurant_slug || body?.slug;
+          }
+          if (requestedSlug) {
+            const { data: r } = await supabase.from('restaurants').select('id').eq('slug', requestedSlug).maybeSingle();
+            if (!r || String(r.id) !== String(v.restaurant_id)) {
+              return res.status(403).json({ error: 'out_of_scope', message: 'That restaurant is not yours.' });
+            }
+          }
+          // Cross-restaurant admin routes are master-admin only — a scoped
+          // manager token can never call them, even without a slug.
+          const MASTER_ONLY = new Set(['admin/clients', 'admin/overview', 'admin/pending', 'admin/client']);
+          if (MASTER_ONLY.has(key)) {
+            return res.status(403).json({ error: 'out_of_scope', message: 'This endpoint is master-admin only.' });
+          }
+          // Attach scope so handlers can read it without re-parsing
+          req.__scope_restaurant_id = v.restaurant_id;
+        } catch (e) {
+          console.error('scope guard failed:', e);
+          return res.status(500).json({ error: 'scope_check_failed' });
+        }
+      }
+    }
+  }
+
   try {
     let mod = cache[modPath];
     if (!mod) {
