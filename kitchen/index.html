@@ -13,10 +13,15 @@
   button,input{font-family:inherit;color:inherit;cursor:pointer;border:none}
 
   /* Login */
-  .login{position:fixed;inset:0;z-index:10;background:rgba(10,8,6,.98);display:grid;place-items:center;padding:24px}
-  .login-card{width:min(420px,100%);padding:44px 36px;border-radius:22px;background:linear-gradient(180deg,rgba(255,239,220,.03),rgba(255,239,220,.005));border:1px solid var(--line);text-align:center}
-  .login-card h1{font-family:'Instrument Serif',serif;font-style:italic;font-size:32px;margin-bottom:6px}
-  .login-card p{color:var(--ink-dim);font-size:14px;margin-bottom:24px}
+  .login{position:fixed;inset:0;z-index:10;display:grid;place-items:center;padding:24px;background:#0a0806;overflow:hidden}
+  .login::before{content:"";position:absolute;inset:0;background-image:url('https://images.unsplash.com/photo-1466637574441-749b8f19452f?w=2400&q=85&fm=jpg&auto=format');background-size:cover;background-position:center;filter:brightness(.3) saturate(1.2);z-index:-2}
+  .login::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 60% 60% at 50% 50%,transparent 20%,rgba(10,8,6,.92) 100%);z-index:-1}
+  .login-card{width:min(420px,100%);padding:40px 32px;border-radius:22px;background:linear-gradient(180deg,rgba(18,16,11,.94),rgba(10,8,6,.94));backdrop-filter:blur(20px);border:1px solid rgba(232,197,138,.18);text-align:center;box-shadow:0 40px 120px rgba(0,0,0,.6);position:relative}
+  .login-card h1{font-family:'Instrument Serif',serif;font-style:italic;font-size:34px;margin:14px 0 6px;background:linear-gradient(180deg,#fff,#e8c58a);-webkit-background-clip:text;color:transparent}
+  .login-card p{color:#a89d84;font-size:14px;margin-bottom:24px}
+  .login-card input{background:rgba(245,236,216,.04);border:1px solid rgba(245,236,216,.1)}
+  .login-card input:focus{border-color:rgba(232,197,138,.5)}
+  .login-card .btn{background:linear-gradient(135deg,#e8c58a,#d4a574);color:#0a0806;font-weight:700;box-shadow:0 14px 30px rgba(212,165,116,.35)}
   .login-card input{width:100%;padding:16px;border-radius:12px;background:rgba(255,239,220,.03);border:1px solid var(--line);font-size:18px;margin-bottom:8px}
   .login-card .pin{letter-spacing:.5em;text-align:center;font-weight:700}
   .btn{padding:16px 22px;border-radius:12px;background:linear-gradient(135deg,var(--accent),#c93d00);color:#fff;font-weight:700;font-size:15px}
@@ -68,6 +73,7 @@
 
 <div class="login" id="login">
   <div class="login-card">
+    <img src="/favicon.svg" alt="ARMenu" style="width:60px;height:60px;filter:drop-shadow(0 10px 24px rgba(212,165,116,.4))" />
     <h1>Kitchen display</h1>
     <p>Sign in with a manager PIN.</p>
     <input id="loginSlug" placeholder="restaurant-slug" autocomplete="off" />

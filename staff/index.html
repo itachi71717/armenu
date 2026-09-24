@@ -22,10 +22,16 @@
   a{color:inherit;text-decoration:none}
 
   /* Login */
-  .login-cover{position:fixed;inset:0;z-index:1000;background:rgba(10,8,6,.97);backdrop-filter:blur(20px);display:grid;place-items:center;padding:20px}
-  .login-card{width:min(420px,100%);padding:40px 32px;border-radius:22px;background:linear-gradient(180deg,rgba(255,239,220,.03),rgba(255,239,220,.005));border:1px solid var(--line);text-align:center}
-  .login-card h2{font-family:var(--serif);font-style:italic;font-size:28px;margin-bottom:6px}
-  .login-card p{color:var(--ink-dim);font-size:13px;margin-bottom:22px}
+  .login-cover{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:20px;background:#0a0806;overflow:hidden}
+  .login-cover::before{content:"";position:absolute;inset:0;background-image:url('https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=2400&q=85&fm=jpg&auto=format');background-size:cover;background-position:center;filter:brightness(.32) saturate(1.2);z-index:-2}
+  .login-cover::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 60% 60% at 50% 50%,transparent 20%,rgba(10,8,6,.92) 100%);z-index:-1}
+  .login-card{width:min(420px,100%);padding:40px 32px;border-radius:22px;background:linear-gradient(180deg,rgba(18,16,11,.94),rgba(10,8,6,.94));backdrop-filter:blur(20px);border:1px solid rgba(232,197,138,.18);text-align:center;box-shadow:0 40px 120px rgba(0,0,0,.6);position:relative}
+  .login-card h2{font-family:var(--serif);font-style:italic;font-size:32px;margin:14px 0 6px;background:linear-gradient(180deg,#fff,#e8c58a);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .login-card p{color:#a89d84;font-size:13px;margin-bottom:22px}
+  .login-card label{color:#a89d84}
+  .login-card input{background:rgba(245,236,216,.04);border:1px solid rgba(245,236,216,.1)}
+  .login-card input:focus{border-color:rgba(232,197,138,.5)}
+  .login-card .btn{background:linear-gradient(135deg,#e8c58a,#d4a574);color:#0a0806;font-weight:700;box-shadow:0 14px 30px rgba(212,165,116,.35)}
   .login-card .row{margin-bottom:12px;text-align:left}
   .login-card label{display:block;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--ink-faint);margin-bottom:6px}
   .login-card input{width:100%;padding:14px;border-radius:10px;background:rgba(255,239,220,.03);border:1px solid var(--line);font-size:15px}
@@ -98,7 +104,8 @@
 
 <div class="login-cover" id="login">
   <div class="login-card">
-    <div class="brand" style="justify-content:center;margin-bottom:14px"><span class="mark"></span><b>AR</b><span style="color:var(--ink-dim);font-weight:500;margin-left:3px">Menu · Staff</span></div>
+    <div style="display:flex;justify-content:center;margin-bottom:8px"><img src="/favicon.svg" alt="ARMenu" style="width:60px;height:60px;filter:drop-shadow(0 10px 24px rgba(212,165,116,.4))" /></div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.28em;color:#a89d84;text-transform:uppercase;margin-top:4px">Staff console</div>
     <h2>Sign in</h2>
     <p>Enter your restaurant code and PIN.</p>
     <div class="row"><label>Restaurant code</label><input id="loginSlug" placeholder="restaurant-slug" autocomplete="off" /></div>

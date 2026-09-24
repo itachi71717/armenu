@@ -127,15 +127,22 @@
   @keyframes up{from{opacity:0;transform:translate(-50%,10px)}to{opacity:1;transform:translate(-50%,0)}}
 
   /* Login gate */
-  .login-cover{position:fixed;inset:0;z-index:1000;background:rgba(10,8,6,.97);backdrop-filter:blur(20px);display:grid;place-items:center;padding:20px}
-  .login-card{width:min(440px,100%);padding:44px 36px;border-radius:24px;background:linear-gradient(180deg,rgba(255,239,220,.03),rgba(255,239,220,.01));border:1px solid var(--line);text-align:center}
-  .login-card .brand{justify-content:center;margin-bottom:12px}
-  .login-card h2{font-family:var(--serif);font-style:italic;font-size:30px;font-weight:400;margin-bottom:6px;letter-spacing:-.02em}
-  .login-card p{color:var(--ink-dim);font-size:13px;margin-bottom:24px}
+  .login-cover{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:20px;background:#0a0806;overflow:hidden}
+  .login-cover::before{content:"";position:absolute;inset:0;background-image:url('https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=2400&q=85&fm=jpg&auto=format');background-size:cover;background-position:center;filter:brightness(.35) saturate(1.2);z-index:-2}
+  .login-cover::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 60% 60% at 50% 50%,transparent 20%,rgba(10,8,6,.9) 100%);z-index:-1}
+  .login-card{width:min(440px,100%);padding:44px 36px;border-radius:24px;background:linear-gradient(180deg,rgba(18,16,11,.94),rgba(10,8,6,.94));backdrop-filter:blur(20px);border:1px solid rgba(232,197,138,.18);text-align:center;box-shadow:0 40px 120px rgba(0,0,0,.6),0 0 0 1px rgba(232,197,138,.08) inset;position:relative}
+  .login-card .brand{justify-content:center;margin-bottom:14px;font-weight:800}
+  .login-card .brand img{filter:drop-shadow(0 10px 24px rgba(212,165,116,.4))}
+  .login-card h2{font-family:'Instrument Serif',serif;font-style:italic;font-size:34px;font-weight:400;margin:16px 0 6px;letter-spacing:-.02em;background:linear-gradient(180deg,#fff,#e8c58a);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .login-card p{color:#a89d84;font-size:13px;margin-bottom:24px}
   .login-card .form-row{text-align:left}
-  .login-card .btn{width:100%;justify-content:center;padding:14px;font-size:14px}
+  .login-card .form-row label{color:#a89d84}
+  .login-card .form-row input{background:rgba(245,236,216,.04);border:1px solid rgba(245,236,216,.1)}
+  .login-card .form-row input:focus{border-color:rgba(232,197,138,.5);background:rgba(212,165,116,.05)}
+  .login-card .btn{width:100%;justify-content:center;padding:16px;font-size:14px;background:linear-gradient(135deg,#e8c58a,#d4a574);color:#0a0806;font-weight:700;box-shadow:0 14px 30px rgba(212,165,116,.35)}
+  .login-card .btn:hover{background:linear-gradient(135deg,#f2d9a8,#e8c58a);transform:translateY(-1px)}
   .login-card .err-msg{color:#f87171;font-size:12px;margin-bottom:12px;min-height:18px}
-  .login-card small{display:block;margin-top:18px;color:var(--ink-faint);font-size:11px;font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase}
+  .login-card small{display:block;margin-top:18px;color:#4d4638;font-size:11px;font-family:'JetBrains Mono',monospace;letter-spacing:.14em;text-transform:uppercase}
 </style>
 </head>
 <body>
@@ -143,9 +150,9 @@
 <!-- Login gate -->
 <div class="login-cover" id="login">
   <div class="login-card">
-    <div class="brand"><span class="mark"></span><b>AR</b><i>Menu</i></div>
-    <h2>Boss Panel</h2>
-    <p>Owner sign-in. Restricted to AR Menu staff.</p>
+    <div class="brand" style="justify-content:center;display:flex;align-items:center;gap:14px"><img src="/favicon.svg" alt="" style="width:56px;height:56px" /></div>
+    <h2>Boss panel</h2>
+    <p>Owner sign in. Restricted to ARMenu staff.</p>
     <div class="form-row"><label>Boss password</label><input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password" /></div>
     <div class="err-msg" id="loginErr"></div>
     <button class="btn" id="loginBtn">Sign in →</button>
