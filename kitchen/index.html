@@ -104,6 +104,23 @@ const $ = id => document.getElementById(id);
 const toast = m => { const t = $('toast'); t.textContent = m; t.className = 'toast show'; setTimeout(() => t.classList.remove('show'), 2500); };
 let session = null;
 try { session = JSON.parse(localStorage.getItem('armenu_kitchen_session') || 'null'); } catch {}
+// Manager hand-off: /kitchen/?r=<slug>&portal_token=<...> → auto-login
+(() => {
+  const q = new URLSearchParams(location.search);
+  const r = q.get('r'); const pt = q.get('portal_token');
+  if (r && pt) {
+    fetch('/api/staff/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ r, portal_token: pt }) })
+      .then(res => res.json())
+      .then(data => {
+        if (data.token) {
+          session = data;
+          localStorage.setItem('armenu_kitchen_session', JSON.stringify(session));
+          history.replaceState({}, '', '/kitchen/');
+          location.reload();
+        }
+      }).catch(() => {});
+  }
+})();
 let poll = null, es = null;
 let previousIds = new Set();
 

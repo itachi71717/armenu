@@ -239,33 +239,51 @@
       <p id="welcomeSub">—</p>
     </div>
 
-    <div class="actions-grid">
-      <div class="action" id="masterQrAction">
-        <span class="ico">◉</span>
-        <div>
-          <h3>Master menu QR</h3>
-          <p>One QR for the whole menu — perfect for table tents.</p>
+    <div class="tools-section">
+      <h2 style="font-size:20px;margin-bottom:6px">Restaurant tools</h2>
+      <p class="section-sub" style="margin-bottom:14px">Everything you need to run your restaurant on ARMenu. One tap.</p>
+      <div class="actions-grid">
+        <a class="action action-primary" id="manageAction" href="#" style="text-decoration:none">
+          <span class="ico">⚙</span>
+          <div>
+            <h3>Manage menu &amp; staff</h3>
+            <p>Add dishes, upload GLBs, set staff PINs, tables, branding — the full admin.</p>
+          </div>
+        </a>
+        <a class="action" id="kitchenAction" href="#" style="text-decoration:none">
+          <span class="ico">🔥</span>
+          <div>
+            <h3>Open kitchen display</h3>
+            <p>Live order board. Open on the tablet in your kitchen.</p>
+          </div>
+        </a>
+        <a class="action" id="staffAction" href="#" style="text-decoration:none">
+          <span class="ico">◐</span>
+          <div>
+            <h3>Open staff console</h3>
+            <p>Waiter queue, table board, order status. For the floor tablet.</p>
+          </div>
+        </a>
+        <div class="action" id="masterQrAction">
+          <span class="ico">◉</span>
+          <div>
+            <h3>Master menu QR</h3>
+            <p>One QR for the whole menu — perfect for table tents.</p>
+          </div>
         </div>
-      </div>
-      <div class="action" id="dlAllAction">
-        <span class="ico">⬇</span>
-        <div>
-          <h3>Per-dish QR codes</h3>
-          <p>One QR per dish — for placing next to each menu item.</p>
+        <div class="action" id="dlAllAction">
+          <span class="ico">⬇</span>
+          <div>
+            <h3>Per-dish QR codes</h3>
+            <p>One QR per dish — for placing next to each menu item.</p>
+          </div>
         </div>
-      </div>
-      <div class="action" onclick="document.getElementById('reqInput').focus()">
-        <span class="ico">+</span>
-        <div>
-          <h3>Request a new dish</h3>
-          <p>Tell us the dish — we'll quote, scan, and add it.</p>
-        </div>
-      </div>
-      <div class="action" id="contactAction">
-        <span class="ico">✉</span>
-        <div>
-          <h3>Contact support</h3>
-          <p>WhatsApp AR Menu directly. We reply same-day.</p>
+        <div class="action" id="contactAction">
+          <span class="ico">✉</span>
+          <div>
+            <h3>WhatsApp support</h3>
+            <p>Direct line to ARMenu. Same-day reply.</p>
+          </div>
         </div>
       </div>
     </div>
@@ -533,6 +551,23 @@
         toast('Copy failed — ' + menuUrl, 'err');
       }
     };
+    // Wire the three new tool buttons — they open into other apps with a signed
+    // manager-issued portal_token so the target auto-authenticates. The API
+    // route /api/portal/manager-token returns a short-lived HMAC token scoped
+    // to the manager's restaurant. The target pages (staff, kitchen, admin)
+    // accept ?portal_token=... as a bypass.
+    (async () => {
+      try {
+        const tokRes = await authFetch('/api/portal/manager-token');
+        const tok = tokRes.ok ? tokRes.data.token : '';
+        $('manageAction').href = `/admin/restaurant.html?slug=${r.slug}&portal_token=${encodeURIComponent(tok)}`;
+        $('manageAction').target = '_blank';
+        $('kitchenAction').href = `/kitchen/?r=${r.slug}&portal_token=${encodeURIComponent(tok)}`;
+        $('kitchenAction').target = '_blank';
+        $('staffAction').href = `/staff/?r=${r.slug}&portal_token=${encodeURIComponent(tok)}`;
+        $('staffAction').target = '_blank';
+      } catch (e) { console.error('token fetch failed:', e); }
+    })();
     $('welcomeSub').textContent = data.dishes.length
       ? `Your AR menu is live with ${data.dishes.length} dish${data.dishes.length === 1 ? '' : 'es'}. Performance reports are emailed by AR Menu monthly.`
       : `Your account is set up. AR Menu will publish your first dishes after the kitchen visit.`;

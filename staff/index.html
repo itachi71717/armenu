@@ -144,6 +144,22 @@ const toast = (m, k='ok') => { const t = $('toast'); t.textContent = m; t.classN
 
 let session = null;
 try { session = JSON.parse(localStorage.getItem('armenu_staff_session') || 'null'); } catch {}
+// Manager hand-off: /staff/?r=<slug>&portal_token=<...> → auto-login
+(() => {
+  const q = new URLSearchParams(location.search);
+  const r = q.get('r'); const pt = q.get('portal_token');
+  if (r && pt) {
+    fetch('/api/staff/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ r, portal_token: pt }) })
+      .then(res => res.json()).then(data => {
+        if (data.token) {
+          session = data;
+          localStorage.setItem('armenu_staff_session', JSON.stringify(session));
+          history.replaceState({}, '', '/staff/');
+          location.reload();
+        }
+      }).catch(() => {});
+  }
+})();
 let poll = null;
 
 async function api(path, opts = {}) {
