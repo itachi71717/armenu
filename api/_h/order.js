@@ -37,17 +37,48 @@ export default async function handler(req, res) {
     .eq('restaurant_id', restaurant.id)
     .in('slug', slugs);
 
+  // Active offers RIGHT NOW (mirror of the logic in /api/dish so the price
+  // the guest is charged matches the discounted price they saw on the menu).
+  let activeOffers = [];
+  try {
+    const { data: off = [] } = await supabase.from('offers').select('discount_pct, starts_at, ends_at, days_of_week, dish_ids, active').eq('restaurant_id', restaurant.id);
+    const sa = new Date(Date.now() + 2 * 60 * 60 * 1000);
+    const dow = sa.getUTCDay();
+    const mins = sa.getUTCHours() * 60 + sa.getUTCMinutes();
+    const toMin = t => { const [h, m] = String(t).split(':').map(Number); return h * 60 + (m || 0); };
+    activeOffers = off.filter(o => {
+      if (o.active === false) return false;
+      const days = Array.isArray(o.days_of_week) && o.days_of_week.length ? o.days_of_week : [0,1,2,3,4,5,6];
+      if (!days.includes(dow)) return false;
+      const s = toMin(o.starts_at), e = toMin(o.ends_at);
+      if (s === e) return false;
+      return s < e ? (mins >= s && mins < e) : (mins >= s || mins < e);
+    });
+  } catch {}
+  const discountPctFor = (dishId) => {
+    let best = 0;
+    for (const o of activeOffers) {
+      const scoped = Array.isArray(o.dish_ids) && o.dish_ids.length > 0;
+      if (scoped && (!dishId || !o.dish_ids.includes(dishId))) continue;
+      if (o.discount_pct > best) best = o.discount_pct;
+    }
+    return best;
+  };
+
   const bySlug = Object.fromEntries(dishes.map(d => [d.slug, d]));
   const resolved = items.map(i => {
     const d = bySlug[String(i.dish_slug || '').trim()];
     if (!d) return null;
     const qty = Math.max(1, Math.min(99, parseInt(i.qty || 1)));
+    const baseCents = d.price_cents ?? parsePrice(d.price);
+    const pct = discountPctFor(d.id);
+    const finalCents = pct ? Math.round((baseCents || 0) * (100 - pct) / 100) : baseCents;
     return {
       dish_id: d.id,
       dish_name: d.name,
       qty,
       stock_count: d.stock_count,
-      price_cents: d.price_cents ?? parsePrice(d.price),
+      price_cents: finalCents,
       note: String(i.note || '').slice(0, 200) || null
     };
   }).filter(Boolean);
