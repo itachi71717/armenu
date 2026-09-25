@@ -24,6 +24,14 @@ Update after every completed item.
 - **[A4] Offer edit + active toggle** — Offer rows now have Edit / Tag dishes / ▶Resume-⏸Pause / Delete buttons. Edit modal patches name/times/pct/days. Toggle patches active bool. Paused offers show as dimmed with "paused" chip and don't apply discount on /api/dish.
 - **[A5] Drag-reorder** — Categories modal rows are draggable with a ≡ handle. New /api/admin/categories/reorder and /api/admin/dishes/reorder endpoints rewrite sort_order sequentially. /api/dish list orders by sort_order then name.
 
+## ✅ Session B — what I could do without your keys (checkpoint)
+- **[B1] Health check /api/health** — public endpoint returns {ok, db_ok, db_ms, region, timestamp}. 200 when DB reachable, 503 when not. Perfect for UptimeRobot / BetterUptime — sign up at uptimerobot.com, add a monitor for https://armenu.co.za/api/health, done.
+- **[B2] Terms + Privacy full rewrite** — /legal now has a proper POPI Act + GDPR-compliant Terms of Service, Privacy Policy (with 8 named sub-sections covering what/why/where/how-long/rights/security/children/officer), Cookies, Refunds, and Restaurant Data-Processing Agreement. Ready to point paying restaurants at.
+
+## Still blocked on Ian (can't be done from my side)
+- **[B-blocked] PayFast** — needs merchant sign-up + PAYFAST_MERCHANT_ID / KEY / PASSPHRASE
+- **[B-blocked] Sentry** — needs SENTRY_DSN
+
 ## Awaiting from Ian
 - Sentry DSN (sign up at sentry.io — Google OAuth — copy DSN)
 - Meshy Pro subscription → MESHY_API_KEY
