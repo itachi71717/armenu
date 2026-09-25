@@ -17,6 +17,13 @@ Update after every completed item.
 - **Sentry vs alternative** — Ian may pick Datadog, LogRocket, or nothing. Wired to auto-activate when SENTRY_DSN is set.
 - **Paddle vs Peach Payments vs Stripe** — currently Paddle-shaped stubs. Swap in whichever Ian picks. Peach is often better for SA-only businesses.
 
+## ✅ Session A complete (checkpoint)
+- **[A1] Cart persistence** — menu.html saves cart to localStorage per (restaurant + table) so page refresh / rotate / phone-yank doesn't wipe it. Loads on init. Cleared on successful order.
+- **[A2] Tip button** — Cart sheet has No tip / 10% / 15% / 20% pills (default 10%). Tip flows through /api/order as tip_cents; total = subtotal + tip. Cap R500. New orders.tip_cents column.
+- **[A3] Item modifiers** — dishes.modifiers jsonb column. Portal dish editor has a plain-text modifier editor (Cook * → Rare +0 / Medium +0 syntax with * = required, [multi] = checkboxes). Guest sees a modifier picker sheet before adding a dish that has modifiers. Order snapshots picked modifiers + adjusts price. Sanitised server-side (cap 12 mods, cap delta ±R500).
+- **[A4] Offer edit + active toggle** — Offer rows now have Edit / Tag dishes / ▶Resume-⏸Pause / Delete buttons. Edit modal patches name/times/pct/days. Toggle patches active bool. Paused offers show as dimmed with "paused" chip and don't apply discount on /api/dish.
+- **[A5] Drag-reorder** — Categories modal rows are draggable with a ≡ handle. New /api/admin/categories/reorder and /api/admin/dishes/reorder endpoints rewrite sort_order sequentially. /api/dish list orders by sort_order then name.
+
 ## Awaiting from Ian
 - Sentry DSN (sign up at sentry.io — Google OAuth — copy DSN)
 - Meshy Pro subscription → MESHY_API_KEY

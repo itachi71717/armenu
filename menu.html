@@ -515,15 +515,71 @@ function openReserve() {
   };
 }
 
-function addToCart(slug) {
+function addToCart(slug, mods) {
   const dish = state.menu.dishes.find(d => d.slug === slug);
   if (!dish) return;
-  const existing = state.cart.find(i => i.slug === slug);
+  // If dish has modifiers and none passed → open the modifier picker instead of adding raw.
+  const dishMods = Array.isArray(dish.modifiers) ? dish.modifiers : [];
+  if (dishMods.length && !mods) return openModifierPicker(dish);
+  const picked = Array.isArray(mods) ? mods : [];
+  const addCents = picked.reduce((s, m) => s + (m.price_cents_delta || 0), 0);
+  const key = slug + '::' + picked.map(m => m.id).sort().join('|');
+  const existing = state.cart.find(i => i.key === key);
   if (existing) existing.qty++;
-  else state.cart.push({ slug, name: dish.name, qty: 1, price_cents: dish.price_cents || 0 });
+  else state.cart.push({ key, slug, name: dish.name, qty: 1, price_cents: (dish.price_cents || 0) + addCents, modifiers: picked });
+  saveCart();
   updateActionbar();
   toast(`Added ${dish.name}`, 'ok');
 }
+
+// Modifier picker sheet — one section per modifier group (radio for single, checkboxes for multi)
+function openModifierPicker(dish) {
+  const groups = dish.modifiers || [];
+  const html = `
+    <h3>${escapeHTML(dish.name)}</h3>
+    <div class="sh-sub">Pick your options</div>
+    ${groups.map((g, gi) => `
+      <div class="field">
+        <label>${escapeHTML(g.label || 'Choose')}${g.required ? ' <span style="color:var(--accent-2)">*</span>' : ''}</label>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          ${(g.options || []).map((o, oi) => `
+            <label style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;background:rgba(255,239,220,.04);border:1px solid var(--line);cursor:pointer">
+              <input type="${g.multi ? 'checkbox' : 'radio'}" name="mod-${gi}" data-g="${gi}" data-o="${oi}" style="accent-color:var(--accent)" />
+              <span style="flex:1;font-size:14px">${escapeHTML(o.name)}</span>
+              <span style="color:var(--accent-2);font-size:13px;font-weight:700">${o.price_cents_delta > 0 ? '+' + fmtPrice(o.price_cents_delta, state.settings.locale.currency_symbol || 'R') : ''}</span>
+            </label>`).join('')}
+        </div>
+      </div>`).join('')}
+    <button class="submit" id="modAdd">Add to cart →</button>`;
+  openSheet(html);
+  $('modAdd').onclick = () => {
+    const picked = [];
+    groups.forEach((g, gi) => {
+      const opts = (g.options || []);
+      opts.forEach((o, oi) => {
+        const el = document.querySelector(`input[data-g="${gi}"][data-o="${oi}"]`);
+        if (el && el.checked) picked.push({ id: `${gi}-${oi}`, group: g.label, name: o.name, price_cents_delta: o.price_cents_delta || 0 });
+      });
+      if (g.required && !picked.some(p => p.id.startsWith(gi + '-'))) return null;
+    });
+    // Verify required groups have a pick
+    for (let gi = 0; gi < groups.length; gi++) {
+      if (groups[gi].required && !picked.some(p => p.id.startsWith(gi + '-'))) {
+        toast(`"${groups[gi].label}" is required`, 'err');
+        return;
+      }
+    }
+    closeSheet();
+    addToCart(dish.slug, picked);
+  };
+}
+
+// Cart persistence — survives page refreshes, kid-yanks, incoming WhatsApp taps
+const CART_KEY = 'armenu_cart_' + r + (table ? '_' + table : '');
+function saveCart() { try { localStorage.setItem(CART_KEY, JSON.stringify(state.cart)); } catch {} }
+function loadCart() { try { const c = JSON.parse(localStorage.getItem(CART_KEY) || '[]'); if (Array.isArray(c)) state.cart = c; } catch {} }
+function clearCart() { state.cart = []; try { localStorage.removeItem(CART_KEY); } catch {} }
+loadCart();
 
 // ============ SHEETS ============
 function openSheet(html) {
@@ -537,30 +593,49 @@ function closeSheet() {
 }
 $('overlay').addEventListener('click', closeSheet);
 
+// Session-scoped tip choice (0 = no tip, 10 / 15 / 20 = percent). Default 10%.
+let _tipPct = 10;
+
 function openCart() {
   if (!state.cart.length) return toast('Your cart is empty', 'err');
   const sym = state.settings.locale.currency_symbol || 'R';
-  const total = state.cart.reduce((s, i) => s + i.price_cents * i.qty, 0);
+  const subtotal = state.cart.reduce((s, i) => s + i.price_cents * i.qty, 0);
+  const tipCents = Math.round(subtotal * (_tipPct / 100));
+  const total = subtotal + tipCents;
   const rows = state.cart.map((it, i) => `
     <div class="cart-row">
-      <div class="cart-name">${escapeHTML(it.name)}<br><span style="font-size:12px;color:var(--ink-dim)">${fmtPrice(it.price_cents, sym) || ''}</span></div>
+      <div class="cart-name">
+        ${escapeHTML(it.name)}
+        ${(it.modifiers || []).length ? '<div style="font-size:11px;color:var(--ink-faint);margin-top:2px">' + it.modifiers.map(m => escapeHTML(m.name)).join(', ') + '</div>' : ''}
+        <br><span style="font-size:12px;color:var(--ink-dim)">${fmtPrice(it.price_cents, sym) || ''}</span>
+      </div>
       <div class="qty">
         <button data-dec="${i}">−</button><span>${it.qty}</span><button data-inc="${i}">+</button>
       </div>
     </div>`).join('');
+  const tipBtns = [0, 10, 15, 20].map(p => `
+    <button class="tip-btn ${_tipPct === p ? 'on' : ''}" data-tip="${p}"
+      style="flex:1;padding:10px;border-radius:9px;border:1px solid ${_tipPct === p ? 'var(--accent)' : 'var(--line)'};background:${_tipPct === p ? 'rgba(255,87,34,.14)' : 'rgba(255,239,220,.04)'};color:${_tipPct === p ? 'var(--accent)' : 'var(--ink-dim)'};font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">${p === 0 ? 'No tip' : p + '%'}</button>`).join('');
   openSheet(`
     <h3>Your order</h3>
     <div class="sh-sub">Sent straight to the kitchen when you confirm.</div>
     ${rows}
-    <div class="cart-total"><span>Total</span><span>${fmtPrice(total, sym)}</span></div>
+    <div class="cart-total"><span>Subtotal</span><span>${fmtPrice(subtotal, sym)}</span></div>
+    <div class="field"><label>Tip for your waiter</label>
+      <div style="display:flex;gap:6px">${tipBtns}</div>
+    </div>
+    ${tipCents > 0 ? `<div class="cart-total" style="padding-top:6px;font-weight:500;color:var(--ink-dim)"><span>Tip (${_tipPct}%)</span><span>${fmtPrice(tipCents, sym)}</span></div>` : ''}
+    <div class="cart-total" style="border-top:1px solid var(--line);padding-top:12px;font-size:18px"><span>Total</span><span style="color:var(--accent)">${fmtPrice(total, sym)}</span></div>
     <div class="field"><label>Note for the kitchen (optional)</label><textarea id="orderNote" rows="2" placeholder="Allergies, spice level, etc."></textarea></div>
     ${!table ? '<div class="field"><label>Your table number (optional)</label><input id="orderTable" placeholder="e.g. 12" /></div>' : ''}
     <button class="submit" id="orderSend">Send to kitchen →</button>
   `);
-  document.querySelectorAll('[data-inc]').forEach(b => b.onclick = () => { state.cart[b.dataset.inc].qty++; openCart(); updateActionbar(); });
+  document.querySelectorAll('[data-tip]').forEach(b => b.onclick = () => { _tipPct = +b.dataset.tip; openCart(); });
+  document.querySelectorAll('[data-inc]').forEach(b => b.onclick = () => { state.cart[b.dataset.inc].qty++; saveCart(); openCart(); updateActionbar(); });
   document.querySelectorAll('[data-dec]').forEach(b => b.onclick = () => {
     const i = +b.dataset.dec; state.cart[i].qty--;
     if (state.cart[i].qty <= 0) state.cart.splice(i, 1);
+    saveCart();
     if (!state.cart.length) { closeSheet(); updateActionbar(); return; }
     openCart(); updateActionbar();
   });
@@ -571,14 +646,19 @@ async function submitOrder() {
   const btn = $('orderSend'); btn.disabled = true; btn.textContent = 'Sending…';
   const note = $('orderNote')?.value.trim() || undefined;
   const tbl = table || $('orderTable')?.value.trim() || undefined;
+  const subtotal = state.cart.reduce((s, i) => s + i.price_cents * i.qty, 0);
+  const tip_cents = Math.round(subtotal * (_tipPct / 100));
   try {
     const res = await fetch('/api/order', {
       method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ r, table: tbl, note, items: state.cart.map(i => ({ dish_slug: i.slug, qty: i.qty })) })
+      body: JSON.stringify({
+        r, table: tbl, note, tip_cents,
+        items: state.cart.map(i => ({ dish_slug: i.slug, qty: i.qty, modifiers: i.modifiers || [] }))
+      })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Could not send');
-    state.cart = []; updateActionbar(); closeSheet();
+    clearCart(); updateActionbar(); closeSheet();
     toast('Order sent. kitchen has it ✓', 'ok');
   } catch (e) { toast(e.message, 'err'); btn.disabled = false; btn.textContent = 'Send to kitchen →'; }
 }

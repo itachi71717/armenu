@@ -37,6 +37,8 @@ const ROUTES = {
   'admin/upload-url':    'admin/upload-url',
   'admin/reservations':  'admin/reservations',
   'admin/schedules':     'admin/schedules',
+  'admin/categories/reorder': 'admin/categories-reorder',
+  'admin/dishes/reorder':     'admin/dishes-reorder',
 
   'staff/login':  'staff/login',
   'staff/orders': 'staff/orders',

@@ -17,7 +17,7 @@ export default async function handler(req, res) {
   if (req.method === 'POST') {
     let body = {};
     try { body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body; } catch {}
-    const { restaurant_slug, name, price, glb_url, usdz_url, thumb_url, camera_orbit, description, scale, ar_source, stock_count } = body;
+    const { restaurant_slug, name, price, glb_url, usdz_url, thumb_url, camera_orbit, description, scale, ar_source, stock_count, modifiers, translations, category_id } = body;
     if (!restaurant_slug || !name || !glb_url) return res.status(400).json({ error: 'restaurant_slug, name, and glb_url required' });
 
     const { data: restaurant } = await supabase.from('restaurants').select('id').eq('slug', restaurant_slug).single();
@@ -34,6 +34,9 @@ export default async function handler(req, res) {
       scale: scale != null ? parseFloat(scale) : 1,
       ar_source: ar_source || 'upload',
       stock_count: stock_count == null || stock_count === '' ? null : Math.max(0, parseInt(stock_count)),
+      modifiers: Array.isArray(modifiers) ? modifiers : [],
+      translations: translations && typeof translations === 'object' ? translations : {},
+      category_id: category_id || null,
       active: true
     }).select().single();
     if (error) return res.status(400).json({ error: error.message });
@@ -59,7 +62,7 @@ export default async function handler(req, res) {
     let body = {};
     try { body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body; } catch {}
     const patch = {};
-    for (const k of ['name','price','description','glb_url','usdz_url','thumb_url','camera_orbit','active','category_id','allergens','stock_count']) {
+    for (const k of ['name','price','description','glb_url','usdz_url','thumb_url','camera_orbit','active','category_id','allergens','stock_count','modifiers','translations','sort_order']) {
       if (k in body) patch[k] = body[k];
     }
     if ('price' in body) patch.price_cents = parseCents(body.price);

@@ -14,7 +14,7 @@ export default async function handler(req, res) {
   const restaurant = rest.data;
 
   // Column sets — try new (v2/v3) first, fall back to old if columns missing
-  const NEW_LIST = 'slug, name, price, price_cents, description, thumb_url, glb_url, category_id, translations, allergens, sort_order, stock_count';
+  const NEW_LIST = 'slug, name, price, price_cents, description, thumb_url, glb_url, category_id, translations, allergens, sort_order, stock_count, modifiers';
   const OLD_LIST = 'slug, name, price, thumb_url, glb_url';
   const NEW_SINGLE = 'name, price, price_cents, description, glb_url, usdz_url, camera_orbit, translations, allergens, scale';
   const OLD_SINGLE = 'name, price, glb_url, usdz_url, camera_orbit';
@@ -44,7 +44,7 @@ export default async function handler(req, res) {
 
   // --- FULL MENU ---
   let q = await supabase.from('dishes').select(NEW_LIST + ', id')
-    .eq('restaurant_id', restaurant.id).eq('active', true).order('name');
+    .eq('restaurant_id', restaurant.id).eq('active', true).order('sort_order').order('name');
   if (q.error && missing(q.error)) {
     q = await supabase.from('dishes').select(OLD_LIST)
       .eq('restaurant_id', restaurant.id).eq('active', true).order('name');
@@ -178,7 +178,8 @@ export default async function handler(req, res) {
         category:      x.category_id ? catById[x.category_id]?.slug || null : null,
         category_name: x.category_id ? catById[x.category_id]?.name || null : null,
         stock: x.stock_count == null ? null : x.stock_count,
-        sold_out: x.stock_count === 0
+        sold_out: x.stock_count === 0,
+        modifiers: Array.isArray(x.modifiers) ? x.modifiers : []
       };
     })
   });

@@ -11,7 +11,7 @@ export default async function handler(req, res) {
 
   let body = {};
   try { body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body; } catch {}
-  const { r, table, items, note } = body || {};
+  const { r, table, items, note, tip_cents } = body || {};
   if (!r) return res.status(400).json({ error: 'Missing r' });
   if (!Array.isArray(items) || !items.length) return res.status(400).json({ error: 'No items' });
 
@@ -72,13 +72,23 @@ export default async function handler(req, res) {
     const qty = Math.max(1, Math.min(99, parseInt(i.qty || 1)));
     const baseCents = d.price_cents ?? parsePrice(d.price);
     const pct = discountPctFor(d.id);
-    const finalCents = pct ? Math.round((baseCents || 0) * (100 - pct) / 100) : baseCents;
+    // Sanitize modifiers to trusted structure (label/name/delta only — never trust client price arithmetic later)
+    const mods = Array.isArray(i.modifiers) ? i.modifiers.slice(0, 12).map(m => ({
+      id: String(m.id || '').slice(0, 40),
+      group: String(m.group || '').slice(0, 60),
+      name: String(m.name || '').slice(0, 60),
+      price_cents_delta: Math.max(-50000, Math.min(50000, parseInt(m.price_cents_delta) || 0))
+    })) : [];
+    const modCents = mods.reduce((s, m) => s + m.price_cents_delta, 0);
+    const withMods = (baseCents || 0) + modCents;
+    const finalCents = pct ? Math.round(withMods * (100 - pct) / 100) : withMods;
     return {
       dish_id: d.id,
       dish_name: d.name,
       qty,
       stock_count: d.stock_count,
       price_cents: finalCents,
+      modifiers: mods,
       note: String(i.note || '').slice(0, 200) || null
     };
   }).filter(Boolean);
@@ -97,6 +107,8 @@ export default async function handler(req, res) {
 
   const subtotal = resolved.reduce((s, it) => s + (it.price_cents || 0) * it.qty, 0);
   const currency = settings.default_currency || 'ZAR';
+  const tipC = Math.max(0, Math.min(500_00, parseInt(tip_cents) || 0));   // cap at R500 to prevent runaway typos
+  const totalC = subtotal + tipC;
 
   const { data: order, error: oerr } = await supabase.from('orders').insert({
     restaurant_id: restaurant.id,
@@ -104,7 +116,8 @@ export default async function handler(req, res) {
     source: 'guest',
     status: 'new',
     subtotal_cents: subtotal,
-    total_cents: subtotal,
+    tip_cents: tipC,
+    total_cents: totalC,
     currency,
     guest_note: String(note || '').slice(0, 500) || null
   }).select().single();
@@ -116,6 +129,7 @@ export default async function handler(req, res) {
     dish_name: it.dish_name,
     qty: it.qty,
     price_cents: it.price_cents,
+    modifiers: it.modifiers || [],
     note: it.note
   }));
   await supabase.from('order_items').insert(rows);
