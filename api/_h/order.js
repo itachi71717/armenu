@@ -33,7 +33,7 @@ export default async function handler(req, res) {
   // Resolve dishes and snapshot prices
   const slugs = items.map(i => String(i.dish_slug || '').trim()).filter(Boolean);
   const { data: dishes = [] } = await supabase.from('dishes')
-    .select('id, slug, name, price_cents, price')
+    .select('id, slug, name, price_cents, price, stock_count')
     .eq('restaurant_id', restaurant.id)
     .in('slug', slugs);
 
@@ -46,12 +46,23 @@ export default async function handler(req, res) {
       dish_id: d.id,
       dish_name: d.name,
       qty,
+      stock_count: d.stock_count,
       price_cents: d.price_cents ?? parsePrice(d.price),
       note: String(i.note || '').slice(0, 200) || null
     };
   }).filter(Boolean);
 
   if (!resolved.length) return res.status(400).json({ error: 'No valid dishes in cart' });
+
+  // Stock check — reject if any tracked item can't be fulfilled
+  const outOfStock = resolved.filter(x => x.stock_count != null && x.stock_count < x.qty);
+  if (outOfStock.length) {
+    return res.status(409).json({
+      error: 'out_of_stock',
+      message: `Sorry, ${outOfStock.map(x => `${x.dish_name} (only ${x.stock_count} left)`).join(', ')}. Please update your cart.`,
+      items: outOfStock.map(x => ({ dish_id: x.dish_id, name: x.dish_name, available: x.stock_count }))
+    });
+  }
 
   const subtotal = resolved.reduce((s, it) => s + (it.price_cents || 0) * it.qty, 0);
   const currency = settings.default_currency || 'ZAR';
@@ -68,8 +79,23 @@ export default async function handler(req, res) {
   }).select().single();
   if (oerr) return res.status(500).json({ error: 'Could not save order' });
 
-  const rows = resolved.map(it => ({ order_id: order.id, ...it }));
+  const rows = resolved.map(it => ({
+    order_id: order.id,
+    dish_id: it.dish_id,
+    dish_name: it.dish_name,
+    qty: it.qty,
+    price_cents: it.price_cents,
+    note: it.note
+  }));
   await supabase.from('order_items').insert(rows);
+
+  // Decrement stock for tracked dishes (fire-and-forget — best-effort)
+  for (const it of resolved) {
+    if (it.stock_count != null) {
+      const next = Math.max(0, it.stock_count - it.qty);
+      supabase.from('dishes').update({ stock_count: next, stock_updated_at: new Date().toISOString() }).eq('id', it.dish_id).catch(() => {});
+    }
+  }
 
   // Fire-and-forget push to kitchen + manager
   const itemCount = resolved.reduce((s, i) => s + i.qty, 0);

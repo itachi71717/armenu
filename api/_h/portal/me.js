@@ -33,7 +33,7 @@ export default async function handler(req, res) {
   const sevenAgoIso = new Date(Date.now() - 7 * 86400 * 1000).toISOString();
   const locations = await Promise.all(rests.map(async (r) => {
     const [{ data: dishes = [] }, { data: scans = [] }, { data: orders = [] }, { data: revs = [] }] = await Promise.all([
-      supabase.from('dishes').select('slug, name, price, thumb_url, active').eq('restaurant_id', r.id).eq('active', true).order('name'),
+      supabase.from('dishes').select('slug, name, price, thumb_url, active, stock_count').eq('restaurant_id', r.id).eq('active', true).order('name'),
       supabase.from('scans').select('id').eq('restaurant_id', r.id).gte('scanned_at', sevenAgoIso),
       supabase.from('orders').select('id, total_cents').eq('restaurant_id', r.id).gte('created_at', sevenAgoIso),
       supabase.from('reviews').select('rating').eq('restaurant_id', r.id).gte('created_at', sevenAgoIso)

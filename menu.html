@@ -103,6 +103,11 @@
   .dish .thumb{aspect-ratio:4/3;background:#1a1410 center/cover no-repeat;position:relative;display:grid;place-items:center}
   .dish .thumb-fallback{font-family:var(--serif);font-style:italic;font-size:48px;color:var(--ink-faint)}
   .dish .ar-tag{position:absolute;top:12px;right:12px;padding:4px 10px;border-radius:999px;font-family:var(--mono);font-size:10px;font-weight:600;background:linear-gradient(135deg,var(--accent),#c93d00);color:#fff;letter-spacing:.08em;text-transform:uppercase;box-shadow:0 4px 12px rgba(255,87,34,.4)}
+  .dish .stock-tag{position:absolute;top:12px;right:12px;padding:4px 10px;border-radius:999px;font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;box-shadow:0 4px 12px rgba(0,0,0,.4)}
+  .dish .stock-tag.sold{background:rgba(20,20,20,.9);color:#f5efe6;border:1px solid rgba(245,239,220,.2)}
+  .dish .stock-tag.low{background:linear-gradient(135deg,#e8c58a,#d4a574);color:#0a0806}
+  .dish.sold-out{opacity:.62;filter:grayscale(.5)}
+  .dish.sold-out .thumb::after{content:"";position:absolute;inset:0;background:rgba(0,0,0,.35)}
   .dish .info{padding:14px 16px 12px;display:flex;flex-direction:column;gap:6px;flex:1}
   .dish .top-row{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
   .dish .name{font-weight:600;font-size:15px;letter-spacing:-.01em;line-height:1.2}
@@ -425,12 +430,14 @@ function renderDish(d) {
   const descTr = d.translations?.[state.lang]?.description || d.description || '';
   const showOrder = state.settings.features.orders;
 
+  const soldOut = d.sold_out === true;
+  const lowStock = !soldOut && typeof d.stock === 'number' && d.stock > 0 && d.stock <= 3;
   return `
-    <div class="dish">
+    <div class="dish${soldOut ? ' sold-out' : ''}">
       <a href="/view.html?r=${encodeURIComponent(r)}&d=${encodeURIComponent(d.slug)}${table ? '&t=' + encodeURIComponent(table) : ''}" class="thumb-link">
         <div class="thumb" ${d.thumb ? `style="background-image:url('${d.thumb}')"` : ''}>
           ${d.thumb ? '' : `<span class="thumb-fallback">${escapeHTML(nameTr[0] || '?')}</span>`}
-          <span class="ar-tag">View in AR</span>
+          ${soldOut ? '<span class="stock-tag sold">Sold out</span>' : (lowStock ? `<span class="stock-tag low">Only ${d.stock} left</span>` : '<span class="ar-tag">View in AR</span>')}
         </div>
       </a>
       <div class="info">
@@ -441,7 +448,8 @@ function renderDish(d) {
         ${descTr ? `<div class="desc">${escapeHTML(descTr)}</div>` : ''}
         <div class="row">
           <a class="btn-ar" href="/view.html?r=${encodeURIComponent(r)}&d=${encodeURIComponent(d.slug)}${table ? '&t=' + encodeURIComponent(table) : ''}" style="display:flex;align-items:center;justify-content:center;text-decoration:none">See in AR →</a>
-          ${showOrder ? `<button class="btn-add" data-add="${escapeHTML(d.slug)}">+ Add</button>` : ''}
+          ${showOrder && !soldOut ? `<button class="btn-add" data-add="${escapeHTML(d.slug)}">+ Add</button>` : ''}
+          ${showOrder && soldOut ? `<button class="btn-add" disabled style="opacity:.4;cursor:not-allowed">Sold out</button>` : ''}
         </div>
       </div>
     </div>`;

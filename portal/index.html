@@ -317,6 +317,27 @@
             <p>One QR per dish — for placing next to each menu item.</p>
           </div>
         </div>
+        <div class="action" id="categoriesAction">
+          <span class="ico">📂</span>
+          <div>
+            <h3>Categories</h3>
+            <p>Group dishes: Starters, Mains, Desserts…</p>
+          </div>
+        </div>
+        <div class="action" id="tablesAction">
+          <span class="ico">🪑</span>
+          <div>
+            <h3>Tables</h3>
+            <p>Add tables and print per-table QR codes.</p>
+          </div>
+        </div>
+        <div class="action" id="staffAction2">
+          <span class="ico">👥</span>
+          <div>
+            <h3>Staff PINs</h3>
+            <p>Waiter + kitchen PINs for the tablets.</p>
+          </div>
+        </div>
         <div class="action" id="contactAction">
           <span class="ico">✉</span>
           <div>
@@ -705,9 +726,15 @@
               <div class="info">
                 <div class="name">${d.name}</div>
                 <div class="lbl">${d.price || 'Live on menu'}</div>
+                ${d.stock_count === 0
+                  ? '<div class="stock-badge sold">Sold out — <a href="#" data-action="refill" data-slug="' + d.slug + '">refill</a></div>'
+                  : (typeof d.stock_count === 'number'
+                      ? '<div class="stock-badge ' + (d.stock_count <= 3 ? 'low' : 'ok') + '">' + d.stock_count + ' in stock <a href="#" data-action="refill" data-slug="' + d.slug + '">edit</a></div>'
+                      : '<div class="stock-badge untracked"><a href="#" data-action="refill" data-slug="' + d.slug + '">+ Track stock</a></div>')
+                }
               </div>
               <div class="actions-row">
-                <button class="qr-btn" data-action="edit-dish" data-slug="${d.slug}" data-name="${d.name}" data-price="${d.price || ''}" data-desc="${(d.description || '').replace(/"/g,'&quot;')}">✎ Edit</button>
+                <button class="qr-btn" data-action="edit-dish" data-slug="${d.slug}" data-name="${d.name}" data-price="${d.price || ''}" data-desc="${(d.description || '').replace(/"/g,'&quot;')}" data-stock="${d.stock_count == null ? '' : d.stock_count}">✎ Edit</button>
                 <button class="qr-btn" data-action="view-qr" data-slug="${d.slug}" data-name="${d.name}">⬇ QR</button>
                 <button class="qr-btn" data-action="open-ar" data-slug="${d.slug}">↗ AR</button>
               </div>
@@ -722,7 +749,22 @@
       if (!btn) return;
       if (btn.dataset.action === 'view-qr')   openQr(btn.dataset.slug, btn.dataset.name);
       if (btn.dataset.action === 'open-ar')   window.open(`/view.html?r=${r.slug}&d=${btn.dataset.slug}`, '_blank');
-      if (btn.dataset.action === 'edit-dish') openDishEditor({ slug: btn.dataset.slug, name: btn.dataset.name, price: btn.dataset.price, description: btn.dataset.desc });
+      if (btn.dataset.action === 'edit-dish') openDishEditor({ slug: btn.dataset.slug, name: btn.dataset.name, price: btn.dataset.price, description: btn.dataset.desc, stock_count: btn.dataset.stock === '' ? null : parseInt(btn.dataset.stock) });
+      if (btn.dataset.action === 'refill') {
+        e.preventDefault();
+        const cur = data.dishes.find(x => x.slug === btn.dataset.slug);
+        const suggest = cur?.stock_count == null ? '20' : String(cur.stock_count);
+        const v = prompt(`Stock for "${cur?.name || btn.dataset.slug}"?\n\nEnter a number (0 = sold out, leave blank = untracked/unlimited):`, suggest);
+        if (v === null) return;
+        const n = v.trim() === '' ? null : Math.max(0, parseInt(v));
+        if (v.trim() !== '' && !Number.isFinite(n)) return toast('Enter a whole number', 'err');
+        mgrFetch(`/api/admin/dishes?slug=${r.slug}&dish_slug=${btn.dataset.slug}`, {
+          method: 'PATCH', body: JSON.stringify({ stock_count: n })
+        }).then(({ ok, data: rd }) => {
+          if (!ok) return toast(rd.error || 'Failed', 'err');
+          toast('Stock updated', 'ok'); loadMe();
+        });
+      }
     }, { once: false });
 
     $('gate').style.display = 'none';
@@ -853,6 +895,9 @@
           <input id="dishPrice" style="width:100%;padding:11px 13px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:14px" value="${(existing?.price || '').replace(/"/g,'&quot;')}" placeholder="e.g. R 165" /></div>
         <div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:4px">Description</div>
           <textarea id="dishDesc" rows="2" style="width:100%;padding:11px 13px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:14px;font-family:inherit;resize:vertical" placeholder="Aged beef patty, sharp cheddar, brioche.">${existing?.description || ''}</textarea></div>
+        <div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:4px">Stock count (optional)</div>
+          <input id="dishStock" type="number" min="0" style="width:100%;padding:11px 13px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:14px" value="${existing?.stock_count ?? ''}" placeholder="Leave empty = unlimited" />
+          <div style="font-size:11px;color:var(--ink-faint);margin-top:4px">When set, we count down each order and hide the dish at 0.</div></div>
         ${isEdit ? '' : `
         <div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:4px">3D file (.glb) — optional</div>
           <input type="file" id="dishGlb" accept=".glb,model/gltf-binary" style="width:100%;padding:9px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink-dim);font-size:12.5px" />
@@ -890,9 +935,12 @@
       $('dishSaveBtn').disabled = true; $('dishSaveBtn').textContent = 'Saving…';
       try {
         if (isEdit) {
-          // PATCH by slug — dispatcher needs to resolve slug→id server-side.
+          const stockRaw = $('dishStock')?.value.trim() || '';
+          const patch = { name, price, description };
+          if (stockRaw === '') patch.stock_count = null;
+          else patch.stock_count = Math.max(0, parseInt(stockRaw));
           const { ok, data } = await mgrFetch(`/api/admin/dishes?slug=${CURRENT.restaurant.slug}&dish_slug=${existing.slug}`, {
-            method: 'PATCH', body: JSON.stringify({ name, price, description })
+            method: 'PATCH', body: JSON.stringify(patch)
           });
           if (!ok) throw new Error(data.error || 'Save failed');
           toast('Saved', 'ok');
@@ -922,6 +970,148 @@
       }
     };
   }
+
+  // ============================================================
+  // Categories / Tables / Staff — inline manager CRUD modals.
+  // Uses wizard-overlay chrome for consistent look. All calls go through
+  // mgrFetch (portal token) so the manager never needs the admin password.
+  // ============================================================
+  function openListModal({ title, subtitle, loadItems, renderRow, addForm, onAdd }) {
+    $('wizKicker').textContent = 'Manage';
+    $('wizTitle').textContent = title;
+    $('wizProgress').innerHTML = '';
+    $('wizBody').innerHTML = `
+      <p style="color:var(--ink-dim);margin-bottom:14px">${subtitle}</p>
+      <div id="listBody" style="max-height:44vh;overflow-y:auto;margin-bottom:16px"></div>
+      <div style="border-top:1px solid var(--line);padding-top:14px">
+        ${addForm}
+      </div>
+      <div id="listErr" style="color:#f87171;font-size:12.5px;min-height:16px;margin-top:8px"></div>`;
+    $('wizActions').innerHTML = `<button class="wiz-secondary" id="listClose">Close</button>`;
+    $('wizOverlay').classList.add('on');
+    $('wizClose').onclick = $('listClose').onclick = () => $('wizOverlay').classList.remove('on');
+
+    async function refresh() {
+      try {
+        const items = await loadItems();
+        $('listBody').innerHTML = items.length
+          ? items.map(renderRow).join('')
+          : '<div style="padding:24px;text-align:center;color:var(--ink-faint);font-size:13px;border:1px dashed var(--line);border-radius:10px">Nothing yet. Add your first one below.</div>';
+        // Wire per-row deletes
+        $('listBody').querySelectorAll('[data-del]').forEach(el => el.onclick = async () => {
+          if (!confirm('Delete this item?')) return;
+          try {
+            const { ok, data } = await mgrFetch(el.dataset.del, { method: 'DELETE' });
+            if (!ok) throw new Error(data.error || 'Delete failed');
+            toast('Deleted', 'ok'); refresh();
+          } catch (e) { $('listErr').textContent = e.message; }
+        });
+      } catch (e) { $('listErr').textContent = e.message; }
+    }
+    refresh();
+    // Wire the shared "add" button rendered by addForm
+    setTimeout(() => {
+      const btn = $('addSubmit');
+      if (btn) btn.onclick = async () => {
+        $('listErr').textContent = '';
+        btn.disabled = true;
+        try { await onAdd(); refresh(); }
+        catch (e) { $('listErr').textContent = e.message; }
+        finally { btn.disabled = false; }
+      };
+    }, 30);
+  }
+
+  function inputRow(label, id, placeholder = '', type = 'text') {
+    return `<div style="margin-bottom:8px">
+      <div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:4px">${label}</div>
+      <input id="${id}" type="${type}" placeholder="${placeholder}" style="width:100%;padding:10px 12px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:13.5px" />
+    </div>`;
+  }
+  function itemRow(name, sub, delPath) {
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:9px;background:rgba(245,236,216,.03);margin-bottom:6px">
+      <div><div style="font-weight:600;font-size:14px">${escapeHTML(name)}</div>${sub ? '<div style="color:var(--ink-faint);font-size:11px;font-family:var(--mono);letter-spacing:.06em">' + escapeHTML(sub) + '</div>' : ''}</div>
+      <button data-del="${delPath}" style="background:rgba(248,113,113,.1);color:#f87171;border:1px solid rgba(248,113,113,.25);padding:6px 10px;border-radius:8px;font-size:11px;cursor:pointer">Delete</button>
+    </div>`;
+  }
+  function escapeHTML(s) { return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  function openCategoriesModal() {
+    const slug = CURRENT.restaurant.slug;
+    openListModal({
+      title: 'Categories',
+      subtitle: 'Group dishes on your menu. Diners see them as tabs above the list.',
+      loadItems: async () => (await mgrFetch(`/api/admin/categories?slug=${slug}`)).data.categories || [],
+      renderRow: c => itemRow(c.name, c.slug, `/api/admin/categories?id=${c.id}&slug=${slug}`),
+      addForm: `${inputRow('Category name', 'catName', 'e.g. Mains')}
+        <button class="wiz-primary" id="addSubmit" style="width:100%;padding:11px;border-radius:9px;border:none;font-weight:700;cursor:pointer">Add category</button>`,
+      onAdd: async () => {
+        const name = $('catName').value.trim();
+        if (!name) throw new Error('Name required');
+        const { ok, data } = await mgrFetch(`/api/admin/categories?slug=${slug}`, { method: 'POST', body: JSON.stringify({ name }) });
+        if (!ok) throw new Error(data.error || 'Failed');
+        $('catName').value = '';
+      }
+    });
+  }
+
+  function openTablesModal() {
+    const slug = CURRENT.restaurant.slug;
+    openListModal({
+      title: 'Tables',
+      subtitle: 'Each table gets its own QR code (guests scan and it knows their table).',
+      loadItems: async () => (await mgrFetch(`/api/admin/tables?slug=${slug}`)).data.tables || [],
+      renderRow: t => itemRow(t.label, `${t.seats || 2} seats · ${t.status || 'available'}`, `/api/admin/tables?id=${t.id}&slug=${slug}`),
+      addForm: `${inputRow('Table label', 'tblLabel', 'e.g. T7 or Patio-3')}
+        ${inputRow('Seats', 'tblSeats', '2', 'number')}
+        <button class="wiz-primary" id="addSubmit" style="width:100%;padding:11px;border-radius:9px;border:none;font-weight:700;cursor:pointer">Add table</button>`,
+      onAdd: async () => {
+        const label = $('tblLabel').value.trim();
+        const seats = parseInt($('tblSeats').value) || 2;
+        if (!label) throw new Error('Label required');
+        const { ok, data } = await mgrFetch(`/api/admin/tables?slug=${slug}`, { method: 'POST', body: JSON.stringify({ label, seats }) });
+        if (!ok) throw new Error(data.error || 'Failed');
+        $('tblLabel').value = ''; $('tblSeats').value = '';
+      }
+    });
+  }
+
+  function openStaffModal() {
+    const slug = CURRENT.restaurant.slug;
+    openListModal({
+      title: 'Staff PINs',
+      subtitle: 'Set 4–6 digit PINs for kiosk sign-in. Kitchen role sees the kitchen board; waiter role sees the floor console.',
+      loadItems: async () => (await mgrFetch(`/api/admin/staff?slug=${slug}`)).data.staff || [],
+      renderRow: s => itemRow(s.name, `${s.role} · ${s.active ? 'active' : 'disabled'}`, `/api/admin/staff?id=${s.id}&slug=${slug}`),
+      addForm: `${inputRow('Name (e.g. Kitchen Tablet)', 'stName', 'Kitchen Tablet')}
+        ${inputRow('4–6 digit PIN', 'stPin', '1234')}
+        <div style="margin-bottom:8px">
+          <div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:4px">Role</div>
+          <select id="stRole" style="width:100%;padding:10px 12px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:13.5px">
+            <option value="waiter">Waiter (floor)</option>
+            <option value="kitchen">Kitchen</option>
+            <option value="manager">Manager</option>
+          </select>
+        </div>
+        <button class="wiz-primary" id="addSubmit" style="width:100%;padding:11px;border-radius:9px;border:none;font-weight:700;cursor:pointer">Add staff</button>`,
+      onAdd: async () => {
+        const name = $('stName').value.trim();
+        const pin = $('stPin').value.trim();
+        const role = $('stRole').value;
+        if (!name || !/^\d{4,6}$/.test(pin)) throw new Error('Name + a 4–6 digit PIN required');
+        const { ok, data } = await mgrFetch(`/api/admin/staff?slug=${slug}`, { method: 'POST', body: JSON.stringify({ name, pin, role }) });
+        if (!ok) throw new Error(data.error || 'Failed');
+        $('stName').value = ''; $('stPin').value = '';
+      }
+    });
+  }
+
+  // Wire the new action buttons (they exist inside the tools-section grid)
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('#categoriesAction')) openCategoriesModal();
+    if (e.target.closest('#tablesAction'))     openTablesModal();
+    if (e.target.closest('#staffAction2'))     openStaffModal();
+  });
 
   // ============================================================
   // Onboarding wizard — first-time managers with no dishes.
