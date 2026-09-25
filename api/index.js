@@ -36,6 +36,7 @@ const ROUTES = {
   'admin/pending':       'admin/pending',
   'admin/upload-url':    'admin/upload-url',
   'admin/reservations':  'admin/reservations',
+  'admin/schedules':     'admin/schedules',
 
   'staff/login':  'staff/login',
   'staff/orders': 'staff/orders',
@@ -47,6 +48,7 @@ const ROUTES = {
   'portal/request':        'portal/request',
   'portal/manager-token':  'portal/manager-token',
   'portal/credits':        'portal/credits',
+  'portal/translate':      'portal/translate',
 
   'paddle/webhook': 'paddle/webhook'
 };

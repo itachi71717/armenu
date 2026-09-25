@@ -19,7 +19,20 @@ Update after every completed item.
 
 ## Awaiting from Ian
 - Sentry DSN (sign up at sentry.io — Google OAuth — copy DSN)
-- Meshy plan choice → API key
+- Meshy Pro subscription → MESHY_API_KEY
+- PayFast merchant sign-up (Ian to pick over Paddle for easier SA-native setup)
+- ANTHROPIC_API_KEY (for translate + AI menu reader)
+
+## ✅ Just completed (batch 2)
+- **Menu scheduler backend** — /api/dish now filters dishes whose category_id is targeted by a schedule not currently active (SA time). Categories with no schedule stay always-visible.
+- **Menu scheduler UI** — portal action card + modal with time pickers, day toggles, and per-schedule category checkboxes.
+- **/api/admin/schedules** endpoint — GET/POST/PATCH/DELETE.
+- **Menu translations UI** — dish editor gets Afrikaans / isiZulu / isiXhosa fields collapsed under a details toggle, plus "🌐 Auto-translate" button that calls Claude Haiku.
+- **/api/portal/translate** — Claude-powered translator scoped to the caller's restaurant, rate-limited via the ai_menu_reader quota.
+- **Categories → dish assignment** — dish editor now has a Category dropdown pre-populated from /api/admin/categories.
+- **Reservations viewer in portal** — new action card + modal with per-row Confirm / Decline / WhatsApp / Delete buttons.
+- **Kitchen audio ping** — replaced single tone with two-note E5→A5 chirp using a persistent AudioContext.
+- **Kitchen ticket age colours** — whole ticket border turns amber ≥8min and pulsing red ≥15min, on top of status colour.
 
 ## Ian's answers on cost caps
 - Claude only runs in AI Menu Reader (one-shot per restaurant onboard, ~$0.02–$0.10 each). Zero ongoing spend.

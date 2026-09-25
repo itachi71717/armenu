@@ -61,6 +61,39 @@ export default async function handler(req, res) {
   } catch {}
   const catById = Object.fromEntries(cats.map(c => [c.id, c]));
 
+  // ============================================================
+  // Menu schedule enforcement — a dish whose category_id is targeted by ONE
+  // OR MORE schedules is only visible when at least one of those schedules is
+  // currently active (SA time UTC+2). Dishes whose category isn't in any
+  // schedule stay always-visible. Dishes without a category are always-visible.
+  // ============================================================
+  let scheduledCategoryIds = new Set();   // categories that have at least one schedule
+  let activeCategoryIds = new Set();      // categories currently unlocked by an active schedule
+  try {
+    const { data: schedules = [] } = await supabase.from('menu_schedules')
+      .select('starts_at, ends_at, days_of_week, category_ids, active').eq('restaurant_id', restaurant.id);
+    const sa = new Date(Date.now() + 2 * 60 * 60 * 1000);
+    const dow = sa.getUTCDay();
+    const mins = sa.getUTCHours() * 60 + sa.getUTCMinutes();
+    const toMin = t => { const [h, m] = String(t).split(':').map(Number); return h * 60 + (m || 0); };
+    for (const s of schedules) {
+      if (s.active === false) continue;
+      const targets = Array.isArray(s.category_ids) ? s.category_ids : [];
+      for (const cid of targets) scheduledCategoryIds.add(cid);
+      const days = Array.isArray(s.days_of_week) && s.days_of_week.length ? s.days_of_week : [0,1,2,3,4,5,6];
+      if (!days.includes(dow)) continue;
+      const st = toMin(s.starts_at), en = toMin(s.ends_at);
+      if (st === en) continue;
+      const inWindow = st < en ? (mins >= st && mins < en) : (mins >= st || mins < en);
+      if (inWindow) for (const cid of targets) activeCategoryIds.add(cid);
+    }
+  } catch {}
+  const dishVisible = (dish) => {
+    if (!dish.category_id) return true;
+    if (!scheduledCategoryIds.has(dish.category_id)) return true;
+    return activeCategoryIds.has(dish.category_id);
+  };
+
   // Active offers RIGHT NOW (in SA time — offers.starts_at/ends_at are `time`
   // local wall-clock, days_of_week uses 0=Sun..6=Sat).
   // We fetch every offer, then filter in JS so we can short-circuit cleanly.
@@ -114,9 +147,10 @@ export default async function handler(req, res) {
     return `R ${rand.toFixed(0)}`;
   };
 
+  const visibleDishes = dishes.filter(dishVisible);
   return res.status(200).json({
     restaurant: { name: restaurant.name, slug: restaurant.slug },
-    dishes: dishes.map(x => {
+    dishes: visibleDishes.map(x => {
       const off = bestOfferFor(x.id);
       let discounted_price = null, discounted_price_cents = null, discount_pct = null, offer_name = null, original_price = null, original_price_cents = null;
       if (off) {
