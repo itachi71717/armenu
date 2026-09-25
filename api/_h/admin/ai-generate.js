@@ -17,7 +17,7 @@
 import crypto from 'node:crypto';
 import { supabase, supabaseAdmin } from '../../_db.js';
 import { requireAdmin } from '../../_auth.js';
-import { enforceQuota, logUsage } from '../_quota.js';
+import { enforceCredits, consumeCredits, logUsage } from '../_quota.js';
 
 const UPSTREAM = 'https://api.meshy.ai/openapi/v1';
 const BUCKET = 'dishes';
@@ -104,12 +104,11 @@ export default async function handler(req, res) {
       try { body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body; } catch {}
     }
 
-    // ---- RETRY (rerun same image) ----
+    // ---- RETRY (rerun same image) — FREE, mirrors Meshy's free-retry rule ----
     if (body.retry && body.previous_job_id) {
       const prev = await findJobMeta(body.previous_job_id);
       if (!prev) return res.status(404).json({ error: 'Original job not found' });
-      const gate = await enforceQuota(prev.restaurant_id, 'meshy_generate');
-      if (!gate.ok) return res.status(429).json({ error: gate.reason, message: gate.message });
+      // Retries don't cost Meshy credits, so they don't cost restaurant credits.
       const created = await upstream('/image-to-3d', {
         method: 'POST',
         body: JSON.stringify({
@@ -119,7 +118,7 @@ export default async function handler(req, res) {
       });
       const newJobId = created.result || created.id || created.task_id;
       await saveJobMeta(prev.restaurant_id, newJobId, prev.image_url, prev.dish_id);
-      await logUsage(prev.restaurant_id, 'meshy_generate', null, { job_id: newJobId, retry_of: body.previous_job_id });
+      await logUsage(prev.restaurant_id, 'meshy_retry', 0, { job_id: newJobId, retry_of: body.previous_job_id });
       return res.status(200).json({ job_id: newJobId });
     }
 
@@ -209,8 +208,17 @@ export default async function handler(req, res) {
         restaurant_id = data?.id || null;
       }
       if (restaurant_id) {
-        const gate = await enforceQuota(restaurant_id, 'meshy_generate');
-        if (!gate.ok) return res.status(429).json({ error: gate.reason, message: gate.message });
+        const gate = await enforceCredits(restaurant_id, 'meshy_generate');
+        if (!gate.ok) {
+          // 402 Payment Required — client-side UI turns this into a "buy credits" CTA
+          return res.status(402).json({
+            error: gate.reason,
+            message: gate.message,
+            balance: gate.balance,
+            needed: gate.needed,
+            cost: gate.cost
+          });
+        }
       }
       const created = await upstream('/image-to-3d', {
         method: 'POST',
@@ -221,7 +229,9 @@ export default async function handler(req, res) {
       const job_id = created.result || created.id || created.task_id;
       if (restaurant_id) {
         await saveJobMeta(restaurant_id, job_id, image_url, dish_id || null);
-        await logUsage(restaurant_id, 'meshy_generate', null, { job_id, image_url });
+        // Debit AFTER Meshy accepts the job so a failed submit doesn't burn credits.
+        await consumeCredits(restaurant_id, 'meshy_generate', 10, { job_id, image_url });
+        await logUsage(restaurant_id, 'meshy_generate', 15, { job_id, image_url });  // ~15¢ our cost
       }
       return res.status(200).json({ job_id });
     }

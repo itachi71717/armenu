@@ -46,6 +46,7 @@ const ROUTES = {
   'portal/pending-signup': 'portal/pending-signup',
   'portal/request':        'portal/request',
   'portal/manager-token':  'portal/manager-token',
+  'portal/credits':        'portal/credits',
 
   'paddle/webhook': 'paddle/webhook'
 };
