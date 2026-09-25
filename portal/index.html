@@ -338,6 +338,13 @@
             <p>Add tables and print per-table QR codes.</p>
           </div>
         </div>
+        <div class="action" id="offersAction">
+          <span class="ico">🎉</span>
+          <div>
+            <h3>Happy hour &amp; offers</h3>
+            <p>Time-limited discounts. Auto-applied to the menu.</p>
+          </div>
+        </div>
         <div class="action" id="staffAction2">
           <span class="ico">👥</span>
           <div>
@@ -1119,7 +1126,52 @@
     if (e.target.closest('#categoriesAction')) openCategoriesModal();
     if (e.target.closest('#tablesAction'))     openTablesModal();
     if (e.target.closest('#staffAction2'))     openStaffModal();
+    if (e.target.closest('#offersAction'))     openOffersModal();
   });
+
+  function openOffersModal() {
+    const slug = CURRENT.restaurant.slug;
+    const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const daysToStr = arr => (Array.isArray(arr) && arr.length && arr.length < 7)
+      ? arr.map(i => DAYS[i]).join(' ')
+      : 'Every day';
+    openListModal({
+      title: 'Happy hour & offers',
+      subtitle: 'Time-boxed discounts. Guests see the crossed-out price during the window; auto-hides outside it.',
+      loadItems: async () => (await mgrFetch(`/api/admin/offers?slug=${slug}`)).data.offers || [],
+      renderRow: o => itemRow(
+        `${o.name} · ${o.discount_pct}% off`,
+        `${o.starts_at}–${o.ends_at} · ${daysToStr(o.days_of_week)}${o.active === false ? ' · disabled' : ''}`,
+        `/api/admin/offers?id=${o.id}&slug=${slug}`
+      ),
+      addForm: `${inputRow('Offer name (e.g. Sunset special)', 'ofName', 'Happy hour')}
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+          <div>${inputRow('Starts', 'ofStart', '17:00', 'time').replace(/margin-bottom:8px/, 'margin-bottom:0')}</div>
+          <div>${inputRow('Ends', 'ofEnd', '19:00', 'time').replace(/margin-bottom:8px/, 'margin-bottom:0')}</div>
+          <div>${inputRow('% off', 'ofPct', '15', 'number').replace(/margin-bottom:8px/, 'margin-bottom:0')}</div>
+        </div>
+        <div style="margin:10px 0 8px"><div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:6px">Days</div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap">${DAYS.map((d, i) => `<label style="display:flex;align-items:center;gap:4px;padding:6px 10px;border-radius:8px;background:rgba(245,236,216,.04);border:1px solid var(--line);cursor:pointer;font-size:12px"><input type="checkbox" class="ofDay" data-i="${i}" checked style="accent-color:#d4a574" />${d}</label>`).join('')}</div>
+        </div>
+        <button class="wiz-primary" id="addSubmit" style="width:100%;padding:11px;border-radius:9px;border:none;font-weight:700;cursor:pointer;margin-top:8px">Add offer</button>`,
+      onAdd: async () => {
+        const name = $('ofName').value.trim();
+        const starts_at = $('ofStart').value;
+        const ends_at = $('ofEnd').value;
+        const pct = parseInt($('ofPct').value);
+        const days = [...document.querySelectorAll('.ofDay')].filter(x => x.checked).map(x => parseInt(x.dataset.i));
+        if (!name) throw new Error('Name required');
+        if (!starts_at || !ends_at) throw new Error('Start & end times required');
+        if (!Number.isFinite(pct) || pct < 1 || pct > 90) throw new Error('% off must be 1–90');
+        if (!days.length) throw new Error('Pick at least one day');
+        const { ok, data } = await mgrFetch(`/api/admin/offers?slug=${slug}`, {
+          method: 'POST', body: JSON.stringify({ name, discount_pct: pct, starts_at, ends_at, days_of_week: days })
+        });
+        if (!ok) throw new Error(data.error || 'Failed');
+        $('ofName').value = ''; $('ofPct').value = '';
+      }
+    });
+  }
 
   // ============================================================
   // Branding — manager uploads logo/cover, edits tagline + primary colour.
