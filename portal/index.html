@@ -317,6 +317,13 @@
             <p>One QR per dish — for placing next to each menu item.</p>
           </div>
         </div>
+        <div class="action" id="brandingAction">
+          <span class="ico">🎨</span>
+          <div>
+            <h3>Branding &amp; look</h3>
+            <p>Upload logo, cover, tagline. Auto-picks your colour.</p>
+          </div>
+        </div>
         <div class="action" id="categoriesAction">
           <span class="ico">📂</span>
           <div>
@@ -1108,10 +1115,132 @@
 
   // Wire the new action buttons (they exist inside the tools-section grid)
   document.addEventListener('click', (e) => {
+    if (e.target.closest('#brandingAction'))   openBrandingModal();
     if (e.target.closest('#categoriesAction')) openCategoriesModal();
     if (e.target.closest('#tablesAction'))     openTablesModal();
     if (e.target.closest('#staffAction2'))     openStaffModal();
   });
+
+  // ============================================================
+  // Branding — manager uploads logo/cover, edits tagline + primary colour.
+  // Logo drop → auto-derive dominant colour (canvas pixel average, filters
+  // near-white/black pixels so a logo on a white page still returns the
+  // brand colour), pre-fills the primary hex input.
+  // ============================================================
+  async function openBrandingModal() {
+    const slug = CURRENT.restaurant.slug;
+    // Fetch current settings so we prefill the fields
+    let s = {};
+    try { s = (await mgrFetch(`/api/admin/settings?slug=${slug}`)).data.settings || {}; } catch (e) {}
+    $('wizKicker').textContent = 'Manage';
+    $('wizTitle').textContent  = 'Branding & look';
+    $('wizProgress').innerHTML = '';
+    $('wizBody').innerHTML = `
+      <p style="color:var(--ink-dim);margin-bottom:14px">Your logo, cover photo, tagline, and brand colour. Applied instantly to every diner's phone.</p>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div>
+          <div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:4px">Logo</div>
+          ${s.logo_url ? `<div style="margin-bottom:6px"><img src="${s.logo_url}" style="max-height:60px;background:#fff;padding:6px;border-radius:8px" /></div>` : ''}
+          <input type="file" id="brLogo" accept="image/*" style="width:100%;padding:8px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink-dim);font-size:12.5px" />
+          <div style="font-size:11px;color:var(--ink-faint);margin-top:4px">PNG or SVG works best. We auto-pick your brand colour from it.</div>
+        </div>
+        <div>
+          <div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:4px">Cover photo (menu hero)</div>
+          ${s.cover_url ? `<div style="margin-bottom:6px"><img src="${s.cover_url}" style="max-height:70px;border-radius:8px" /></div>` : ''}
+          <input type="file" id="brCover" accept="image/*" style="width:100%;padding:8px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink-dim);font-size:12.5px" />
+        </div>
+        <div>
+          <div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:4px">Primary colour</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input id="brPrimary" type="text" value="${s.theme_primary || '#d4a574'}" style="flex:1;padding:11px 13px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:14px;font-family:var(--mono)" placeholder="#d4a574" />
+            <input id="brPrimaryPick" type="color" value="${s.theme_primary || '#d4a574'}" style="width:44px;height:44px;padding:0;border-radius:9px;border:1px solid var(--line);background:transparent;cursor:pointer" />
+            <span id="brSwatch" style="width:44px;height:44px;border-radius:9px;border:1px solid var(--line);background:${s.theme_primary || '#d4a574'}"></span>
+          </div>
+        </div>
+        <div>
+          <div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:4px">Tagline (shown on menu)</div>
+          <input id="brTagline" type="text" value="${(s.tagline || '').replace(/"/g,'&quot;')}" style="width:100%;padding:11px 13px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:14px" placeholder="e.g. Signature dishes, in your palm." />
+        </div>
+        <div id="brErr" style="color:#f87171;font-size:12.5px;min-height:16px"></div>
+      </div>`;
+    $('wizActions').innerHTML = `
+      <button class="wiz-secondary" id="brCancel">Close</button>
+      <button class="wiz-primary" id="brSave">Save branding</button>`;
+    $('wizOverlay').classList.add('on');
+    $('wizClose').onclick = $('brCancel').onclick = () => $('wizOverlay').classList.remove('on');
+
+    const updateSwatch = (hex) => { $('brSwatch').style.background = hex; $('brPrimaryPick').value = hex; };
+    $('brPrimary').oninput = (e) => { if (/^#[0-9a-f]{6}$/i.test(e.target.value)) updateSwatch(e.target.value); };
+    $('brPrimaryPick').oninput = (e) => { $('brPrimary').value = e.target.value; updateSwatch(e.target.value); };
+
+    // Logo drop → auto-derive colour
+    $('brLogo').onchange = async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      try {
+        const hex = await extractDominantColor(URL.createObjectURL(file));
+        if (hex) { $('brPrimary').value = hex; updateSwatch(hex); toast('Brand colour picked from logo', 'ok'); }
+      } catch (err) { console.warn('colour extract failed', err); }
+    };
+
+    $('brSave').onclick = async () => {
+      $('brErr').textContent = '';
+      $('brSave').disabled = true; $('brSave').textContent = 'Saving…';
+      try {
+        const logoFile = $('brLogo').files?.[0];
+        const coverFile = $('brCover').files?.[0];
+        const patch = {
+          theme_primary: $('brPrimary').value.trim() || '#d4a574',
+          tagline: $('brTagline').value.trim() || null
+        };
+        if (logoFile)  patch.logo_url  = await uploadAsset(logoFile, 'logo');
+        if (coverFile) patch.cover_url = await uploadAsset(coverFile, 'cover');
+        const { ok, data } = await mgrFetch(`/api/admin/settings?slug=${slug}`, { method: 'PATCH', body: JSON.stringify(patch) });
+        if (!ok) throw new Error(data.error || 'Save failed');
+        toast('Branding saved — refresh diner phones to see', 'ok');
+        $('wizOverlay').classList.remove('on');
+      } catch (e) {
+        $('brErr').textContent = e.message;
+      } finally {
+        $('brSave').disabled = false; $('brSave').textContent = 'Save branding';
+      }
+    };
+  }
+
+  async function uploadAsset(file, kind) {
+    const name = `${kind}-${Date.now()}-${file.name.replace(/[^a-z0-9._-]+/gi, '-')}`;
+    const up = await mgrFetch('/api/admin/upload-url', { method: 'POST', body: JSON.stringify({ filename: name }) });
+    if (!up.ok) throw new Error(up.data.error || 'Upload URL failed');
+    const put = await fetch(up.data.signed_url, { method: 'PUT', body: file });
+    if (!put.ok) throw new Error('Upload failed');
+    return up.data.public_url;
+  }
+
+  async function extractDominantColor(url) {
+    return new Promise((resolve) => {
+      const img = new Image(); img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          const c = document.createElement('canvas'); c.width = c.height = 64;
+          const ctx = c.getContext('2d');
+          ctx.drawImage(img, 0, 0, 64, 64);
+          const d = ctx.getImageData(0, 0, 64, 64).data;
+          let r = 0, g = 0, b = 0, n = 0;
+          for (let i = 0; i < d.length; i += 4) {
+            if (d[i + 3] < 200) continue;
+            const sum = d[i] + d[i + 1] + d[i + 2];
+            if (sum < 60 || sum > 705) continue; // skip near-black + near-white
+            r += d[i]; g += d[i + 1]; b += d[i + 2]; n++;
+          }
+          if (!n) return resolve(null);
+          const toHex = v => Math.round(v / n).toString(16).padStart(2, '0');
+          resolve('#' + toHex(r) + toHex(g) + toHex(b));
+        } catch { resolve(null); }
+      };
+      img.onerror = () => resolve(null);
+      img.src = url;
+    });
+  }
 
   // ============================================================
   // Onboarding wizard — first-time managers with no dishes.
