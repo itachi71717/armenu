@@ -12,6 +12,11 @@ Update after every completed item.
 ## 🟡 Deferred
 - **[5] Real business email** — deferred by Ian (do last)
 
+## 🔁 Revisit later
+- **Costing structure / credit-pack pricing** — Ian to revisit once first paying restaurants land. Current retail: R149/50, R499/200, R1999/1000 (5-9x markup over ~R3.20 Meshy Pro cost/generation). Also revisit: monthly-subscription bundle vs pay-as-you-go, volume discount ladder, gifted onboarding credits (currently 100), free-retry-count (currently 4/task matching Meshy Pro).
+- **Sentry vs alternative** — Ian may pick Datadog, LogRocket, or nothing. Wired to auto-activate when SENTRY_DSN is set.
+- **Paddle vs Peach Payments vs Stripe** — currently Paddle-shaped stubs. Swap in whichever Ian picks. Peach is often better for SA-only businesses.
+
 ## Awaiting from Ian
 - Sentry DSN (sign up at sentry.io — Google OAuth — copy DSN)
 - Meshy plan choice → API key

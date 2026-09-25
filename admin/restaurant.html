@@ -392,7 +392,7 @@
           </div>
           <div style="margin-top:20px;display:flex;flex-direction:column;gap:8px">
             <button class="btn" id="ars_publish" style="padding:14px">✓ Publish as new dish</button>
-            <button class="btn-ghost btn" id="ars_retry" style="padding:14px">↻ Retry — not quite right</button>
+            <button class="btn-ghost btn" id="ars_retry" style="padding:14px">↻ Retry — not quite right <span id="ars_retry_hint" style="opacity:.6;font-size:11px;margin-left:6px">(4 free per dish)</span></button>
             <button class="btn-ghost btn" id="ars_start_over" style="padding:14px">Start over with a different photo</button>
           </div>
         </div>
@@ -533,6 +533,12 @@ async function api(path, opts = {}) {
     throw new Error('unauth');
   }
   const data = await res.json().catch(() => ({}));
+  if (res.status === 402) {
+    // Insufficient credits — surface a friendly message with balance + link to portal
+    const msg = data.message || 'You\'re out of credits. Top up in the portal to generate more dishes.';
+    toast(msg, 'err');
+    throw new Error(data.error || 'insufficient_credits');
+  }
   if (!res.ok) throw new Error(data.error || 'Request failed');
   return data;
 }
@@ -1038,8 +1044,18 @@ $('ars_retry').onclick = async () => {
   try {
     $('ars-step3').style.display = 'none'; $('ars-step2').style.display = '';
     arsSetStage('Retrying…', 'Same photo, fresh generation', 20);
-    const d = await api('/api/admin/ai-generate', { method: 'POST', body: JSON.stringify({ retry: true, previous_job_id: ars.jobId }) });
+    let d;
+    try {
+      d = await api('/api/admin/ai-generate', { method: 'POST', body: JSON.stringify({ retry: true, previous_job_id: ars.jobId }) });
+    } catch (e) {
+      if (String(e.message || '').includes('retry_limit_reached') || String(e.message || '').includes('retries')) {
+        toast('You\'ve used all 4 free retries for this dish. Try a fresh photo — a new generation costs 10 credits.', 'err');
+        arsReset(); return;
+      }
+      throw e;
+    }
     ars.jobId = d.job_id;
+    if (typeof d.retries_remaining === 'number') $('ars_retry_hint').textContent = `(${d.retries_remaining} free retries left)`;
     let ticks = 0;
     ars.timer = setInterval(async () => {
       ticks++;

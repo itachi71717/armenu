@@ -9,31 +9,23 @@
 
   function inject() {
     var css = document.createElement('style');
+    // Tiny slim bar — bottom-corner pill, dismissible in one tap, doesn't cover content
     css.textContent = ''
-      + '.armenu-cc-banner{position:fixed;left:16px;right:16px;bottom:16px;z-index:9999;max-width:520px;margin-left:auto;margin-right:auto;background:rgba(18,16,11,.97);color:#f5efe6;border:1px solid rgba(232,197,138,.3);border-radius:14px;box-shadow:0 20px 50px rgba(0,0,0,.6);backdrop-filter:blur(14px);padding:16px 18px;font-family:Inter,system-ui,sans-serif;font-size:13.5px;line-height:1.55;animation:armenuCcSlide .3s ease-out}'
-      + '@keyframes armenuCcSlide{from{transform:translateY(20px);opacity:0}to{transform:none;opacity:1}}'
-      + '.armenu-cc-banner b{color:#e8c58a;font-weight:700}'
-      + '.armenu-cc-banner a{color:#e8c58a;text-decoration:underline}'
-      + '.armenu-cc-banner p{margin:0 0 10px 0}'
-      + '.armenu-cc-banner .row{display:flex;gap:8px;flex-wrap:wrap}'
-      + '.armenu-cc-banner button{flex:1;min-width:110px;padding:9px 12px;border-radius:8px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;border:1px solid transparent;transition:transform .1s}'
-      + '.armenu-cc-banner button:active{transform:scale(.98)}'
-      + '.armenu-cc-accept{background:linear-gradient(135deg,#e8c58a,#d4a574);color:#0a0806}'
-      + '.armenu-cc-essential{background:rgba(245,239,220,.06);color:#a89d84;border-color:rgba(245,239,220,.14)}'
-      + '@media(max-width:520px){.armenu-cc-banner{left:8px;right:8px;bottom:8px;padding:14px 16px;font-size:13px}}';
+      + '.armenu-cc-bar{position:fixed;left:12px;right:12px;bottom:12px;z-index:9999;max-width:440px;margin-left:auto;margin-right:auto;background:rgba(18,16,11,.94);color:#f5efe6;border:1px solid rgba(232,197,138,.22);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.4);backdrop-filter:blur(10px);padding:8px 12px;font-family:Inter,system-ui,sans-serif;font-size:11.5px;line-height:1.4;display:flex;align-items:center;gap:10px;animation:armenuCcSlide .25s ease-out}'
+      + '@keyframes armenuCcSlide{from{transform:translateY(12px);opacity:0}to{transform:none;opacity:1}}'
+      + '.armenu-cc-bar span{flex:1;color:#a89d84}'
+      + '.armenu-cc-bar a{color:#e8c58a;text-decoration:underline}'
+      + '.armenu-cc-bar button{padding:5px 10px;border-radius:6px;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;border:none;background:linear-gradient(135deg,#e8c58a,#d4a574);color:#0a0806;white-space:nowrap}'
+      + '.armenu-cc-bar button:active{transform:scale(.97)}';
     document.head.appendChild(css);
 
     var wrap = document.createElement('div');
-    wrap.className = 'armenu-cc-banner';
+    wrap.className = 'armenu-cc-bar';
     wrap.setAttribute('role', 'dialog');
-    wrap.setAttribute('aria-label', 'Cookie consent');
+    wrap.setAttribute('aria-label', 'Cookie notice');
     wrap.innerHTML = ''
-      + '<p><b>Cookies &amp; privacy.</b> We use a few browser-storage items to keep you signed in, remember your cart, and improve the app. No cross-site ad tracking, no third-party marketing pixels.</p>'
-      + '<p style="color:#a89d84;font-size:12.5px">Learn more in our <a href="/legal#privacy" target="_blank" rel="noopener">Privacy Policy</a>.</p>'
-      + '<div class="row">'
-      + '<button class="armenu-cc-essential" data-cc="essential">Essential only</button>'
-      + '<button class="armenu-cc-accept" data-cc="all">Accept all</button>'
-      + '</div>';
+      + '<span>We use essential cookies to keep the site working. <a href="/legal#privacy" target="_blank" rel="noopener">Learn more</a></span>'
+      + '<button data-cc="all">OK</button>';
     document.body.appendChild(wrap);
 
     wrap.addEventListener('click', function (e) {

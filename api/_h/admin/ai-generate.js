@@ -47,17 +47,27 @@ const slugify = s => String(s || 'dish').toLowerCase().replace(/[^a-z0-9]+/g, '-
 // Track past jobs so retry can look up original image + preserve linkage.
 // Stored in `requests` table as a JSON blob under a fake type — quick + reuses
 // existing infra without adding a new table.
-async function saveJobMeta(rest_id, job_id, image_url, dish_id) {
+// The root_job_id is the ORIGINAL first-submitted job for a given image. Every
+// retry inherits root_job_id + increments retry_count. This lets us enforce
+// the "4 free retries per task" cap that mirrors the underlying provider's rule.
+const MAX_FREE_RETRIES = 4;
+
+async function saveJobMeta(rest_id, job_id, image_url, dish_id, extra = {}) {
+  const meta = {
+    ar_job: true, job_id, image_url, dish_id,
+    root_job_id: extra.root_job_id || job_id,
+    retry_count: extra.retry_count || 0
+  };
   await supabaseAdmin.from('requests').insert({
     restaurant_id: rest_id,
-    message: JSON.stringify({ ar_job: true, job_id, image_url, dish_id }),
+    message: JSON.stringify(meta),
     status: 'ar_pending'
   });
 }
 async function findJobMeta(job_id) {
   const { data } = await supabase.from('requests')
     .select('id, restaurant_id, message')
-    .eq('status', 'ar_pending').order('created_at', { ascending: false }).limit(50);
+    .eq('status', 'ar_pending').order('created_at', { ascending: false }).limit(200);
   for (const r of data || []) {
     try {
       const m = JSON.parse(r.message);
@@ -65,6 +75,19 @@ async function findJobMeta(job_id) {
     } catch {}
   }
   return null;
+}
+// Count how many retries a root_job_id has already burned so we can cap at 4.
+async function countRetriesForRoot(root_job_id) {
+  const { data } = await supabase.from('requests')
+    .select('message').eq('status', 'ar_pending').order('created_at', { ascending: false }).limit(200);
+  let n = 0;
+  for (const r of data || []) {
+    try {
+      const m = JSON.parse(r.message);
+      if (m.ar_job && m.root_job_id === root_job_id && (m.retry_count || 0) > 0) n++;
+    } catch {}
+  }
+  return n;
 }
 
 async function downloadTo(bucket, path, url, contentType) {
@@ -104,11 +127,19 @@ export default async function handler(req, res) {
       try { body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body; } catch {}
     }
 
-    // ---- RETRY (rerun same image) — FREE, mirrors Meshy's free-retry rule ----
+    // ---- RETRY (rerun same image) — FREE up to 4 retries per task ----
     if (body.retry && body.previous_job_id) {
       const prev = await findJobMeta(body.previous_job_id);
       if (!prev) return res.status(404).json({ error: 'Original job not found' });
-      // Retries don't cost Meshy credits, so they don't cost restaurant credits.
+      const root = prev.root_job_id || prev.job_id;
+      const used = await countRetriesForRoot(root);
+      if (used >= MAX_FREE_RETRIES) {
+        return res.status(429).json({
+          error: 'retry_limit_reached',
+          message: `You've used all ${MAX_FREE_RETRIES} free retries for this dish. Try a new photo, or generate a fresh dish (10 credits).`,
+          used, max: MAX_FREE_RETRIES
+        });
+      }
       const created = await upstream('/image-to-3d', {
         method: 'POST',
         body: JSON.stringify({
@@ -117,9 +148,15 @@ export default async function handler(req, res) {
         })
       });
       const newJobId = created.result || created.id || created.task_id;
-      await saveJobMeta(prev.restaurant_id, newJobId, prev.image_url, prev.dish_id);
-      await logUsage(prev.restaurant_id, 'meshy_retry', 0, { job_id: newJobId, retry_of: body.previous_job_id });
-      return res.status(200).json({ job_id: newJobId });
+      await saveJobMeta(prev.restaurant_id, newJobId, prev.image_url, prev.dish_id, {
+        root_job_id: root, retry_count: used + 1
+      });
+      await logUsage(prev.restaurant_id, 'ar_retry', 0, { job_id: newJobId, retry_of: body.previous_job_id, root, retries_used: used + 1 });
+      return res.status(200).json({
+        job_id: newJobId,
+        retries_used: used + 1,
+        retries_remaining: MAX_FREE_RETRIES - (used + 1)
+      });
     }
 
     // ---- FINALIZE (download all assets → Supabase Storage → attach to dish) ----
