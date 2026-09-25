@@ -4,6 +4,7 @@
 // Requires env: ANTHROPIC_API_KEY
 import { supabase, supabaseAdmin } from '../../_db.js';
 import { requireAdmin } from '../../_auth.js';
+import { enforceQuota, logUsage } from '../_quota.js';
 
 const MODEL = 'claude-opus-4-7';
 const SYS = `You are extracting a restaurant menu from an image or PDF. Return STRICT JSON only, no prose.
@@ -64,6 +65,9 @@ export default async function handler(req, res) {
   const { data: restaurant } = await supabase.from('restaurants').select('id').eq('slug', slug).single();
   if (!restaurant) return res.status(404).json({ error: 'restaurant not found' });
 
+  const gate = await enforceQuota(restaurant.id, 'ai_menu_reader');
+  if (!gate.ok) return res.status(429).json({ error: gate.reason, message: gate.message });
+
   try {
     const content = [];
     if (image_url) content.push({ type: 'image', source: { type: 'url', url: image_url } });
@@ -71,6 +75,7 @@ export default async function handler(req, res) {
     content.push({ type: 'text', text: 'Extract this menu. Output the JSON only.' });
 
     const parsed = await claude(content);
+    await logUsage(restaurant.id, 'ai_menu_reader', null, { image_url, pdf_url, dishes_found: parsed?.dishes?.length || 0 });
     if (!parsed || !Array.isArray(parsed.dishes)) throw new Error('AI did not return a valid menu');
 
     let inserted = { categories: 0, dishes: 0 };

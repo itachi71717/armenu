@@ -5,12 +5,16 @@ Update after every completed item.
 
 ## ✅ Just completed
 - **[1] R2 bucket CORS** — Policy set via Cloudflare dashboard. Origins: armenu.co.za, *.armenu.co.za, localhost:3000. Methods: GET/PUT/POST/HEAD/DELETE. Manager uploads from browser now work end-to-end.
+- **[2] Sentry error monitoring** — Server + client SDKs wired. Loader injected into 16 HTML pages. Silent no-op until Ian pastes SENTRY_DSN into Vercel env. Client filters to first-party errors only.
+- **[3] Usage cost caps** — `usage_events` table + `enforceQuota` / `logUsage` helpers. Wired into Meshy generate (20/day per restaurant, $100/mo platform ceiling) + AI Menu Reader (5/mo per restaurant, $50/mo ceiling). All limits env-var tunable: `QUOTA_MESHY_PER_DAY`, `QUOTA_MESHY_MONTHLY_USD`, `QUOTA_AI_READER_PER_MONTH`, `QUOTA_AI_READER_MONTHLY_USD`.
+- **[4] Cookie consent banner** — `/vendor/cookie-consent.js` injected on all 16 pages. POPI + GDPR-compliant, remembers choice in localStorage, dispatches `armenu:consent` event for future analytics scripts. Two options: Essential only / Accept all. Zero third-party dependencies.
 
-## 🟡 In-progress this session
-- **[2] Error monitoring (Sentry)** — next
-- **[3] Usage cost caps** — after Sentry
-- **[4] Cookie / privacy consent banner** — after cost caps
+## 🟡 Deferred
 - **[5] Real business email** — deferred by Ian (do last)
+
+## Awaiting from Ian
+- Sentry DSN (sign up at sentry.io — Google OAuth — copy DSN)
+- Meshy plan choice → API key
 
 ## Ian's answers on cost caps
 - Claude only runs in AI Menu Reader (one-shot per restaurant onboard, ~$0.02–$0.10 each). Zero ongoing spend.
