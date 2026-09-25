@@ -14,6 +14,7 @@ const ROUTES = {
 
   'push/subscribe': 'push/subscribe',
   'push/vapid-key': 'push/vapid-key',
+  'sentry-dsn':     'sentry-dsn',
 
   'admin/settings':      'admin/settings',
   'admin/categories':    'admin/categories',
@@ -150,6 +151,11 @@ export default async function handler(req, res) {
     return fn(req, res);
   } catch (e) {
     console.error('Dispatcher error for', key, e);
+    // Fire-and-forget report to Sentry (no-op if SENTRY_DSN unset)
+    try {
+      const { captureException } = await import('./_sentry.js');
+      await captureException(e, { route: key, method: req.method, ip: clientIp(req) });
+    } catch {}
     return res.status(500).json({ error: 'Handler load failed', debug: e.message });
   }
 }
