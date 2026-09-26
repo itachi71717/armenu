@@ -378,15 +378,23 @@
       <div class="dish-name" id="dish">Loading…</div>
       <div class="dish-price" id="price"></div>
     </div>
-    <button class="ar-button" id="arBtn">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-        <path d="M2 17l10 5 10-5"/>
-        <path d="M2 12l10 5 10-5"/>
-      </svg>
-      See my meal
-    </button>
-    <div class="hint">Tap, then point at the table. <em>your meal will appear at real size.</em></div>
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button class="ar-button" id="arBtn" style="flex:1">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+          <path d="M2 17l10 5 10-5"/>
+          <path d="M2 12l10 5 10-5"/>
+        </svg>
+        See it life-size on your table →
+      </button>
+      <button id="addToCartBtn" style="display:none;padding:14px 18px;border-radius:14px;background:rgba(232,197,138,.12);border:1.5px solid rgba(232,197,138,.35);color:#e8c58a;font-family:inherit;font-size:14px;font-weight:800;cursor:pointer">+ Add</button>
+    </div>
+    <div class="hint">Tap AR, then point at the table. <em>Your meal appears at real size.</em></div>
+    <!-- Swipe-navigation hint dots (populated in JS if we know prev/next dishes) -->
+    <div id="dishNav" style="display:none;margin-top:14px;display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--ink-faint)">
+      <a id="prevDish" href="#" style="color:#e8c58a;text-decoration:none">← Previous</a>
+      <a id="nextDish" href="#" style="color:#e8c58a;text-decoration:none;text-align:right">Next →</a>
+    </div>
   </div>
 </div>
 
@@ -476,6 +484,56 @@
     try{
       navigator.sendBeacon?.('/api/scan', JSON.stringify({r,d,t:Date.now(),ua:navigator.userAgent}));
     }catch(e){}
+
+    // Add-to-cart bridge — asks the menu (via URL) to add this dish on return
+    const table = params.get('t');
+    const addBtn = document.getElementById('addToCartBtn');
+    if (addBtn) {
+      addBtn.style.display = 'inline-flex';
+      addBtn.onclick = () => {
+        try {
+          const key = 'armenu_cart_' + r + (table ? '_' + table : '');
+          const cur = JSON.parse(localStorage.getItem(key) || '[]');
+          const existing = cur.find(i => i.slug === d && !(i.modifiers && i.modifiers.length));
+          if (existing) existing.qty++;
+          else cur.push({ key: d + '::', slug: d, name: meal.dish || meal.name || d, qty: 1, price_cents: meal.price_cents || 0, modifiers: [] });
+          localStorage.setItem(key, JSON.stringify(cur));
+          window.ArMenuSound?.play('pop');
+          addBtn.textContent = '✓ Added';
+          setTimeout(() => addBtn.textContent = '+ Add', 1200);
+        } catch (e) { console.warn(e); }
+      };
+    }
+
+    // Prev/Next dish nav — fetches sibling dishes from /api/dish
+    try {
+      const menuRes = await fetch('/api/dish?r=' + encodeURIComponent(r));
+      if (menuRes.ok) {
+        const md = (await menuRes.json()).dishes || [];
+        const idx = md.findIndex(x => x.slug === d);
+        if (idx >= 0 && md.length > 1) {
+          const nav = document.getElementById('dishNav');
+          nav.style.display = 'flex';
+          const prev = md[(idx - 1 + md.length) % md.length];
+          const next = md[(idx + 1) % md.length];
+          const q = table ? `&t=${encodeURIComponent(table)}` : '';
+          document.getElementById('prevDish').href = `/view.html?r=${r}&d=${prev.slug}${q}`;
+          document.getElementById('prevDish').textContent = '← ' + prev.name;
+          document.getElementById('nextDish').href = `/view.html?r=${r}&d=${next.slug}${q}`;
+          document.getElementById('nextDish').textContent = next.name + ' →';
+          // Touch-swipe: swipe left = next, right = prev
+          let startX = null;
+          document.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
+          document.addEventListener('touchend', e => {
+            if (startX == null) return;
+            const dx = (e.changedTouches[0]?.clientX || startX) - startX;
+            startX = null;
+            if (Math.abs(dx) < 80) return;
+            location.href = dx < 0 ? document.getElementById('nextDish').href : document.getElementById('prevDish').href;
+          }, { passive: true });
+        }
+      }
+    } catch {}
   }
   loadDish();
 

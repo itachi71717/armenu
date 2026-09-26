@@ -206,20 +206,32 @@ async function refresh() {
 function render(orders) {
   if (!orders.length) { $('board').innerHTML = `<div class="empty" id="emptyState"><div class="icon">🍳</div><h2>All caught up.</h2><p>Great work. New orders will appear here.</p></div>`; return; }
   $('board').innerHTML = orders.map(o => {
-    const age = Math.round((Date.now() - new Date(o.created_at).getTime()) / 60000);
-    const ageClass = age >= 15 ? 'hot' : age >= 8 ? 'warm' : '';
-    const ticketAgeClass = age >= 15 ? 'aged-hot' : age >= 8 ? 'aged-warm' : '';
+    const ageMs = Date.now() - new Date(o.created_at).getTime();
+    const ageSec = Math.round(ageMs / 1000);
+    const ageMin = Math.round(ageMs / 60000);
+    // Seconds display for <60s tickets, minutes above
+    const ageDisplay = ageMin < 1 ? ageSec + 's' : ageMin + 'm';
+    const ageClass = ageMin >= 15 ? 'hot' : ageMin >= 8 ? 'warm' : '';
+    const ticketAgeClass = ageMin >= 15 ? 'aged-hot' : ageMin >= 8 ? 'aged-warm' : '';
     return `<div class="ticket ${o.status} ${ticketAgeClass}">
       <div class="t-top">
         <div class="t-table">${o.table_label ? `<b>${escapeHTML(o.table_label)}</b>` : 'Walk-up'}</div>
-        <div class="t-age ${ageClass}">${age}m</div>
+        <div class="t-age ${ageClass}">${ageDisplay}</div>
       </div>
-      <ul class="t-items">${(o.order_items || []).map(it => `<li><span class="qty">×${it.qty}</span><div class="name">${escapeHTML(it.dish_name)}${it.note ? `<div class="note">${escapeHTML(it.note)}</div>` : ''}${it.complimentary ? '<div class="note" style="color:var(--ok)">(complimentary)</div>' : ''}</div></li>`).join('')}</ul>
+      <ul class="t-items">${(o.order_items || []).map(it => `<li>
+        <span class="qty">×${it.qty}</span>
+        <div class="name">${escapeHTML(it.dish_name)}
+          ${Array.isArray(it.modifiers) && it.modifiers.length ? '<ul class="mods" style="margin:4px 0 0 0;padding:0;list-style:none">' + it.modifiers.map(m => '<li style="font-size:12px;color:var(--warn);padding:2px 0">↳ ' + escapeHTML(m.name) + '</li>').join('') + '</ul>' : ''}
+          ${it.note ? `<div class="note">${escapeHTML(it.note)}</div>` : ''}
+          ${it.complimentary ? '<div class="note" style="color:var(--ok)">(complimentary)</div>' : ''}
+        </div>
+      </li>`).join('')}</ul>
       ${o.guest_note ? `<div class="t-note">📝 ${escapeHTML(o.guest_note)}</div>` : ''}
       <div class="t-actions">
         ${o.status === 'new' ? `<button class="btn-prep" data-mark="${o.id}:prep">Start prep</button>` : ''}
         ${o.status === 'prep' ? `<button class="btn-ready" data-mark="${o.id}:ready">Ready</button>` : ''}
         ${o.status === 'ready' ? `<button class="btn-served" data-mark="${o.id}:served">Served</button>` : ''}
+        ${o.status === 'served' || o.status === 'ready' ? `<button class="btn-undo" data-mark="${o.id}:${o.status === 'served' ? 'ready' : 'prep'}" style="background:rgba(245,239,220,.06);color:var(--ink-dim);border:1px solid var(--line);padding:6px 10px;border-radius:8px;font-size:11px;cursor:pointer">↶ Undo</button>` : ''}
       </div>
     </div>`;
   }).join('');

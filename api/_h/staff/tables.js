@@ -15,9 +15,17 @@ export default async function handler(req, res) {
   if (!s) return res.status(401).json({ error: 'unauthorized' });
 
   if (req.method === 'GET') {
-    const { data = [] } = await supabase.from('restaurant_tables')
+    const { data: tables = [] } = await supabase.from('restaurant_tables')
       .select('*').eq('restaurant_id', s.restaurant_id).order('label');
-    return res.status(200).json({ tables: data });
+    // Join in assigned staff names — one query for all staff rather than N per table
+    const assignedIds = [...new Set(tables.map(t => t.assigned_staff_id).filter(Boolean))];
+    let byId = {};
+    if (assignedIds.length) {
+      const { data: staff = [] } = await supabase.from('staff').select('id, name').in('id', assignedIds);
+      byId = Object.fromEntries(staff.map(s => [s.id, s.name]));
+    }
+    for (const t of tables) if (t.assigned_staff_id) t.assigned_staff_name = byId[t.assigned_staff_id] || null;
+    return res.status(200).json({ tables });
   }
 
   if (req.method === 'PATCH') {

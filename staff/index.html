@@ -259,6 +259,12 @@ async function refresh() {
     ]);
     const activeOrders = (oResp.orders || []).filter(o => o.status !== 'served');
     const openCalls = (cResp.calls || []).filter(c => c.status !== 'closed');
+    // Play sounds on NEW items only (compare against previous snapshots)
+    const oIds = new Set(activeOrders.map(o => o.id));
+    const cIds = new Set(openCalls.map(c => c.id));
+    for (const id of oIds) if (!(window.__prevOids || new Set()).has(id) && window.__prevOids) window.ArMenuSound?.play('order');
+    for (const id of cIds) if (!(window.__prevCids || new Set()).has(id) && window.__prevCids) window.ArMenuSound?.play('call');
+    window.__prevOids = oIds; window.__prevCids = cIds;
     updateBadge('ordersBadge', activeOrders.length);
     updateBadge('callsBadge', openCalls.length);
 
@@ -318,7 +324,10 @@ function renderTables(tables) {
   if (!tables.length) return $('view-tables').innerHTML = `<div class="empty"><h3>No tables yet</h3><p>The owner sets these up in the admin console.</p></div>`;
   $('view-tables').innerHTML = `<div class="tables-grid">${tables.map(t => `
     <div class="tbl ${t.status}" data-tid="${t.id}">
-      <div><div class="lbl">${escapeHTML(t.label)}</div><div class="st">${t.seats} seats</div></div>
+      <div>
+        <div class="lbl">${escapeHTML(t.label)}</div>
+        <div class="st">${t.seats} seats${t.assigned_staff_name ? ' · 👤 ' + escapeHTML(t.assigned_staff_name) : ''}</div>
+      </div>
       <div class="st">${t.status}</div>
     </div>`).join('')}</div>`;
   document.querySelectorAll('[data-tid]').forEach(el => el.onclick = () => openTableModal(el.dataset.tid));
