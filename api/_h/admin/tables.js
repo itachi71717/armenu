@@ -39,6 +39,10 @@ export default async function handler(req, res) {
     if ('label' in body)  patch.label  = String(body.label).trim();
     if ('seats' in body)  patch.seats  = parseInt(body.seats) || 2;
     if ('status' in body) patch.status = String(body.status);
+    if ('assigned_staff_id' in body) {
+      patch.assigned_staff_id = body.assigned_staff_id || null;
+      patch.assigned_at = body.assigned_staff_id ? new Date().toISOString() : null;
+    }
     await supabaseAdmin.from('restaurant_tables').update(patch).eq('id', id);
     const { data: row } = await supabase.from('restaurant_tables').select('restaurant_id, label').eq('id', id).maybeSingle();
     auditLog(req, row?.restaurant_id, 'table.update', { target: row?.label || id, metadata: { fields: Object.keys(patch).filter(k => k !== 'updated_at') } }).catch(() => {});

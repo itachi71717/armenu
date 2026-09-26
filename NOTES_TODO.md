@@ -56,6 +56,12 @@ Update after every completed item.
 - Revenue: promoted dishes, cross-restaurant benchmarks, WhatsApp campaigns
 - Recommendation: build as v2 once 10 paying restaurants land, not launch feature
 
+## ✅ Batch 5 — remaining unblocked items (checkpoint)
+- **Waiter → table assignment** — restaurant_tables.assigned_staff_id column + PATCH accepts assigned_staff_id. Portal Tables modal now has an inline dropdown per row to assign any active waiter/manager. Assignment shows in the table label ("T7 · 👤 Sipho").
+- **Walk-in / waitlist queue** — new /api/admin/walkins endpoint (piggybacks on reservations.is_walkin). Portal action card "🚶 Walk-in queue" opens a modal to add guests with party size + notes, mark them Seat / Left. Live wait-time counter per entry.
+- **Master admin audit log viewer** — new "◈ Audit log" tab in /admin/. Fetches /api/admin/audit, renders time/actor/action/target/metadata/IP grid. Filters by restaurant + action. Refresh button.
+- **Split-bill: intentionally deferred** — genuinely complex for a shipping session; needs per-item assignment UI + partial-payment orchestration. Flag it for a dedicated build.
+
 ## Awaiting from Ian
 - Sentry DSN (sign up at sentry.io — Google OAuth — copy DSN)
 - Meshy Pro subscription → MESHY_API_KEY

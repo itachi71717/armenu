@@ -42,6 +42,7 @@ const ROUTES = {
   'admin/dishes/reorder':     'admin/dishes-reorder',
   'admin/audit':              'admin/audit',
   'admin/push-test':          'admin/push-test',
+  'admin/walkins':            'admin/walkins',
 
   'staff/login':  'staff/login',
   'staff/orders': 'staff/orders',

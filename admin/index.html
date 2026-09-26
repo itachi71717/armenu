@@ -179,6 +179,7 @@
     <div class="nav-item" data-view="pending"><span class="ico">●</span> Pending sign-ups <span id="pendingBadge" style="margin-left:auto;background:rgba(255,87,34,.2);color:var(--accent);padding:2px 8px;border-radius:999px;font-family:var(--mono);font-size:10px;font-weight:600;display:none"></span></div>
     <div class="nav-item" data-view="add-client"><span class="ico">+</span> Add restaurant</div>
     <div class="nav-item" data-view="add-dish"><span class="ico">↑</span> Add new dish</div>
+    <div class="nav-item" data-view="audit"><span class="ico">◈</span> Audit log</div>
     <div class="nav-section">Account</div>
     <div class="nav-item" id="signOut"><span class="ico">↗</span> Sign out</div>
   </aside>
@@ -299,6 +300,28 @@
       </div>
     </div>
 
+    <!-- AUDIT LOG -->
+    <div class="view" id="view-audit">
+      <div class="topbar">
+        <div>
+          <h1>Audit <b>log</b></h1>
+          <div class="sub">Every mutation across the platform — who did what, when, from which IP.</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="audFilterR" style="padding:8px 12px;border-radius:8px;background:rgba(255,239,220,.04);border:1px solid var(--line);color:var(--ink);font-size:13px">
+            <option value="">All restaurants</option>
+          </select>
+          <select id="audFilterAction" style="padding:8px 12px;border-radius:8px;background:rgba(255,239,220,.04);border:1px solid var(--line);color:var(--ink);font-size:13px">
+            <option value="">All actions</option>
+          </select>
+          <button id="audRefresh" style="padding:8px 14px;border-radius:8px;background:linear-gradient(135deg,#e8c58a,#d4a574);color:#0a0806;font-weight:700;font-size:13px;border:none;cursor:pointer">↻</button>
+        </div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div id="audRows" style="max-height:72vh;overflow-y:auto">Loading…</div>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -373,7 +396,55 @@
     if (v === 'pending') loadPending();
     if (v === 'add-dish') loadVenuesIntoSelect();
     if (v === 'add-client') loadPending();
+    if (v === 'audit') loadAudit();
   }
+
+  // ===== AUDIT LOG =====
+  async function loadAudit() {
+    try {
+      const rSlug = $('audFilterR').value;
+      const actionF = $('audFilterAction').value;
+      const url = '/api/admin/audit?limit=200' + (rSlug ? '&slug=' + encodeURIComponent(rSlug) : '');
+      const { events = [] } = await api(url);
+      const filtered = actionF ? events.filter(e => e.action === actionF) : events;
+      // Populate filter dropdowns lazily
+      if ($('audFilterR').options.length <= 1) {
+        try {
+          const { restaurants = [] } = await api('/api/admin/clients');
+          for (const r of restaurants) {
+            const o = document.createElement('option'); o.value = r.slug; o.textContent = r.name; $('audFilterR').appendChild(o);
+          }
+        } catch {}
+      }
+      if ($('audFilterAction').options.length <= 1) {
+        const actions = [...new Set(events.map(e => e.action))].sort();
+        for (const a of actions) {
+          const o = document.createElement('option'); o.value = a; o.textContent = a; $('audFilterAction').appendChild(o);
+        }
+      }
+      if (!filtered.length) { $('audRows').innerHTML = '<div style="padding:40px;text-align:center;color:var(--ink-faint)">No events.</div>'; return; }
+      $('audRows').innerHTML = filtered.map(e => {
+        const when = new Date(e.created_at).toLocaleString('en-ZA', { dateStyle: 'medium', timeStyle: 'short' });
+        const actorColor = e.actor === 'admin' ? '#ff5722' : (e.actor?.startsWith('manager') ? '#e8c58a' : (e.actor?.startsWith('staff') ? '#8fa971' : '#a89d84'));
+        return `<div style="display:grid;grid-template-columns:150px 130px 220px 1fr 80px;gap:12px;padding:10px 16px;border-bottom:1px solid var(--line);font-size:13px;align-items:center">
+          <div style="color:var(--ink-faint);font-family:var(--mono);font-size:11px">${when}</div>
+          <div style="color:${actorColor};font-family:var(--mono);font-size:11px;font-weight:700">${escapeHTML(e.actor || 'system')}</div>
+          <div style="color:var(--accent-hi);font-family:var(--mono);font-size:12px">${escapeHTML(e.action)}</div>
+          <div style="color:var(--ink);font-size:13px">${e.target ? '<b>' + escapeHTML(e.target) + '</b>' : ''} ${e.metadata && Object.keys(e.metadata).length ? '<span style="color:var(--ink-faint);font-size:11px">' + escapeHTML(JSON.stringify(e.metadata)) + '</span>' : ''}</div>
+          <div style="color:var(--ink-faint);font-family:var(--mono);font-size:10px">${e.ip || ''}</div>
+        </div>`;
+      }).join('');
+    } catch (e) {
+      $('audRows').innerHTML = '<div style="padding:40px;text-align:center;color:#f87171">' + (e.message || 'Failed to load') + '</div>';
+    }
+  }
+  function escapeHTML(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  document.addEventListener('DOMContentLoaded', () => {
+    ['audRefresh', 'audFilterR', 'audFilterAction'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener(id.endsWith('R') || id.endsWith('Action') ? 'change' : 'click', loadAudit);
+    });
+  });
   document.querySelectorAll('.nav-item[data-view]').forEach(el => el.addEventListener('click', () => go(el.dataset.view)));
   document.body.addEventListener('click', e => { const t = e.target.closest('[data-go]'); if (t) go(t.dataset.go); });
 
