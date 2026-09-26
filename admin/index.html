@@ -633,7 +633,7 @@
     if (!slug) { $('ncSlug').focus(); return toast('URL slug is required', 'err'); }
     if (slug.length < 2) { $('ncSlug').focus(); return toast('Slug too short (min 2 chars)', 'err'); }
     if (!/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(slug) && slug.length > 1) { $('ncSlug').focus(); return toast('Slug can only have lowercase letters, numbers, and dashes', 'err'); }
-    if (['admin','api','portal','staff','kitchen','www','app','m','t','r','vendor','manifest.json','sw.js','favicon.svg','legal','faq','plans','contact','how','why','dishes'].includes(slug)) {
+    if (['admin','api','portal','staff','kitchen','www','app','m','t','r','vendor','manifest','sw','favicon','legal','faq','plans','contact','how','why','dishes','robots','sitemap','preview','index','view','test','healthcheck','health','cdn','mail','email','support','help','docs','blog','signup','signin','login','logout','account','settings','pricing','features','about','terms','privacy'].includes(slug)) {
       $('ncSlug').focus(); return toast('That slug is reserved — pick another', 'err');
     }
     if (!email) { $('ncEmail').focus(); return toast('Manager email is required', 'err'); }

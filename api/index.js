@@ -56,6 +56,7 @@ const ROUTES = {
   'portal/manager-token':  'portal/manager-token',
   'portal/credits':        'portal/credits',
   'portal/translate':      'portal/translate',
+  'portal/dashboard':      'portal/dashboard',
 
   'paddle/webhook': 'paddle/webhook'
 };

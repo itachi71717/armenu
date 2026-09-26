@@ -58,9 +58,14 @@ export default async function handler(req, res) {
       const { data: r } = await supabase.from('reservations').select('restaurant_id').eq('id', id).maybeSingle();
       if (!r || r.restaurant_id !== scopeRid) return res.status(403).json({ error: 'out of scope' });
     }
-    await supabaseAdmin.from('reservations').update({ status }).eq('id', id);
+    const patch = { status };
+    if (status === 'seated') {
+      patch.seated_at = new Date().toISOString();
+      if (body.seated_table_id) patch.seated_table_id = body.seated_table_id;
+    }
+    await supabaseAdmin.from('reservations').update(patch).eq('id', id);
     const { data: row } = await supabase.from('reservations').select('restaurant_id, guest_name').eq('id', id).maybeSingle();
-    auditLog(req, row?.restaurant_id, 'walkin.update', { target: row?.guest_name, metadata: { status } }).catch(() => {});
+    auditLog(req, row?.restaurant_id, 'walkin.update', { target: row?.guest_name, metadata: { status, seated_table_id: patch.seated_table_id } }).catch(() => {});
     return res.status(200).json({ ok: true });
   }
 

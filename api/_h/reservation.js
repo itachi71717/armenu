@@ -5,6 +5,7 @@
 
 import { supabase, supabaseAdmin } from '../_db.js';
 import { sendPush } from './push/_send.js';
+import { auditLog } from './_audit.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
@@ -74,6 +75,8 @@ export default async function handler(req, res) {
     url: '/portal/',
     tag: 'reservation-' + created.id
   }, { role_filter: 'manager' }).catch(() => {});
+
+  auditLog(req, rest.id, 'reservation.create', { target: guest_name, metadata: { party_size: size, when: created.reserved_at } }).catch(() => {});
 
   return res.status(201).json({ ok: true, reservation_id: created.id });
 }

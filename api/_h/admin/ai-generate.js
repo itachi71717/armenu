@@ -110,13 +110,24 @@ export default async function handler(req, res) {
     if (req.method === 'GET' && req.query.job) {
       const data = await upstream('/image-to-3d/' + encodeURIComponent(req.query.job));
       const status = String(data.status || '').toUpperCase();
+      const previewGlb = data.model_urls?.glb || null;
+      const thumbnail = data.thumbnail_url || null;
+      // On first SUCCEEDED, cache the preview URLs on the job row so a page
+      // refresh mid-finalize doesn't lose the preview.
+      if (status === 'SUCCEEDED' && previewGlb) {
+        try {
+          const meta = await findJobMeta(req.query.job);
+          if (meta && !meta.preview_glb) {
+            const merged = { ...meta, preview_glb: previewGlb, preview_thumb: thumbnail };
+            delete merged.row_id;
+            await supabaseAdmin.from('requests').update({ message: JSON.stringify(merged) }).eq('id', meta.row_id);
+          }
+        } catch {}
+      }
       return res.status(200).json({
-        status,                            // PENDING | IN_PROGRESS | SUCCEEDED | FAILED
+        status,
         progress: data.progress || 0,
-        // These URLs are TEMPORARY (CDN-hosted upstream) — used only for the
-        // preview <model-viewer> in the admin UI. Finalize step rehosts them.
-        previewGlb: data.model_urls?.glb || null,
-        thumbnail:  data.thumbnail_url || null,
+        previewGlb, thumbnail,
         canFinalize: status === 'SUCCEEDED',
         error: data.task_error?.message ? scrub(data.task_error.message) : null
       });

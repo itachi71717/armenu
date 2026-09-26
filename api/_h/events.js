@@ -25,16 +25,22 @@ export default async function handler(req, res) {
   async function tick() {
     if (closed) return;
     try {
-      const [oQ, cQ] = await Promise.all([
-        supabase.from('orders').select('id', { count: 'exact', head: true })
-          .eq('restaurant_id', session.restaurant_id).in('status', ['new','prep','ready']),
-        supabase.from('waiter_calls').select('id', { count: 'exact', head: true })
-          .eq('restaurant_id', session.restaurant_id).neq('status', 'closed')
+      // Use raw COUNT — much cheaper than loading rows just to get length.
+      // The shim exposes .raw() for exactly this.
+      const [oR, cR] = await Promise.all([
+        supabase.raw(
+          "select count(*)::int as n from orders where restaurant_id = $1 and status in ('new','prep','ready')",
+          [session.restaurant_id]
+        ),
+        supabase.raw(
+          "select count(*)::int as n from waiter_calls where restaurant_id = $1 and status <> 'closed'",
+          [session.restaurant_id]
+        )
       ]);
-      const o = oQ.count || 0, c = cQ.count || 0;
+      const o = oR.data?.[0]?.n || 0, c = cR.data?.[0]?.n || 0;
       if (o !== lastOrders) { lastOrders = o; res.write(`event: orders\ndata: ${o}\n\n`); }
       if (c !== lastCalls)  { lastCalls  = c; res.write(`event: calls\ndata: ${c}\n\n`);  }
-    } catch {}
+    } catch (e) { console.warn('SSE tick failed:', e.message); }
   }
   await tick();
   const iv = setInterval(tick, 3000);

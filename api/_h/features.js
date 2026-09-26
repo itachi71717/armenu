@@ -8,7 +8,7 @@ export default function handler(req, res) {
     anthropic: !!process.env.ANTHROPIC_API_KEY,
     paddle:    !!process.env.PADDLE_API_KEY,
     sentry:    !!process.env.SENTRY_DSN,
-    push:      !!process.env.VAPID_PUBLIC_KEY,
+    push:      !!(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY),
     env:       process.env.VERCEL_ENV || 'development'
   });
 }

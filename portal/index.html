@@ -72,8 +72,9 @@
   .dish-search input:focus{outline:none;border-color:rgba(232,197,138,.4)}
   .dish-search .clear{background:none;border:none;color:var(--ink-faint);font-size:14px;cursor:pointer;padding:6px}
   /* Help pill */
-  .help-pill{position:fixed;top:16px;right:16px;z-index:60;padding:8px 12px;border-radius:999px;background:rgba(232,197,138,.1);border:1px solid rgba(232,197,138,.28);color:#e8c58a;font-size:12px;font-weight:700;cursor:pointer}
+  .help-pill{position:fixed;bottom:16px;left:16px;z-index:60;padding:8px 12px;border-radius:999px;background:rgba(232,197,138,.1);border:1px solid rgba(232,197,138,.28);color:#e8c58a;font-size:12px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.4)}
   .help-pill:hover{background:rgba(232,197,138,.18)}
+  @media(max-width:520px){.help-pill{bottom:12px;left:12px;font-size:11px;padding:7px 10px}}
   .actions-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:40px}
   @media(max-width:760px){.actions-grid{grid-template-columns:1fr}}
   .action{padding:24px;border-radius:16px;background:linear-gradient(180deg,rgba(255,239,220,.03),rgba(255,239,220,.005));border:1px solid var(--line);cursor:pointer;transition:border-color .2s,transform .2s;display:flex;align-items:center;gap:18px}
@@ -948,34 +949,16 @@
     }
   });
 
-  // Live dashboard tile loader
+  // Live dashboard tile loader — one round-trip via /api/portal/dashboard
   async function loadDashTiles() {
     try {
-      // Today's orders — /api/admin/orders?slug + today filter would be ideal; use scoped fetch
-      const t0 = new Date(); t0.setHours(0,0,0,0);
-      const since = t0.toISOString();
-      const slug = CURRENT?.restaurant?.slug;
-      if (!slug) return;
-      const [ordersRes, bookingsRes, walkinsRes] = await Promise.all([
-        mgrFetch(`/api/admin/orders?slug=${slug}&since=${encodeURIComponent(since)}`).catch(() => ({ok:false})),
-        mgrFetch(`/api/admin/reservations?slug=${slug}&status=pending`).catch(() => ({ok:false})),
-        mgrFetch(`/api/admin/walkins?slug=${slug}`).catch(() => ({ok:false}))
-      ]);
-      if (ordersRes.ok) $('dtOrders').textContent = String((ordersRes.data.orders || []).length);
-      if (bookingsRes.ok) {
-        // Only tonight (up to midnight)
-        const tnEnd = new Date(); tnEnd.setHours(24,0,0,0);
-        const tonight = (bookingsRes.data.reservations || []).filter(r => {
-          const t = new Date(r.reserved_at).getTime();
-          return t >= Date.now() && t < tnEnd.getTime();
-        });
-        $('dtBookings').textContent = String(tonight.length);
-      }
-      if (walkinsRes.ok) $('dtWaitlist').textContent = String((walkinsRes.data.walkins || []).length);
-      // Low-stock: dishes with stock ≤ 3 (from CURRENT.dishes which portal/me already returned)
-      const low = (CURRENT.dishes || []).filter(d => typeof d.stock_count === 'number' && d.stock_count <= 3).length;
-      $('dtLowStock').textContent = String(low);
-      if (low > 0) $('dtLowStock').parentElement.classList.add('alert');
+      const { ok, data } = await authFetch('/api/portal/dashboard');
+      if (!ok) return;
+      $('dtOrders').textContent = String(data.orders_today ?? 0);
+      $('dtBookings').textContent = String(data.bookings_tonight ?? 0);
+      $('dtWaitlist').textContent = String(data.walkins_active ?? 0);
+      $('dtLowStock').textContent = String(data.low_stock ?? 0);
+      if (data.low_stock > 0) $('dtLowStock').parentElement.classList.add('alert');
     } catch (e) { console.warn('dash tiles:', e); }
   }
 
@@ -1758,6 +1741,8 @@ Sub gluten-free bun +1200</code></div>
         });
         if (!ok) throw new Error(data.error || 'Failed');
         $('schName').value = '';
+        // Force the visual grid to re-render with the new schedule
+        setTimeout(() => { const g = document.querySelector('.sched-grid'); if (g) g.remove(); }, 100);
       }
     });
     // Populate categories in the add-form once cache is available

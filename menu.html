@@ -525,6 +525,19 @@ function render() {
   updateActionbar();
   wireCategoryStuck();
   wireMenuFilters();
+  // Lazy-load dish thumbnails via IntersectionObserver — only load images that come into view
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) if (e.isIntersecting) {
+        const bg = e.target.dataset.bg;
+        if (bg) { e.target.style.backgroundImage = `url('${bg}')`; e.target.removeAttribute('data-bg'); }
+        io.unobserve(e.target);
+      }
+    }, { rootMargin: '200px' });
+    document.querySelectorAll('.thumb[data-bg]').forEach(el => io.observe(el));
+  } else {
+    document.querySelectorAll('.thumb[data-bg]').forEach(el => { el.style.backgroundImage = `url('${el.dataset.bg}')`; });
+  }
 }
 
 function wireCategoryStuck() {
@@ -552,7 +565,7 @@ function renderDish(d) {
   return `
     <div class="dish${soldOut ? ' sold-out' : ''}">
       <a href="/view.html?r=${encodeURIComponent(r)}&d=${encodeURIComponent(d.slug)}${table ? '&t=' + encodeURIComponent(table) : ''}" class="thumb-link">
-        <div class="thumb" ${d.thumb ? `style="background-image:url('${d.thumb}')"` : ''}>
+        <div class="thumb" ${d.thumb ? `data-bg="${d.thumb}"` : ''}>
           ${d.thumb ? '' : `<span class="thumb-fallback">${escapeHTML(nameTr[0] || '?')}</span>`}
           ${soldOut ? '<span class="stock-tag sold">Sold out</span>' : (lowStock ? `<span class="stock-tag low">Only ${d.stock} left</span>` : '<span class="ar-tag">View in AR</span>')}
         </div>
@@ -647,6 +660,7 @@ function openReserve() {
     <div class="sh-sub">${state.settings.restaurant.name} · we'll confirm on WhatsApp</div>
     <div class="field"><label>Your name</label><input id="rvName" type="text" placeholder="Full name" /></div>
     <div class="field"><label>WhatsApp phone</label><input id="rvPhone" type="tel" placeholder="071 234 5678" /></div>
+    <div class="field"><label>Email (optional, for confirmation)</label><input id="rvEmail" type="email" placeholder="you@email.com" /></div>
     <div class="field"><label>Party size</label><input id="rvSize" type="number" min="1" max="20" value="2" /></div>
     <div class="field"><label>Date &amp; time</label><input id="rvWhen" type="datetime-local" value="${isoLocal}" min="${isoLocal}" /></div>
     <div class="field"><label>Anything else? (optional)</label><textarea id="rvNotes" rows="2" placeholder="High chair, allergies, occasion…"></textarea></div>
@@ -655,15 +669,17 @@ function openReserve() {
   $('rvSubmit').onclick = async () => {
     const name = $('rvName').value.trim();
     const phone = $('rvPhone').value.trim();
+    const email = $('rvEmail').value.trim();
     const size = parseInt($('rvSize').value) || 2;
     const when = $('rvWhen').value;
     const notes = $('rvNotes').value.trim();
     if (!name || !when) return toast('Name and date/time required', 'err');
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return toast('That email doesn\'t look valid', 'err');
     $('rvSubmit').disabled = true; $('rvSubmit').textContent = 'Sending…';
     const res = await fetch('/api/reservation', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ r, guest_name: name, guest_phone: phone, party_size: size, reserved_at: new Date(when).toISOString(), notes })
+      body: JSON.stringify({ r, guest_name: name, guest_phone: phone, guest_email: email, party_size: size, reserved_at: new Date(when).toISOString(), notes })
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) { $('rvSubmit').disabled = false; $('rvSubmit').textContent = 'Request booking →'; return toast(data.error || 'Failed', 'err'); }

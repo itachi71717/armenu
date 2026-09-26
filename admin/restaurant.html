@@ -544,8 +544,14 @@ async function api(path, opts = {}) {
   else if (SECRET) headers['x-admin-secret'] = SECRET;
   const res = await fetch(path, { ...opts, headers });
   if (res.status === 401) {
-    // Portal token expired → drop it and demand admin password
-    if (PORTAL_TOKEN) { PORTAL_TOKEN = null; sessionStorage.removeItem(PORTAL_TOKEN_KEY); }
+    // Portal token expired → bounce back to portal for a fresh token rather than
+    // stranding the manager on the admin-password screen (they don't have one).
+    if (PORTAL_TOKEN) {
+      PORTAL_TOKEN = null; sessionStorage.removeItem(PORTAL_TOKEN_KEY);
+      alert('Your portal session expired. Redirecting to portal to re-authenticate.');
+      location.href = '/portal/';
+      throw new Error('unauth');
+    }
     sessionStorage.removeItem(SECRET_KEY); SECRET = null;
     $('login').style.display = 'grid';
     throw new Error('unauth');

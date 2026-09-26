@@ -287,7 +287,12 @@ function renderOrders(orders) {
     <div class="card ${o.status}">
       <h4><span class="status-dot ${o.status}"></span>${o.table_label ? `Table ${escapeHTML(o.table_label)}` : 'Walk-up'}</h4>
       <div class="meta">${new Date(o.created_at).toLocaleTimeString()} · ${o.source === 'staff' ? 'Staff-taken' : 'Guest self-order'}</div>
-      <ul>${(o.order_items || []).map(it => `<li><span>${it.qty}× ${escapeHTML(it.dish_name)}${it.note ? ` <em style="color:var(--warn);font-style:normal">· ${escapeHTML(it.note)}</em>` : ''}${it.complimentary ? ' <span style="color:var(--ok)">(comp)</span>' : ''}</span><span>${it.price_cents ? sym + (it.price_cents * it.qty / 100).toFixed(2) : ''}</span></li>`).join('')}</ul>
+      <ul>${(o.order_items || []).map(it => `<li>
+        <span>${it.qty}× ${escapeHTML(it.dish_name)}${it.note ? ` <em style="color:var(--warn);font-style:normal">· ${escapeHTML(it.note)}</em>` : ''}${it.complimentary ? ' <span style="color:var(--ok)">(comp)</span>' : ''}
+        ${Array.isArray(it.modifiers) && it.modifiers.length ? '<div style="margin-left:20px;font-size:11.5px;color:var(--warn)">' + it.modifiers.map(m => '↳ ' + escapeHTML(m.name)).join('<br>') + '</div>' : ''}
+        </span>
+        <span>${it.price_cents ? sym + (it.price_cents * it.qty / 100).toFixed(2) : ''}</span>
+      </li>`).join('')}</ul>
       ${o.guest_note ? `<div class="note">📝 ${escapeHTML(o.guest_note)}</div>` : ''}
       <div class="actions">
         ${o.status === 'new' ? `<button class="btn-primary" data-mark="${o.id}:prep">Start prep</button>` : ''}

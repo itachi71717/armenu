@@ -8,6 +8,7 @@
 import { supabase } from '../../_db.js';
 import { requireManager } from '../../_auth.js';
 import { CREDIT_PACKS } from '../_quota.js';
+import { auditLog } from '../_audit.js';
 
 export default async function handler(req, res) {
   const auth = await requireManager(req);
@@ -40,12 +41,14 @@ export default async function handler(req, res) {
       const wa = 'https://wa.me/27683282991?text=' + encodeURIComponent(
         `Hi ARMenu, I'd like to buy the "${pack.label}" credit pack for ${rest.name}. (R${pack.price_zar})`
       );
+      auditLog(req, rest.id, 'credits.checkout_requested', { target: pack.id, metadata: { fallback: 'whatsapp', price_zar: pack.price_zar } }).catch(() => {});
       return res.status(200).json({
         checkout_url: null,
         whatsapp_url: wa,
         message: 'Paddle billing isn\'t live yet — for now, tap "Buy on WhatsApp" and ARMenu support will invoice + top up your account within 1 business day.'
       });
     }
+    auditLog(req, rest.id, 'credits.checkout_started', { target: pack.id, metadata: { price_zar: pack.price_zar } }).catch(() => {});
 
     // TODO: full Paddle checkout URL when PADDLE_API_KEY is set. For now stub.
     return res.status(200).json({
