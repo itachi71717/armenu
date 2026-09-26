@@ -62,6 +62,22 @@ Update after every completed item.
 - **Master admin audit log viewer** — new "◈ Audit log" tab in /admin/. Fetches /api/admin/audit, renders time/actor/action/target/metadata/IP grid. Filters by restaurant + action. Refresh button.
 - **Split-bill: intentionally deferred** — genuinely complex for a shipping session; needs per-item assignment UI + partial-payment orchestration. Flag it for a dedicated build.
 
+## ✅ Batches 1-10 (this session's audit fixes)
+- Shared sound library site-wide (8 named cues, mute in localStorage)
+- Brand spelling normalized: "AR Menu" → "ARMenu" everywhere
+- **Portal redesign**: 4-tile dashboard + 4 collapsible tool groups (down from 14 loose buttons) + dish search + help pill for onboarding replay
+- **Guest menu**: search + dietary chips (V/Vegan/GF/Dairy-free/Halal), hide Book-Table when at table, primary Order button, higher-contrast stock badges
+- **View page**: better AR button copy, + Add to cart from view, prev/next dish + swipe navigation
+- **Staff console**: sound on new orders + calls (diff-based), assigned waiter shown on table board
+- **Kitchen**: seconds display for <60s tickets, undo button on ready+served, modifiers rendered as bulleted sub-list
+- **/api/features**: booleans for meshy/anthropic/paddle/sentry/push → admin tabs auto-hide when not configured
+- **Admin/restaurant tabs regrouped**: 15 tabs by function (Setup/Menu/Floor/Live/Offers/Analytics/Billing) with hide-on-missing-integration
+- **Master admin**: sortable clients table, inline 🗑 delete-restaurant with confirm
+- **Plans page**: real R499/R1499/Custom tiers instead of "contact us"
+- **FAQ**: 4 new answers (existing menu import, no order commission, offline resilience, in-app payments)
+- **Unsaved-changes guard** (vendor/armenu-dirty.js): watches modal inputs, prompts before nav-away
+- Guest cart sounds: pop on add, chime on order sent
+
 ## Awaiting from Ian
 - Sentry DSN (sign up at sentry.io — Google OAuth — copy DSN)
 - Meshy Pro subscription → MESHY_API_KEY

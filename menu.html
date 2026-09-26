@@ -663,6 +663,7 @@ function addToCart(slug, mods) {
   else state.cart.push({ key, slug, name: dish.name, qty: 1, price_cents: (dish.price_cents || 0) + addCents, modifiers: picked });
   saveCart();
   updateActionbar();
+  window.ArMenuSound?.play('pop');
   toast(`Added ${dish.name}`, 'ok');
 }
 
@@ -793,6 +794,7 @@ async function submitOrder() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Could not send');
     clearCart(); updateActionbar(); closeSheet();
+    window.ArMenuSound?.play('chime');
     toast('Order sent. kitchen has it ✓', 'ok');
   } catch (e) { toast(e.message, 'err'); btn.disabled = false; btn.textContent = 'Send to kitchen →'; }
 }
