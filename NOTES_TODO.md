@@ -333,3 +333,9 @@ Pick the top item, do it, commit, push, tick it off here.
 
 ### Also shipped (polish)
 - portal dashboard tiles: shimmer skeleton while loading, `.dash-tile.loading` cleared after fetch (or shown as em-dash on failure)
+
+### Also shipped 2026-09-26 (Round-4 tight sweep — 15 verified bugs)
+**Critical (2)** — regression I introduced in the earlier modifier server-re-derive (iterated flat shape but stored shape is nested groups → all paid modifiers silently charged R0 on every order); SSRF in admin/compress.js (fetch(glb_url) → exfiltrate via public bucket). 5 new vitest cases lock the modifier shape.
+**High (5)** — staff PIN brute-force lockout (per-ip + per-restaurant); waiter-call dedup by (restaurant,table) + 5/min cap; view.html add-to-cart failed after menu.html wrapped cart in {ts, items}; portal delegated click listener stacked on every loadMe (one tap → N handlers); credits + print-QR modals stacked click listeners → N checkout POSTs per Buy tap.
+**Medium (4)** — reservation status whitelist; restaurant DELETE audit before cascade; email-lowercase data migration; menu.html sendCall + revSend double-submit guards; org-overview siblings pruned on re-render.
+**Low (1)** — push subscribe role derived from authoritative staff.role (client body ignored) + refuse cross-restaurant endpoint hijack.
