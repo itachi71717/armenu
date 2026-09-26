@@ -254,20 +254,29 @@ Update after every completed item.
 Pick the top item, do it, commit, push, tick it off here.
 
 ### Real bugs / functional gaps
-1. **Manager team member invites** — no way for a manager to add a second staff account. Needs `manager_users` join table + invite email + portal UI.
-2. **ADMIN_SECRET in sessionStorage** — vulnerable to XSS. Refactor: server issues httpOnly cookie from a new `/api/admin/login`; deprecate `x-admin-secret` header over one release.
-3. **Rate limit needs Redis** — current in-memory limiter is per-instance and resets each cold start. Blocked on Upstash creds.
-4. **Empty-state helper** — canonical `.empty-state` component across admin dishes/orders/reviews/reservations (each page rolls its own).
-5. **Marketing pages nav+footer partial** — `contact/faq/how/plans/why.html` copy the same chrome. Extract to `/vendor/marketing-chrome.js`.
-6. **Loading state consistency** — spinner vs skeleton vs "Loading…" is inconsistent; pick one per surface.
-7. **Split-bill UI** — still deferred from batch 5.
+1. ~~Manager team member invites~~ **DONE** — `manager_users` table + `/api/portal/team` + portal modal.
+2. ~~ADMIN_SECRET in sessionStorage~~ **DONE** — cookie-based session via `/api/admin/login`. Legacy header still accepted; drop it in a future session once you're confident nothing on the wild internet still sends it.
+3. **Rate limit needs Redis** — still blocked on Upstash creds.
+4. ~~Empty-state helper~~ **DONE** — `.empty-state` CSS in `vendor/armenu-a11y.css`; used in portal modals. Adopt gradually elsewhere.
+5. ~~Marketing pages nav+footer partial~~ **DONE** — `vendor/marketing-chrome.js`; migrated contact/faq/how/plans. `why.html` uses a different nav; leave alone.
+6. **Loading state consistency** — utilities exist (.sk-line/.sk-card/.btn-spinner) — adopt gradually replacing "Loading…" text.
+7. ~~Split-bill UI~~ **DONE (MVP)** — even-split calculator on staff order card. Per-item assignment + partial payment tracking still a future feature.
 
-### Docs / hygiene
-- **CHANGELOG.md** from `git log --oneline`.
-- **README.md** upgrade: architecture diagram, env vars table, local dev, deploy notes.
-- **CLAUDE.md**: repo conventions (single-catch-all dispatcher, shim query builder, PG array whitelist, Clerk boundary).
-- **Basic test suite** (vitest): `_db.js` array serialisation + encodeVal, `_auth.js` token verify, admin scope-guard 403.
-- **CI**: GitHub Actions — lint + tests on PR; auto preview deploys.
+### Docs / hygiene (all DONE this session)
+- ~~CHANGELOG.md~~ **DONE**.
+- ~~README.md~~ **DONE** — arch diagram, env-vars table, local dev, deploy.
+- ~~CLAUDE.md~~ **DONE** — repo conventions.
+- ~~Basic test suite (vitest)~~ **DONE** — 22 tests pass (_db.js encoding, admin cookie signing, manager token round-trip).
+- ~~CI~~ **DONE** — `.github/workflows/ci.yml` runs `npm test` on push + PR to main.
+
+### Remaining next-session ideas
+- Adopt `.sk-line/.sk-card/.btn-spinner` in more places (portal, admin, staff, kitchen loading states).
+- Adopt `.empty-state` in more places.
+- Split-bill v2: per-item assignment + partial payment tracking.
+- Drop the legacy `x-admin-secret` header path once every deploy has moved to cookie sessions.
+- Add lint step to CI (eslint config).
+- Preview deploys per PR (Vercel already does this — just link the badge in README).
+- Consider migrating the `restaurants.email` primary-manager concept into `manager_users` with a `role='owner'` flag so ownership is transferable.
 
 ### Blocked on Ian
 - Sentry DSN → `SENTRY_DSN`
