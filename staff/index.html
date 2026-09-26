@@ -295,6 +295,10 @@ function renderOrders(orders) {
         <span>${it.price_cents ? sym + (it.price_cents * it.qty / 100).toFixed(2) : ''}</span>
       </li>`).join('')}</ul>
       ${o.guest_note ? `<div class="note">📝 ${escapeHTML(o.guest_note)}</div>` : ''}
+      ${o.total_cents ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--ink-dim)">
+        <span>Total <b style="color:var(--ink);font-size:14px">R${(o.total_cents/100).toFixed(2)}</b>${o.tip_cents ? ` <span style="color:var(--ok)">(+R${(o.tip_cents/100).toFixed(2)} tip)</span>` : ''}</span>
+        <button class="btn-ghost" data-split="${o.id}:${o.total_cents}" style="padding:5px 10px;font-size:11px">Split ⋯</button>
+      </div>` : ''}
       <div class="actions">
         ${o.status === 'new' ? `<button class="btn-primary" data-mark="${o.id}:prep">Start prep</button>` : ''}
         ${o.status === 'prep' ? `<button class="btn-primary" data-mark="${o.id}:ready">Ready</button>` : ''}
@@ -307,6 +311,58 @@ function renderOrders(orders) {
     try { await api('/api/staff/orders?id=' + id, { method: 'PATCH', body: JSON.stringify({ status }) }); refresh(); }
     catch (e) { toast(e.message, 'err'); }
   });
+  document.querySelectorAll('[data-split]').forEach(b => b.onclick = () => {
+    const [, cents] = b.dataset.split.split(':');
+    openSplitBill(parseInt(cents, 10));
+  });
+}
+
+// Simple even-split calculator — no DB changes, no partial payment tracking.
+// Waiters use this at the point of settling the bill to hand each guest the
+// amount they owe (in ZAR cents, one over-cent absorbed by the last share
+// so the shares sum exactly to the total).
+function openSplitBill(totalCents) {
+  const existing = document.getElementById('splitOverlay');
+  if (existing) existing.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'splitOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;display:grid;place-items:center;padding:20px;backdrop-filter:blur(8px)';
+  overlay.innerHTML = `
+    <div style="width:min(360px,100%);background:linear-gradient(180deg,rgba(18,16,11,.98),rgba(10,8,6,.98));border:1px solid rgba(232,197,138,.3);border-radius:18px;padding:24px;color:var(--ink)">
+      <h3 style="margin:0 0 4px;font-size:18px">Split bill</h3>
+      <p style="color:var(--ink-dim);font-size:12.5px;margin:0 0 16px">Total: <b style="color:var(--ink)">R${(totalCents/100).toFixed(2)}</b>. Enter the number of guests and hand each person their amount.</p>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+        <button id="spMinus" style="width:38px;height:38px;border-radius:10px;background:rgba(245,236,216,.06);color:var(--ink);border:1px solid var(--line);font-size:18px">−</button>
+        <input id="spN" type="number" min="1" max="20" value="2" style="flex:1;padding:12px;border-radius:10px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:20px;text-align:center;font-family:var(--mono)" />
+        <button id="spPlus" style="width:38px;height:38px;border-radius:10px;background:rgba(245,236,216,.06);color:var(--ink);border:1px solid var(--line);font-size:18px">+</button>
+      </div>
+      <div id="spBreakdown" style="padding:14px;border-radius:12px;background:rgba(232,197,138,.08);border:1px solid rgba(232,197,138,.2);margin-bottom:16px;min-height:60px"></div>
+      <button id="spClose" style="width:100%;padding:12px;border-radius:10px;background:linear-gradient(135deg,#e8c58a,#d4a574);color:#0a0806;font-weight:700;border:none">Done</button>
+    </div>`;
+  document.body.appendChild(overlay);
+  const inp = document.getElementById('spN');
+  const render = () => {
+    let n = Math.max(1, Math.min(20, parseInt(inp.value, 10) || 1));
+    inp.value = n;
+    const share = Math.floor(totalCents / n);
+    const remainder = totalCents - share * n;
+    const shares = Array(n).fill(share);
+    for (let i = 0; i < remainder; i++) shares[i]++;
+    const unique = [...new Set(shares)];
+    document.getElementById('spBreakdown').innerHTML = unique.length === 1
+      ? `<div style="text-align:center"><div style="font-family:var(--mono);font-size:26px;color:var(--accent-2)">R${(share/100).toFixed(2)}</div><div style="font-size:11px;color:var(--ink-dim);margin-top:4px">× ${n} guests</div></div>`
+      : `<div style="text-align:center;font-size:13px;color:var(--ink)">
+          <b>${remainder}</b> guest${remainder===1?'':'s'} pay <b style="color:var(--accent-2)">R${(shares[0]/100).toFixed(2)}</b>,
+          <b>${n-remainder}</b> pay <b style="color:var(--accent-2)">R${(share/100).toFixed(2)}</b>
+          <div style="font-size:11px;color:var(--ink-dim);margin-top:6px">Uneven ÷ absorbs the leftover cents.</div>
+         </div>`;
+  };
+  document.getElementById('spMinus').onclick = () => { inp.value = Math.max(1, +inp.value - 1); render(); };
+  document.getElementById('spPlus').onclick  = () => { inp.value = Math.min(20, +inp.value + 1); render(); };
+  inp.oninput = render;
+  document.getElementById('spClose').onclick = () => overlay.remove();
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+  render();
 }
 
 function renderCalls(calls) {
