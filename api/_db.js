@@ -63,11 +63,21 @@ export function toPgArrayLiteral(arr) {
   });
   return '{' + parts.join(',') + '}';
 }
+// Columns typed jsonb — arrays legitimately serialize as JSON here. If a
+// column is neither in PG_ARRAY_COLS nor JSONB_ARRAY_COLS and receives an
+// array, we log a warning (dev-time signal that PG_ARRAY_COLS is stale).
+const JSONB_ARRAY_COLS = new Set(['modifiers', 'translations', 'metadata', 'keys']);
 export function encodeVal(colName, v) {
   if (v == null) return v;
   if (v instanceof Date) return v;
   // Postgres native array column?
   if (PG_ARRAY_COLS.has(colName) && Array.isArray(v)) return toPgArrayLiteral(v);
+  if (Array.isArray(v) && !JSONB_ARRAY_COLS.has(colName)) {
+    // Not fatal — some jsonb columns legitimately take arrays — but flag any
+    // column not on either list so PG_ARRAY_COLS can be extended when a new
+    // text[]/int[]/uuid[] column is added.
+    console.warn(`[_db] Array value on column '${colName}' — not in PG_ARRAY_COLS or JSONB_ARRAY_COLS. If this is a Postgres array column, add it to PG_ARRAY_COLS in api/_db.js.`);
+  }
   // jsonb / object / anything object-like
   if (typeof v === 'object') return JSON.stringify(v);
   return v;

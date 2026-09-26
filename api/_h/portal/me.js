@@ -48,15 +48,30 @@ export default async function handler(req, res) {
     });
   }
 
-  // Load dishes + last-7d metrics for each linked restaurant in parallel
+  // Batched load: 4 total queries regardless of location count (was 4×N).
   const sevenAgoIso = new Date(Date.now() - 7 * 86400 * 1000).toISOString();
-  const locations = await Promise.all(rests.map(async (r) => {
-    const [{ data: dishes = [] }, { data: scans = [] }, { data: orders = [] }, { data: revs = [] }] = await Promise.all([
-      supabase.from('dishes').select('id, slug, name, price, thumb_url, active, stock_count, description, category_id, translations').eq('restaurant_id', r.id).eq('active', true).order('name'),
-      supabase.from('scans').select('id').eq('restaurant_id', r.id).gte('scanned_at', sevenAgoIso),
-      supabase.from('orders').select('id, total_cents').eq('restaurant_id', r.id).gte('created_at', sevenAgoIso),
-      supabase.from('reviews').select('rating').eq('restaurant_id', r.id).gte('created_at', sevenAgoIso)
-    ]);
+  const restIds = rests.map(r => r.id);
+  const [dishesQ, scansQ, ordersQ, revsQ] = await Promise.all([
+    supabase.from('dishes').select('id, restaurant_id, slug, name, price, thumb_url, active, stock_count, description, category_id, translations').in('restaurant_id', restIds).eq('active', true).order('name'),
+    supabase.from('scans').select('restaurant_id').in('restaurant_id', restIds).gte('scanned_at', sevenAgoIso),
+    supabase.from('orders').select('restaurant_id, total_cents').in('restaurant_id', restIds).gte('created_at', sevenAgoIso),
+    supabase.from('reviews').select('restaurant_id, rating').in('restaurant_id', restIds).gte('created_at', sevenAgoIso)
+  ]);
+  const groupBy = (rows, key) => {
+    const m = {};
+    for (const row of rows || []) (m[row[key]] = m[row[key]] || []).push(row);
+    return m;
+  };
+  const dishesByR = groupBy(dishesQ.data, 'restaurant_id');
+  const scansByR  = groupBy(scansQ.data,  'restaurant_id');
+  const ordersByR = groupBy(ordersQ.data, 'restaurant_id');
+  const revsByR   = groupBy(revsQ.data,   'restaurant_id');
+
+  const locations = rests.map(r => {
+    const dishes = dishesByR[r.id] || [];
+    const scans  = scansByR[r.id]  || [];
+    const orders = ordersByR[r.id] || [];
+    const revs   = revsByR[r.id]   || [];
     const revenue_cents_7d = orders.reduce((s, o) => s + (o.total_cents || 0), 0);
     const avg_rating_7d = revs.length ? (revs.reduce((s, x) => s + (x.rating || 0), 0) / revs.length) : null;
     return {
@@ -70,7 +85,7 @@ export default async function handler(req, res) {
         avg_rating: avg_rating_7d
       }
     };
-  }));
+  });
 
   // Legacy shape: expose the first as `restaurant` + `dishes` so existing UI
   // that only knows about a single location keeps working.

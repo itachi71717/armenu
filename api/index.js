@@ -140,10 +140,14 @@ export default async function handler(req, res) {
           const v = verifyManagerToken(portalTok);
           if (!v) return res.status(401).json({ error: 'invalid_portal_token' });
 
-          // If the request names a slug, verify it maps to the token's restaurant
+          // If the request names a slug, verify it maps to the token's restaurant.
+          // Body inspection is safe here because Vercel has already buffered
+          // req.body (a string or parsed object) BEFORE handler dispatch — this
+          // does NOT consume a stream. Handlers that need raw-stream access must
+          // require slug in the query string (or bypass admin/*), because their
+          // config:{bodyParser:false} leaves req.body === undefined.
           let requestedSlug = req.query?.slug;
-          if (!requestedSlug) {
-            // POST /api/admin/dishes uses body.restaurant_slug
+          if (!requestedSlug && req.body !== undefined) {
             let body = {};
             try { body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {}); } catch {}
             requestedSlug = body?.restaurant_slug || body?.slug;

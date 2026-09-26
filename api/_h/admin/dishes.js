@@ -41,7 +41,7 @@ export default async function handler(req, res) {
       active: true
     }).select().single();
     if (error) return res.status(400).json({ error: error.message });
-    auditLog(req, restaurant.id, 'dish.create', { target: data?.slug || name, metadata: { price, ar_source } }).catch(() => {});
+    auditLog(req, restaurant.id, 'dish.create', { target: data?.slug || name, metadata: { price_cents: parseCents(price), ar_source } }).catch(() => {});
     return res.status(201).json(data);
   }
 
