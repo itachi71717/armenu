@@ -684,8 +684,20 @@ function openReserve() {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) { $('rvSubmit').disabled = false; $('rvSubmit').textContent = 'Request booking →'; return toast(data.error || 'Failed', 'err'); }
-    closeSheet();
-    toast('Booking request sent — the restaurant will confirm on WhatsApp', 'ok');
+    // Show a booking-confirmation card with Add-to-calendar (and note that a
+    // confirmation email was sent, if we did send one).
+    const emailNote = data.email_sent
+      ? `A confirmation was sent to <b>${email}</b>.`
+      : `The restaurant will confirm on WhatsApp or phone.`;
+    $('sheet').innerHTML = `
+      <div style="padding:28px 24px;text-align:center">
+        <div style="font-size:52px;margin-bottom:8px">✓</div>
+        <h2 style="margin:0 0 8px;font-size:22px">Booking received</h2>
+        <p style="color:#8b8580;font-size:13.5px;line-height:1.55;margin:0 0 20px">${emailNote}</p>
+        ${data.ics_data_url ? `<a href="${data.ics_data_url}" download="reservation-${data.reservation_id}.ics" style="display:inline-block;padding:12px 22px;border-radius:10px;background:linear-gradient(135deg,#e8c58a,#d4a574);color:#0a0806;font-weight:700;text-decoration:none;margin-bottom:10px">📅 Add to calendar</a><br>` : ''}
+        <button id="rvDone" style="margin-top:10px;padding:10px 18px;background:rgba(245,239,220,.05);color:#e8c58a;border:1px solid rgba(232,197,138,.3);border-radius:9px;font-weight:600;cursor:pointer">Done</button>
+      </div>`;
+    document.getElementById('rvDone').onclick = closeSheet;
   };
 }
 

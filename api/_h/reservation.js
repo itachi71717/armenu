@@ -6,6 +6,7 @@
 import { supabase, supabaseAdmin } from '../_db.js';
 import { sendPush } from './push/_send.js';
 import { auditLog } from './_audit.js';
+import { sendMail, buildIcs } from '../_lib/mailer.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
@@ -21,7 +22,7 @@ export default async function handler(req, res) {
   }
   const size = Math.max(1, Math.min(50, parseInt(party_size) || 2));
 
-  const { data: rest } = await supabase.from('restaurants').select('id, name').eq('slug', r).single();
+  const { data: rest } = await supabase.from('restaurants').select('id, name, email, slug').eq('slug', r).single();
   if (!rest) return res.status(404).json({ error: 'restaurant not found' });
 
   // Time-slot capacity check: don't accept a booking if the restaurant already
@@ -78,5 +79,76 @@ export default async function handler(req, res) {
 
   auditLog(req, rest.id, 'reservation.create', { target: guest_name, metadata: { party_size: size, when: created.reserved_at } }).catch(() => {});
 
-  return res.status(201).json({ ok: true, reservation_id: created.id });
+  // Build a downloadable .ics so the guest can add the booking to their
+  // calendar even if we can't send them an email.
+  const ics = buildIcs({
+    uid: created.id,
+    title: `Reservation at ${rest.name}`,
+    description: `Party of ${size} in the name of ${guest_name}. Booking status: pending — the restaurant will confirm shortly.`,
+    location: rest.name,
+    startISO: created.reserved_at,
+    durationMinutes: 90
+  });
+  const icsDataUrl = 'data:text/calendar;charset=utf-8;base64,' + Buffer.from(ics, 'utf8').toString('base64');
+
+  // Fire-and-forget confirmation email — silent no-op unless RESEND_API_KEY
+  // is set. We send to the guest AND cc the restaurant so the manager has a
+  // record independent of the portal.
+  const emailPromises = [];
+  if (created.guest_email) {
+    const guestHtml = `<!doctype html><html><body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#1a1a1a">
+      <h1 style="font-size:22px;margin:0 0 12px;color:#8b6b2f">Booking received ✓</h1>
+      <p>Hi ${escapeHtml(guest_name)},</p>
+      <p>Your table request at <b>${escapeHtml(rest.name)}</b> has been received. Here's what you booked:</p>
+      <div style="background:#f7f2e8;border-radius:12px;padding:16px;margin:16px 0;line-height:1.7">
+        <div><b>When:</b> ${escapeHtml(local)}</div>
+        <div><b>Party size:</b> ${size} ${size === 1 ? 'guest' : 'guests'}</div>
+        ${notes ? `<div><b>Notes:</b> ${escapeHtml(notes)}</div>` : ''}
+      </div>
+      <p><b>Status:</b> pending — ${escapeHtml(rest.name)} will confirm shortly. If you don't hear back within a few hours and you're worried, give them a call.</p>
+      <p style="margin-top:24px"><a href="${icsDataUrl}" download="reservation-${created.id}.ics" style="display:inline-block;padding:12px 20px;background:#e8c58a;color:#0a0806;border-radius:8px;text-decoration:none;font-weight:700">Add to calendar</a></p>
+      <p style="color:#888;font-size:12px;margin-top:32px;border-top:1px solid #eee;padding-top:16px">Sent by ARMenu on behalf of ${escapeHtml(rest.name)}. Reply to this email to reach them directly.</p>
+    </body></html>`;
+    emailPromises.push(sendMail({
+      to: created.guest_email,
+      subject: `Booking received — ${rest.name}, ${local}`,
+      html: guestHtml,
+      replyTo: rest.email || undefined
+    }));
+  }
+  if (rest.email) {
+    const mgrHtml = `<!doctype html><html><body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#1a1a1a">
+      <h1 style="font-size:20px;margin:0 0 12px;color:#8b6b2f">New booking request</h1>
+      <div style="background:#f7f2e8;border-radius:12px;padding:16px;margin:12px 0;line-height:1.7">
+        <div><b>Guest:</b> ${escapeHtml(guest_name)}</div>
+        <div><b>When:</b> ${escapeHtml(local)}</div>
+        <div><b>Party size:</b> ${size}</div>
+        ${guest_phone ? `<div><b>Phone:</b> ${escapeHtml(guest_phone)}</div>` : ''}
+        ${created.guest_email ? `<div><b>Email:</b> ${escapeHtml(created.guest_email)}</div>` : ''}
+        ${notes ? `<div><b>Notes:</b> ${escapeHtml(notes)}</div>` : ''}
+      </div>
+      <p><a href="https://armenu.co.za/portal/" style="display:inline-block;padding:10px 18px;background:#e8c58a;color:#0a0806;border-radius:8px;text-decoration:none;font-weight:700">Open portal</a></p>
+    </body></html>`;
+    emailPromises.push(sendMail({
+      to: rest.email,
+      subject: `New booking — ${guest_name}, ${local}`,
+      html: mgrHtml,
+      replyTo: created.guest_email || undefined
+    }));
+  }
+  Promise.allSettled(emailPromises).then(results => {
+    const failed = results.filter(x => x.status === 'rejected' || (x.value && x.value.ok === false && !x.value.skipped));
+    if (failed.length) console.warn('reservation email send failed:', failed);
+  });
+
+  return res.status(201).json({
+    ok: true,
+    reservation_id: created.id,
+    ics_data_url: icsDataUrl,
+    email_sent: !!created.guest_email && !!process.env.RESEND_API_KEY
+  });
+}
+
+function escapeHtml(s) {
+  return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }

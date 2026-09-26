@@ -133,16 +133,7 @@
 <div class="cursor" id="cursor"></div>
 <div class="cursor-ring" id="cursorRing"></div>
 
-<nav id="nav" class="scrolled">
-  <a href="/" class="logo"><img src="/favicon.svg" alt="" style="width:28px;height:28px;flex-shrink:0" /><b>AR</b><i>Menu</i></a>
-  <div class="nav-links">
-    <a href="/how">How</a>
-    <a href="/dishes">Dishes</a>
-    <a href="/why" class="active">Why</a>
-    <a href="/faq">FAQ</a>
-    <a href="/portal/" class="btn btn-primary">Restaurant login →</a>
-  </div>
-</nav>
+<div id="mkNav"></div>
 
 <section class="page-hero">
   <div class="page-hero-bg" style="background-image:url('https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=1920&q=85&fm=jpg&auto=format')"></div>
@@ -228,34 +219,7 @@
   </div>
 </section>
 
-<footer>
-  <div>
-    <a href="/" class="logo" style="margin-bottom:14px"><img src="/favicon.svg" alt="" style="width:28px;height:28px;flex-shrink:0" /><b>AR</b><i>Menu</i></a>
-    <p style="color:var(--ink-faint);font-size:13px;max-width:280px;line-height:1.55">South Africa's first augmented-reality menu platform. Made in Cape Town, served everywhere.</p>
-  </div>
-  <div>
-    <h5>Navigate</h5>
-    <a href="/how">How it works</a>
-    <a href="/dishes">Dishes</a>
-    <a href="/why">Why it works</a>
-    <a href="/faq">FAQ</a>
-  </div>
-  <div>
-    <h5>Contact</h5>
-    <a href="/contact">Get in touch</a>
-    <a href="/portal/">Restaurant login</a>
-  </div>
-  <div>
-    <h5>Follow</h5>
-    <a href="#">Instagram</a>
-    <a href="#">TikTok</a>
-    <a href="#">LinkedIn</a>
-  </div>
-  <div class="foot-bottom">
-    <span>© 2026 ARMenu (Pty) Ltd</span>
-    <span>armenu.co.za</span>
-  </div>
-</footer>
+<div id="mkFooter"></div>
 
 <script>
   const cur=document.getElementById('cursor');
@@ -277,5 +241,6 @@
   const finalBg=document.getElementById('finalBg');
   if(finalBg){(function fpx(){const r=document.querySelector('.final').getBoundingClientRect();const c=r.top+r.height/2-window.innerHeight/2;finalBg.style.transform=`translateY(${c*-.15}px) scale(1.08)`;requestAnimationFrame(fpx)})()}
 </script>
+<script src="/vendor/marketing-chrome.js" defer></script>
 </body>
 </html>

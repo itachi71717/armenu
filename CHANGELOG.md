@@ -3,6 +3,22 @@
 All notable changes to ARMenu. Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 in spirit but timestamped per work-session rather than by release.
 
+## 2026-09-26 — Reservation confirmations + polish
+
+### Added
+- Transactional email via Resend (`api/_lib/mailer.js`) — no-op unless
+  `RESEND_API_KEY` is set. Reservation flow sends a booking-received
+  email to the guest and a booking-request email to the restaurant.
+- `.ics` calendar attachment (RFC 5545) returned with every successful
+  booking so the guest can add it even without email.
+- Menu booking modal now shows a proper confirmation card with an
+  "Add to calendar" download button.
+- `/api/features` reports `email: true|false` so UI can adapt.
+- `why.html` migrated to the shared marketing-chrome partial.
+- Staff + kitchen login: `restaurant-slug` input now centre-aligned to
+  match the PIN input.
+- Vitest coverage: buildIcs + sendMail (7 new tests → 29 total, all green).
+
 ## 2026-09-26 — Post-audit hardening
 
 ### Added

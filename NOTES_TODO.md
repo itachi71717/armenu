@@ -269,6 +269,14 @@ Pick the top item, do it, commit, push, tick it off here.
 - ~~Basic test suite (vitest)~~ **DONE** — 22 tests pass (_db.js encoding, admin cookie signing, manager token round-trip).
 - ~~CI~~ **DONE** — `.github/workflows/ci.yml` runs `npm test` on push + PR to main.
 
+### Also shipped 2026-09-26 (later batch)
+- Reservation confirmation email + .ics calendar attachment (Resend, silent no-op unless RESEND_API_KEY set)
+- Menu booking modal → success card with Add-to-calendar button
+- `/api/features` reports `email: true|false`
+- `why.html` migrated to shared marketing chrome
+- Staff + kitchen login: restaurant-slug input centred like PIN
+- Tests: buildIcs + sendMail (29 total, all green)
+
 ### Remaining next-session ideas
 - Adopt `.sk-line/.sk-card/.btn-spinner` in more places (portal, admin, staff, kitchen loading states).
 - Adopt `.empty-state` in more places.

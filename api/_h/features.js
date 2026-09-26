@@ -9,6 +9,7 @@ export default function handler(req, res) {
     paddle:    !!process.env.PADDLE_API_KEY,
     sentry:    !!process.env.SENTRY_DSN,
     push:      !!(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY),
+    email:     !!process.env.RESEND_API_KEY,
     env:       process.env.VERCEL_ENV || 'development'
   });
 }
