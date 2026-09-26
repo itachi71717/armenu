@@ -1,60 +1,286 @@
-# ARMenu — Continuing Build Notes
+# ARMenu — Live TODO tracker
 
-Read this at the start of every session. Update it as you ship. Commit changes.
+Maintained by Claude across sessions. What's done, what's next, what's blocked.
+Update after every completed item.
 
-## Recently shipped (2026-09-26)
+## ✅ Just completed
+- **[1] R2 bucket CORS** — Policy set via Cloudflare dashboard. Origins: armenu.co.za, *.armenu.co.za, localhost:3000. Methods: GET/PUT/POST/HEAD/DELETE. Manager uploads from browser now work end-to-end.
+- **[2] Sentry error monitoring** — Server + client SDKs wired. Loader injected into 16 HTML pages. Silent no-op until Ian pastes SENTRY_DSN into Vercel env. Client filters to first-party errors only.
+- **[3] Usage cost caps — REBUILT as credit system per Ian's ask** — mirrors Meshy's 10-credits-per-generation model 1:1. `dishes.meshy_credits` column + `credit_transactions` audit log. New helpers: `enforceCredits`, `consumeCredits`, `grantCredits`. Every new restaurant starts with 100 free credits (10 dishes). Retries are FREE (matching Meshy's retry policy). When balance runs out, ai-generate returns HTTP 402 with balance/needed info so the client shows a "buy credits" CTA. Platform safety cap kept as backstop (2000 generations/month org-wide, tunable). NEW endpoint /api/portal/credits (GET balance + packs + recent, POST creates checkout). Portal has a live credit pill in nav that opens a modal with three retail packs (R149/50, R499/200, R1999/1000) and recent activity. Paddle checkout is stubbed until PADDLE_API_KEY is set — falls back to a WhatsApp "buy" link so managers can top up manually today.
+- **[4] Cookie consent banner** — `/vendor/cookie-consent.js` injected on all 16 pages. POPI + GDPR-compliant, remembers choice in localStorage, dispatches `armenu:consent` event for future analytics scripts. Two options: Essential only / Accept all. Zero third-party dependencies.
 
-- Fixed PG array serialisation in `api/_db.js` shim (dish tags, category_ids, days_of_week, enabled_languages)
-- Fixed Query.then not returning promise chain; upsert with no onConflict now emits ON CONFLICT DO NOTHING
-- Dropped `restaurants.email` unique constraint → multi-location works
-- Order-items insert now rollbacks parent order + logs on failure
-- Menu language switcher exposed based on translations; cart 24h expiry `{ ts, items }`
-- Lazy-load dish thumbnails via IntersectionObserver
-- Combined portal dashboard endpoint (`/api/portal/dashboard`)
-- Reserved-slug list expanded
-- Admin 401 → portal redirect (no more admin-password prompt for managers)
-- Kitchen ticket ages tick every second between polls (no more stale age)
-- Push send: unexpected failures forwarded to Sentry with context
-- A11y layer: `vendor/armenu-a11y.css` on every page (focus-visible rings + reduced-motion)
-- Sentry client honours cookie-consent "essential only"
-- Email normalisation on `restaurants.email` insert and reservation `guest_email`
+## 🟡 Deferred
+- **[5] Real business email** — deferred by Ian (do last)
 
-## Not-Done — priority order
+## 🔁 Revisit later
+- **Costing structure / credit-pack pricing** — Ian to revisit once first paying restaurants land. Current retail: R149/50, R499/200, R1999/1000 (5-9x markup over ~R3.20 Meshy Pro cost/generation). Also revisit: monthly-subscription bundle vs pay-as-you-go, volume discount ladder, gifted onboarding credits (currently 100), free-retry-count (currently 4/task matching Meshy Pro).
+- **Sentry vs alternative** — Ian may pick Datadog, LogRocket, or nothing. Wired to auto-activate when SENTRY_DSN is set.
+- **Paddle vs Peach Payments vs Stripe** — currently Paddle-shaped stubs. Swap in whichever Ian picks. Peach is often better for SA-only businesses.
+
+## ✅ Session A complete (checkpoint)
+- **[A1] Cart persistence** — menu.html saves cart to localStorage per (restaurant + table) so page refresh / rotate / phone-yank doesn't wipe it. Loads on init. Cleared on successful order.
+- **[A2] Tip button** — Cart sheet has No tip / 10% / 15% / 20% pills (default 10%). Tip flows through /api/order as tip_cents; total = subtotal + tip. Cap R500. New orders.tip_cents column.
+- **[A3] Item modifiers** — dishes.modifiers jsonb column. Portal dish editor has a plain-text modifier editor (Cook * → Rare +0 / Medium +0 syntax with * = required, [multi] = checkboxes). Guest sees a modifier picker sheet before adding a dish that has modifiers. Order snapshots picked modifiers + adjusts price. Sanitised server-side (cap 12 mods, cap delta ±R500).
+- **[A4] Offer edit + active toggle** — Offer rows now have Edit / Tag dishes / ▶Resume-⏸Pause / Delete buttons. Edit modal patches name/times/pct/days. Toggle patches active bool. Paused offers show as dimmed with "paused" chip and don't apply discount on /api/dish.
+- **[A5] Drag-reorder** — Categories modal rows are draggable with a ≡ handle. New /api/admin/categories/reorder and /api/admin/dishes/reorder endpoints rewrite sort_order sequentially. /api/dish list orders by sort_order then name.
+
+## ✅ Session B — what I could do without your keys (checkpoint)
+- **[B1] Health check /api/health** — public endpoint returns {ok, db_ok, db_ms, region, timestamp}. 200 when DB reachable, 503 when not. Perfect for UptimeRobot / BetterUptime — sign up at uptimerobot.com, add a monitor for https://armenu.co.za/api/health, done.
+- **[B2] Terms + Privacy full rewrite** — /legal now has a proper POPI Act + GDPR-compliant Terms of Service, Privacy Policy (with 8 named sub-sections covering what/why/where/how-long/rights/security/children/officer), Cookies, Refunds, and Restaurant Data-Processing Agreement. Ready to point paying restaurants at.
+
+## Still blocked on Ian (can't be done from my side)
+- **[B-blocked] PayFast** — needs merchant sign-up + PAYFAST_MERCHANT_ID / KEY / PASSPHRASE
+- **[B-blocked] Sentry** — needs SENTRY_DSN
+
+## ✅ Session C — what I could do without your keys (checkpoint)
+- **[C1] PWA install** — /manifest.json + rel=manifest linked on 8 core pages. Diners get "Add to home screen" prompts; kitchen/staff can install as standalone apps. Includes shortcut list for Portal / Kitchen / Staff.
+- **[C2] Kiosk idle timeout** — staff + kitchen auto-signout after 12h idle (any pointer/keyboard/touch resets). Prevents an unattended tablet from leaking data.
+- **[C3] Audit log** — new audit_log table + auditLog(req, rid, action, {target, metadata}) helper. Wired into dish create/update/delete. Actor auto-derived from token headers (admin / manager:<rid> / staff:<id>). New /api/admin/audit endpoint returns last 100 events, scoped or platform-wide.
+- **[C4] Favicon per restaurant** — menu.html now swaps the ARMenu favicon for the restaurant's logo on branded menu pages. Also generates a dynamic PWA manifest so "Add to home screen" uses the restaurant's name + logo (not ARMenu's). Page title updates to "<Restaurant> · Menu".
+
+## Still blocked (Session C bits needing external accounts)
+- **Redis rate limiter** — needs Upstash sign-up + UPSTASH_REDIS_URL. Current in-memory limiter still works, just per-instance.
+- **Custom domain per restaurant** (e.g. menu.oceanbasket.co.za) — needs wildcard DNS first, then per-restaurant DNS record + Vercel domain add. Middleware code already supports subdomain routing.
+
+## ✅ Batch 4 — cleaning up all remaining unblocked work (checkpoint)
+- **Audit log fully wired** — added to settings, offers, categories, tables, staff, schedules, reservations (was only dishes before). Every mutation now leaves an actor-attributed trail in audit_log.
+- **Push opt-in on kitchen + staff kiosks** — shared vendor/push-optin.js injected into both, appears 6s after page load if the tablet is signed in and hasn't been prompted.
+- **Push test-send button** — new /api/admin/push-test endpoint + "🔔 Send test" button in the portal Credits modal ("Notifications working?" section). Fires a test push to every subscription for that restaurant, reports how many devices received it.
+- **Reservation slot capacity** — /api/reservation now rejects bookings when a 90-min window around the requested time already has ≥ restaurant table count of pending/confirmed reservations. Falls back to a generous 20-slot default when no tables are configured. Returns 409 slot_full with a friendly message.
+- **Multi-currency toggle for tourists** — guest menu header shows a currency pill (ZAR default) that cycles ZAR → USD → EUR → GBP → AUD. Prices convert on the fly using quarterly-refreshed FX rates. Charging stays in ZAR — a toast reminds the guest they'll be billed in ZAR. Choice remembered in localStorage per device.
+
+## Explained "customer profiles" business model to Ian (deferred by him)
+- Recognition via WhatsApp identity (best UX for SA), phone OTP, or passive browser token
+- Profile stores favourites, allergies, party size, spend history
+- Network effect: profile works across every ARMenu restaurant → defensive moat
+- Revenue: promoted dishes, cross-restaurant benchmarks, WhatsApp campaigns
+- Recommendation: build as v2 once 10 paying restaurants land, not launch feature
+
+## ✅ Batch 5 — remaining unblocked items (checkpoint)
+- **Waiter → table assignment** — restaurant_tables.assigned_staff_id column + PATCH accepts assigned_staff_id. Portal Tables modal now has an inline dropdown per row to assign any active waiter/manager. Assignment shows in the table label ("T7 · 👤 Sipho").
+- **Walk-in / waitlist queue** — new /api/admin/walkins endpoint (piggybacks on reservations.is_walkin). Portal action card "🚶 Walk-in queue" opens a modal to add guests with party size + notes, mark them Seat / Left. Live wait-time counter per entry.
+- **Master admin audit log viewer** — new "◈ Audit log" tab in /admin/. Fetches /api/admin/audit, renders time/actor/action/target/metadata/IP grid. Filters by restaurant + action. Refresh button.
+- **Split-bill: intentionally deferred** — genuinely complex for a shipping session; needs per-item assignment UI + partial-payment orchestration. Flag it for a dedicated build.
+
+## ✅ Batches 1-16 (this session — audit-driven full sweep)
+- Shared sound library site-wide (8 named cues, mute in localStorage)
+- Brand spelling normalized: "AR Menu" → "ARMenu" everywhere
+- **Portal redesign**: 4-tile dashboard + 4 collapsible tool groups (down from 14 loose buttons) + dish search + help pill for onboarding replay
+- **Guest menu**: search + dietary chips (V/Vegan/GF/Dairy-free/Halal), hide Book-Table when at table, primary Order button, higher-contrast stock badges
+- **View page**: better AR button copy, + Add to cart from view, prev/next dish + swipe navigation
+- **Staff console**: sound on new orders + calls (diff-based), assigned waiter shown on table board
+- **Kitchen**: seconds display for <60s tickets, undo button on ready+served, modifiers rendered as bulleted sub-list
+- **/api/features**: booleans for meshy/anthropic/paddle/sentry/push → admin tabs auto-hide when not configured
+- **Admin/restaurant tabs regrouped**: 15 tabs by function (Setup/Menu/Floor/Live/Offers/Analytics/Billing) with hide-on-missing-integration
+- **Master admin**: sortable clients table, inline 🗑 delete-restaurant with confirm
+- **Plans page**: real R499/R1499/Custom tiers instead of "contact us"
+- **FAQ**: 4 new answers (existing menu import, no order commission, offline resilience, in-app payments)
+- **Unsaved-changes guard** (vendor/armenu-dirty.js): watches modal inputs, prompts before nav-away
+- Guest cart sounds: pop on add, chime on order sent
+- **Batch 11**: Categories dish-count · Tables per-row 🖨 QR + 🗑 · Reservations upcoming-only + past toggle · Menu-scheduler 7×24 weekly visual grid with per-schedule colour legend
+- **Batch 12**: Branding modal → live iframe preview on the right, auto-refreshes on save + chime
+- **Batch 13**: Global error boundary bar site-wide (armenu-errorbar.js)
+- **Batch 15**: Automated 5-hourly cloud routine (`trig_0178Tk4Z5oazSa3miPNEQpVM`) — pivoted from GitHub-based build to a **silent uptime monitor** that curls 7 critical endpoints, pushes a phone notification only if something breaks
+- **Batch 16**: Cart 24h expiry (stale carts auto-purge) · Master admin Add-Restaurant validation with per-field focus + reserved-slug guard + duplicate detection
+
+## Cloud routine setup
+- Routine ID: trig_0178Tk4Z5oazSa3miPNEQpVM
+- Fires: every 5 hours (originally aimed for 4h30 but cron minimum + server-picked minute offset = every 5h)
+- Currently doing: silent uptime probe of armenu.co.za (7 endpoints). Only pushes a notification if a check fails.
+- Original build-loop plan blocked by two things: (a) GitHub not connected to Claude account, (b) cloud env's network policy blocks github.com. Both require Ian's action to unblock.
+
+## Awaiting from Ian
+- Sentry DSN (sign up at sentry.io — Google OAuth — copy DSN)
+- Meshy Pro subscription → MESHY_API_KEY
+- PayFast merchant sign-up (Ian to pick over Paddle for easier SA-native setup)
+- ANTHROPIC_API_KEY (for translate + AI menu reader)
+
+## ✅ Just completed (batch 2)
+- **Menu scheduler backend** — /api/dish now filters dishes whose category_id is targeted by a schedule not currently active (SA time). Categories with no schedule stay always-visible.
+- **Menu scheduler UI** — portal action card + modal with time pickers, day toggles, and per-schedule category checkboxes.
+- **/api/admin/schedules** endpoint — GET/POST/PATCH/DELETE.
+- **Menu translations UI** — dish editor gets Afrikaans / isiZulu / isiXhosa fields collapsed under a details toggle, plus "🌐 Auto-translate" button that calls Claude Haiku.
+- **/api/portal/translate** — Claude-powered translator scoped to the caller's restaurant, rate-limited via the ai_menu_reader quota.
+- **Categories → dish assignment** — dish editor now has a Category dropdown pre-populated from /api/admin/categories.
+- **Reservations viewer in portal** — new action card + modal with per-row Confirm / Decline / WhatsApp / Delete buttons.
+- **Kitchen audio ping** — replaced single tone with two-note E5→A5 chirp using a persistent AudioContext.
+- **Kitchen ticket age colours** — whole ticket border turns amber ≥8min and pulsing red ≥15min, on top of status colour.
+
+## Ian's answers on cost caps
+- Claude only runs in AI Menu Reader (one-shot per restaurant onboard, ~$0.02–$0.10 each). Zero ongoing spend.
+- Neon free tier fits ~50 active restaurants comfortably. Paid ($19/mo) needed around 30-40 paying clients.
+- Meshy: Ian will pick a plan and share.
+
+## Waiting on Ian (external)
+- MESHY_API_KEY (once he picks plan)
+- ANTHROPIC_API_KEY (for AI Menu Reader)
+- Wildcard DNS `*.armenu.co.za` — needs registrar name to walk through
+- Paddle account + PADDLE_* env vars
+- Business bank account
+- Google review URLs per client
+- Real business email `hello@armenu.co.za`
+
+## Deferred by Ian
+- Customer profiles
+- Enterprise multi-tenant billing
+- Analytics in portal (kept master-admin only)
+
+## Next up (from full 109-item list — priority order)
+### HIGH — features listed on landing page but currently non-functional
+- Menu scheduler enforcement (breakfast/lunch/dinner auto-switching)
+- Menu translations UI + auto-translate button
+- Categories → dish assignment in portal
+- Reservations management UI in portal
+- Reservation reminders to guest
+- Timezone per restaurant
+
+### MEDIUM — polish
+- Push opt-in on kitchen + staff pages
+- Push unsubscribe UI
+- Push test-send button
+- Kitchen audio ping
+- Kitchen ticket age color transitions
+- Kitchen station split (hot/cold/bar)
+- Waiter → table assignment per shift
+- Offer active toggle in portal
+- Offer edit (currently only add + delete)
+- Time-slot capacity on reservations
+- Walk-in / waitlist queue
+
+### LOW — nice to have
+- Guest cart persistence (localStorage)
+- Tip button
+- Split-bill
+- Item modifiers / add-ons
+- Multi-currency toggle for tourists
+- Menu PDF export
+- Upsell suggestions
+- Loyalty stamps
+- Restaurant events calendar
+- Category / dish drag-reorder
+
+### Ops / production readiness
+- Uptime monitoring
+- Status page for restaurants
+- Rate limiter → Redis / Upstash (currently in-memory)
+- DB backups runbook
+- Deploy rollback runbook
+- Feature flags per restaurant
+- Platform health dashboard for master admin
+- Session timeout on kiosks
+- Audit log
+
+### Auth / security
+- 2FA on master admin
+- Password reset for master admin
+- Manager can invite team members
+- Role-based access (chef, accountant, viewer)
+
+### Legal
+- POPI audit
+- GDPR (right to deletion, data export)
+- Data retention policy
+- Restaurant contract / SLA
+- Terms of service (proper legal review)
+- Privacy policy (proper legal review)
+
+### Testing (currently zero)
+- Unit tests
+- Integration tests
+- Playwright E2E
+- CI test gate
+- Lighthouse audits
+- WCAG audit
+- Browser matrix
+- Load testing
+
+### Documentation
+- Developer README
+- API reference
+- Manager onboarding videos / GIFs
+- Support playbook
+- Incident response runbook
+
+### Known bugs / tech debt
+- portal_token leaks to referer in staff/kitchen (fixed for admin)
+- Chain HQ default token picks alphabetically first restaurant
+- Dispatcher body-stream double-consume risk
+- .single() vs .maybeSingle() inconsistency
+- Live preview iframe reload depends on wrapped toast()
+- loadMe reassignment brittle
+- Duplicate .brand .mark CSS orphan blocks
+- Offers computed per-request (cache candidate)
+- Favicon path from subdomain not visually tested
+- SSE connection cap unknown
+
+### Meshy / AR Studio
+- Wire up MESHY_API_KEY once plan chosen
+- Test end-to-end generate → download → upload to R2 → publish flow
+
+### White-labelling / domain
+- Wildcard DNS setup
+- R2 custom domain (cdn.armenu.co.za)
+- Custom domain per restaurant (e.g. menu.oceanbasket.co.za)
+- Favicon per restaurant (currently every restaurant uses ARMenu favicon)
+- PWA install (manifest.json)
+
+---
+
+## ✅ Session 2026-09-26 (audit-driven fixes, batches 17-19)
+
+- **[Critical] PG array serialization** — shim was JSON-stringifying arrays destined for `text[]/int[]/uuid[]` columns. `api/_db.js` now has a `PG_ARRAY_COLS` whitelist emitting `{a,b,c}` literals. Verified with real DB.
+- **[Critical] Query.then broken** — shim's thenable didn't return the exec promise, breaking `.catch()` chains silently. Fixed + added `.finally()`.
+- **[Critical] Upsert with no onConflict** — was blowing up on duplicate key insert. Now emits `ON CONFLICT DO NOTHING`.
+- **[Critical] restaurants.email unique** — dropped constraint; a single manager can now own multiple restaurants (the multi-location feature was previously a lie).
+- **[Critical] Order-items atomicity** — insert failure now rolls back the parent order and logs, instead of leaving an empty order.
+- **Menu**: language switcher exposed on languages count, cart wrapper `{ ts, items }` with 24h expiry, lazy-load dish thumbnails via IntersectionObserver, guest reservation email field.
+- **SSE efficiency**: `/api/events` uses raw COUNT queries instead of pulling rows.
+- **Portal dashboard**: single combined `/api/portal/dashboard` endpoint (orders_today, revenue_today_cents, bookings_tonight, walkins_active, low_stock) in one query.
+- **Reserved slugs expanded**: robots, sitemap, preview, index, view, test, health, mail, support, help, docs, blog, signup/signin/login/logout, account, settings, pricing, features, about, terms, privacy.
+- **Admin 401 → portal redirect** instead of admin-password prompt (managers can't fluke into master-admin login).
+- **Walk-in**: seated_table_id/seated_at columns properly handled.
+- **AR Studio**: preview URLs cached on the requests row so re-open doesn't regenerate.
+- **Push flag**: `/api/features` correctly reports push as true only when both VAPID keys are set.
+- **Staff console**: modifiers rendered as `↳` bullets on order cards.
+- **Kitchen board**: ticket ages tick every second between polls via data-created attribute (no more 12-second age lag).
+- **Push send**: unexpected failures forwarded to Sentry with restaurant_id + status_code (dead 404/410 endpoints still silently deactivated).
+- **A11y layer** (`vendor/armenu-a11y.css` on every page): `:focus-visible` outlines for keyboard nav, global `prefers-reduced-motion` support, skip-link style.
+- **Sentry client** respects cookie-consent — if user chose "essential only", it doesn't load at all.
+- **Email normalisation** on `restaurants.email` insert (trim + lowercase + syntax check) and reservation `guest_email`.
+- **Cloud routine scheduled** every 4h30 to auto-resume this checklist.
+
+## Not-Done — priority for the next session
 
 Pick the top item, do it, commit, push, tick it off here.
 
 ### Real bugs / functional gaps
-1. **#25 Manager team member invites** — no way for a manager to add a second staff account to their restaurant. Needs `manager_users` join table + invite email + portal UI.
-2. **#27 ADMIN_SECRET in sessionStorage** — vulnerable to XSS. Refactor: server issues httpOnly cookie session token from a new `/api/admin/login`, admin pages send that cookie instead of a header. Deprecate the header path over one release.
-3. **#29 Rate limit needs Redis** — current in-memory limiter is per-instance; on Vercel each cold start resets it. Blocked on Upstash Redis credentials from user.
-4. **#46 Currency toggle for non-ZAR restaurants** — settings currently hard-code ZAR display. Add `restaurants.currency_code` + format helpers on client (menu.html, admin, staff, kitchen).
-5. **#9-related: cart resume prompt** — if a customer has a saved cart on table A and scans table B, quietly discard A (already isolated by key) but consider a "You had 3 items at Table 5 earlier. Move them here?" prompt.
-
-### UX / polish
-6. **#40 Empty-state helper** — canonical `<div class="empty-state">` component used across admin dishes/orders/reviews/reservations. Currently each page rolls its own.
-7. **#42 Button emoji vs text rule** — some admin buttons mix `🍳 Kitchen` and plain `Kitchen`. Standardise: icon before text, spacing, sr-only when icon-only.
-8. **#44 Marketing pages nav+footer partial** — `contact.html faq.html how.html plans.html why.html` each copy the top nav and footer. Extract to `/vendor/marketing-chrome.js` (or SSI include if we go server-render).
-9. **Loading state consistency (#41)** — spinner vs skeleton vs "Loading…" text is inconsistent. Pick one per surface (skeleton for cards, spinner for buttons).
+1. **Manager team member invites** — no way for a manager to add a second staff account. Needs `manager_users` join table + invite email + portal UI.
+2. **ADMIN_SECRET in sessionStorage** — vulnerable to XSS. Refactor: server issues httpOnly cookie from a new `/api/admin/login`; deprecate `x-admin-secret` header over one release.
+3. **Rate limit needs Redis** — current in-memory limiter is per-instance and resets each cold start. Blocked on Upstash creds.
+4. **Empty-state helper** — canonical `.empty-state` component across admin dishes/orders/reviews/reservations (each page rolls its own).
+5. **Marketing pages nav+footer partial** — `contact/faq/how/plans/why.html` copy the same chrome. Extract to `/vendor/marketing-chrome.js`.
+6. **Loading state consistency** — spinner vs skeleton vs "Loading…" is inconsistent; pick one per surface.
+7. **Split-bill UI** — still deferred from batch 5.
 
 ### Docs / hygiene
-10. **#52 CHANGELOG.md** — write one from `git log --oneline` since first commit; keep it updated per release.
-11. **#53 README.md upgrade** — currently minimal. Add: architecture diagram, env vars table, local dev instructions, deploy notes.
-12. **#54 CLAUDE.md** — capture repo-specific conventions (single-catch-all API dispatcher, shim query builder, PG array whitelist, Clerk auth boundary).
-13. **#55 Basic test suite** — at minimum, vitest tests for `_db.js` (array serialisation, encodeVal), `_auth.js` (token verify), `admin/scope-guard` (403 out-of-scope).
-14. **#56 CI** — GitHub Actions: lint + tests on PR; auto-deploy preview on push to non-main.
+- **CHANGELOG.md** from `git log --oneline`.
+- **README.md** upgrade: architecture diagram, env vars table, local dev, deploy notes.
+- **CLAUDE.md**: repo conventions (single-catch-all dispatcher, shim query builder, PG array whitelist, Clerk boundary).
+- **Basic test suite** (vitest): `_db.js` array serialisation + encodeVal, `_auth.js` token verify, admin scope-guard 403.
+- **CI**: GitHub Actions — lint + tests on PR; auto preview deploys.
 
-### Blocked on user
-- Sentry DSN env var → SENTRY_DSN
-- PayFast merchant credentials → for real credit purchases
-- Meshy API key → 3D model generation
-- Anthropic API key → AI menu reader / ai-generate
-- Upstash Redis creds → distributed rate limit
-- Wildcard DNS for `*.armenu.co.za` subdomain restaurants
+### Blocked on Ian
+- Sentry DSN → `SENTRY_DSN`
+- PayFast merchant credentials
+- Meshy API key
+- Anthropic API key
+- Upstash Redis creds
+- Wildcard DNS for `*.armenu.co.za`
 
-## Working style
+## Working style (read before every session)
 
 - Commit every few edits with a clear message. Never leave the tree dirty at end of session.
 - Always `git push` after commit — no local-only work.
 - If a fix is bigger than expected, note it here and move to the next item.
-- Test what you can locally with node + a quick harness; UI changes need at least a mental walkthrough.
-- Don't ask the user questions — pick the reasonable choice and ship.
+- Don't ask Ian questions — pick the reasonable choice and ship.
+- Update the checklist above as you go so the next session picks up cleanly.
