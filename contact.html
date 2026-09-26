@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Contact. ARMenu</title>
 <meta name="theme-color" content="#0a0806" />
+<meta name="description" content="Talk to ARMenu — enquiries, support and enterprise sales for South Africa's AR restaurant menu platform." />
 <meta property="og:title" content="Contact. ARMenu" />
 <meta property="og:description" content="Get in touch with ARMenu to bring augmented reality dishes to your restaurant." />
 <meta property="og:image" content="https://armenu.co.za/favicon.svg" />
@@ -124,7 +125,11 @@
   }
   document.getElementById('contactForm').onsubmit = async (e) => {
     e.preventDefault();
-    const body = { name: name.value, email: email.value, restaurant: restaurant.value, message: message.value, type: document.getElementById('type').value, utm_source: document.getElementById('utm_source').value };
+    // Use explicit lookups — the browser's implicit id → global binding
+    // shadows the id "name" with window.name (a string), so `name.value`
+    // was undefined and every submission previously POSTed an empty name.
+    const $c = id => document.getElementById(id);
+    const body = { name: $c('name').value, email: $c('email').value, restaurant: $c('restaurant').value, message: $c('message').value, type: $c('type').value, utm_source: $c('utm_source').value };
     // Fire-and-forget: attempts a serverless endpoint if you add one; else falls back to mailto.
     try {
       const r = await fetch('/api/portal/pending-signup', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: body.email, restaurant_name: body.restaurant, phone: '', message: `[${body.type}] [utm:${body.utm_source}] ${body.name}: ${body.message}` }) });

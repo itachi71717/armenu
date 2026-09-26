@@ -271,9 +271,16 @@
       el.addEventListener('mouseleave',()=>{cur.style.width='14px';cur.style.height='14px'});
     });
   }
-  const nav=document.getElementById('nav');
-  nav.classList.add('scrolled');
-  window.addEventListener('scroll',()=>nav.classList.toggle('scrolled',window.scrollY>40));
+  // marketing-chrome.js now renders <nav class="ar-nav"> from a #mkNav
+  // placeholder — no element with id="nav" exists any more. Query the
+  // hydrated nav; if it isn't there yet, just skip the scroll class (the
+  // page still works). Without this guard the whole inline script threw
+  // and every .reveal element stayed at opacity:0.
+  const nav=document.querySelector('header.ar-hdr, .ar-nav');
+  if(nav){
+    nav.classList.add('scrolled');
+    window.addEventListener('scroll',()=>nav.classList.toggle('scrolled',window.scrollY>40));
+  }
   const io=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})},{threshold:.12,rootMargin:'-40px'});
   document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
   const finalBg=document.getElementById('finalBg');

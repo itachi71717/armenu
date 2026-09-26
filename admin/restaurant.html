@@ -1169,7 +1169,7 @@ async function loadDishes() {
   if (!dishes.length) return $('dish_list').innerHTML = '<div class="empty-state" data-icon="🍽"><h3>No dishes yet</h3><p>Use AR Studio to create your first dish.</p></div>';
   $('dish_list').innerHTML = dishes.map(d => `
     <div class="card" style="margin-bottom:10px;padding:14px 16px;display:grid;grid-template-columns:60px 1fr auto;gap:14px;align-items:center">
-      <div style="width:60px;height:60px;border-radius:10px;background:${d.thumb_url ? `url('${d.thumb_url}') center/cover` : '#1a1410'};display:grid;place-items:center;color:var(--ink-faint);font-family:var(--serif);font-style:italic;font-size:22px">${d.thumb_url ? '' : (d.name[0] || '?')}</div>
+      <div style="width:60px;height:60px;border-radius:10px;background:#1a1410 center/cover no-repeat;display:grid;place-items:center;color:var(--ink-faint);font-family:var(--serif);font-style:italic;font-size:22px" data-bg="${escapeHTML(d.thumb_url || '')}">${d.thumb_url ? '' : escapeHTML((d.name && d.name[0]) || '?')}</div>
       <div>
         <div style="font-weight:600;font-size:15px">${escapeHTML(d.name)}</div>
         <div style="font-family:var(--mono);font-size:11px;color:var(--ink-dim);margin-top:2px">${escapeHTML(d.price || '')} · ${d.scans_30d || 0} scans (30d) · ${d.active ? 'live' : 'hidden'}</div>
@@ -1197,6 +1197,13 @@ async function loadDishes() {
         catch (e) { toast(e.message, 'err'); }
       }, 500);
     };
+  });
+  // Hydrate thumb backgrounds from data-bg via DOM (safer than injecting the
+  // URL straight into a style="…" template — a value containing ') or ; could
+  // otherwise break out of url() into arbitrary CSS.)
+  $('dish_list').querySelectorAll('[data-bg]').forEach(el => {
+    const url = el.getAttribute('data-bg');
+    if (url) el.style.backgroundImage = `url("${url.replace(/"/g, '%22')}")`;
   });
   wireList('[data-toggle-dish]', async v => { const [id, active] = v.split(':'); await api('/api/admin/dishes?id=' + id, { method: 'PATCH', body: JSON.stringify({ active: active === 'true' }) }); loadDishes(); });
   wireList('[data-del-dish]', async id => { if (confirm('Delete this dish?')) { await api('/api/admin/dishes?id=' + id, { method: 'DELETE' }); loadDishes(); } });

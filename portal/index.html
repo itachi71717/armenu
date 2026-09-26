@@ -763,28 +763,36 @@
         <button class="clear" id="dishSearchClear" style="display:none" title="Clear">✕</button>
       </div>
       <div id="dishGridInner"></div>`;
+    // Every value below is stored data written by a teammate/manager — with
+    // team invites live, another user's dish name/price/description reaches
+    // your portal. All interpolations go through escapeHTML() to close a
+    // stored-XSS vector. Same rule for the URL in the thumb style="…".
     const renderTiles = (dishes) => dishes.length
-        ? `<div class="dishes-grid">${dishes.map(d => `
-            <div class="dish-tile" data-dish="${d.slug}">
-              <div class="thumb" ${d.thumb_url ? `style="background-image:url('${d.thumb_url}')"` : ''}>
-                ${d.thumb_url ? '' : `<span class="thumb-fallback">${d.name[0]}</span>`}
+        ? `<div class="dishes-grid">${dishes.map(d => {
+            const safeThumbUrl = String(d.thumb_url || '').replace(/[\\'"()<>]/g, '');
+            const firstLetter = String(d.name || '?').charAt(0);
+            return `
+            <div class="dish-tile" data-dish="${escapeHTML(d.slug)}">
+              <div class="thumb" ${d.thumb_url ? `style="background-image:url('${safeThumbUrl}')"` : ''}>
+                ${d.thumb_url ? '' : `<span class="thumb-fallback">${escapeHTML(firstLetter)}</span>`}
               </div>
               <div class="info">
-                <div class="name">${d.name}</div>
-                <div class="lbl">${d.price || 'Live on menu'}</div>
+                <div class="name">${escapeHTML(d.name)}</div>
+                <div class="lbl">${escapeHTML(d.price || 'Live on menu')}</div>
                 ${d.stock_count === 0
-                  ? '<div class="stock-badge sold">Sold out — <a href="#" data-action="refill" data-slug="' + d.slug + '">refill</a></div>'
+                  ? '<div class="stock-badge sold">Sold out — <a href="#" data-action="refill" data-slug="' + escapeHTML(d.slug) + '">refill</a></div>'
                   : (typeof d.stock_count === 'number'
-                      ? '<div class="stock-badge ' + (d.stock_count <= 3 ? 'low' : 'ok') + '">' + d.stock_count + ' in stock <a href="#" data-action="refill" data-slug="' + d.slug + '">edit</a></div>'
-                      : '<div class="stock-badge untracked"><a href="#" data-action="refill" data-slug="' + d.slug + '">+ Track stock</a></div>')
+                      ? '<div class="stock-badge ' + (d.stock_count <= 3 ? 'low' : 'ok') + '">' + d.stock_count + ' in stock <a href="#" data-action="refill" data-slug="' + escapeHTML(d.slug) + '">edit</a></div>'
+                      : '<div class="stock-badge untracked"><a href="#" data-action="refill" data-slug="' + escapeHTML(d.slug) + '">+ Track stock</a></div>')
                 }
               </div>
               <div class="actions-row">
-                <button class="qr-btn" data-action="edit-dish" data-slug="${d.slug}" data-name="${d.name}" data-price="${d.price || ''}" data-desc="${(d.description || '').replace(/"/g,'&quot;')}" data-stock="${d.stock_count == null ? '' : d.stock_count}">✎ Edit</button>
-                <button class="qr-btn" data-action="view-qr" data-slug="${d.slug}" data-name="${d.name}">⬇ QR</button>
-                <button class="qr-btn" data-action="open-ar" data-slug="${d.slug}">↗ AR</button>
+                <button class="qr-btn" data-action="edit-dish" data-slug="${escapeHTML(d.slug)}" data-name="${escapeHTML(d.name)}" data-price="${escapeHTML(d.price || '')}" data-desc="${escapeHTML(d.description || '')}" data-stock="${d.stock_count == null ? '' : d.stock_count}">✎ Edit</button>
+                <button class="qr-btn" data-action="view-qr" data-slug="${escapeHTML(d.slug)}" data-name="${escapeHTML(d.name)}">⬇ QR</button>
+                <button class="qr-btn" data-action="open-ar" data-slug="${escapeHTML(d.slug)}">↗ AR</button>
               </div>
-            </div>`).join('')}</div>`
+            </div>`;
+          }).join('')}</div>`
         : `<div class="empty-state"><h3>No dishes match.</h3><p>Try a different search term, or tap <b>+ New dish</b> above to add your first one.</p></div>`;
     // Initial render
     $('dishGridInner').innerHTML = renderTiles(data.dishes);
@@ -1150,9 +1158,9 @@
     $('wizBody').innerHTML = `
       <div style="display:flex;flex-direction:column;gap:12px">
         <div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:4px">Dish name</div>
-          <input id="dishName" style="width:100%;padding:11px 13px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:14px" value="${(existing?.name || '').replace(/"/g,'&quot;')}" placeholder="e.g. Signature Burger" /></div>
+          <input id="dishName" style="width:100%;padding:11px 13px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:14px" value="${escapeHTML(existing?.name || '')}" placeholder="e.g. Signature Burger" /></div>
         <div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:4px">Price (as shown)</div>
-          <input id="dishPrice" style="width:100%;padding:11px 13px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:14px" value="${(existing?.price || '').replace(/"/g,'&quot;')}" placeholder="e.g. R 165" /></div>
+          <input id="dishPrice" style="width:100%;padding:11px 13px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:14px" value="${escapeHTML(existing?.price || '')}" placeholder="e.g. R 165" /></div>
         <div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:4px">Category</div>
           <select id="dishCategory" style="width:100%;padding:11px 13px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:14px">
             <option value="">— No category —</option>
@@ -1160,7 +1168,7 @@
           </select>
           ${categories.length === 0 ? '<div style="font-size:11px;color:var(--ink-faint);margin-top:4px">No categories yet — add one from the Categories action.</div>' : ''}</div>
         <div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:4px">Description</div>
-          <textarea id="dishDesc" rows="2" style="width:100%;padding:11px 13px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:14px;font-family:inherit;resize:vertical" placeholder="Aged beef patty, sharp cheddar, brioche.">${existing?.description || ''}</textarea></div>
+          <textarea id="dishDesc" rows="2" style="width:100%;padding:11px 13px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:14px;font-family:inherit;resize:vertical" placeholder="Aged beef patty, sharp cheddar, brioche.">${escapeHTML(existing?.description || '')}</textarea></div>
         <div>
           <div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:4px">Add-ons / modifiers (optional)</div>
           <details style="background:rgba(245,236,216,.03);border:1px solid var(--line);border-radius:9px;padding:8px 12px">
@@ -1174,7 +1182,7 @@ Add-ons [multi]
 Extra bacon +1500
 Double patty +3000
 Sub gluten-free bun +1200</code></div>
-            <textarea id="dishMods" rows="8" style="width:100%;padding:11px 13px;border-radius:9px;background:rgba(245,236,216,.03);border:1px solid var(--line);color:var(--ink);font-size:12.5px;font-family:'JetBrains Mono',monospace;resize:vertical;margin-top:8px" placeholder="Cook *&#10;Rare +0&#10;Medium +0">${modifiersToText(existing?.modifiers || [])}</textarea>
+            <textarea id="dishMods" rows="8" style="width:100%;padding:11px 13px;border-radius:9px;background:rgba(245,236,216,.03);border:1px solid var(--line);color:var(--ink);font-size:12.5px;font-family:'JetBrains Mono',monospace;resize:vertical;margin-top:8px" placeholder="Cook *&#10;Rare +0&#10;Medium +0">${escapeHTML(modifiersToText(existing?.modifiers || []))}</textarea>
           </details>
         </div>
         <div>
@@ -1186,17 +1194,17 @@ Sub gluten-free bun +1200</code></div>
             <summary style="cursor:pointer;font-size:12.5px;color:var(--ink-dim)">Show fields (Afrikaans, isiZulu, isiXhosa)</summary>
             <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
               <div><div style="font-size:10px;color:var(--ink-faint);margin-bottom:2px">Afrikaans — name</div>
-                <input id="dishTrAfName" style="width:100%;padding:8px 10px;border-radius:6px;background:rgba(245,236,216,.03);border:1px solid var(--line);color:var(--ink);font-size:12.5px" value="${existing?.translations?.af?.name || ''}" /></div>
+                <input id="dishTrAfName" style="width:100%;padding:8px 10px;border-radius:6px;background:rgba(245,236,216,.03);border:1px solid var(--line);color:var(--ink);font-size:12.5px" value="${escapeHTML(existing?.translations?.af?.name || '')}" /></div>
               <div><div style="font-size:10px;color:var(--ink-faint);margin-bottom:2px">Afrikaans — description</div>
-                <input id="dishTrAfDesc" style="width:100%;padding:8px 10px;border-radius:6px;background:rgba(245,236,216,.03);border:1px solid var(--line);color:var(--ink);font-size:12.5px" value="${existing?.translations?.af?.description || ''}" /></div>
+                <input id="dishTrAfDesc" style="width:100%;padding:8px 10px;border-radius:6px;background:rgba(245,236,216,.03);border:1px solid var(--line);color:var(--ink);font-size:12.5px" value="${escapeHTML(existing?.translations?.af?.description || '')}" /></div>
               <div><div style="font-size:10px;color:var(--ink-faint);margin-bottom:2px">isiZulu — name</div>
-                <input id="dishTrZuName" style="width:100%;padding:8px 10px;border-radius:6px;background:rgba(245,236,216,.03);border:1px solid var(--line);color:var(--ink);font-size:12.5px" value="${existing?.translations?.zu?.name || ''}" /></div>
+                <input id="dishTrZuName" style="width:100%;padding:8px 10px;border-radius:6px;background:rgba(245,236,216,.03);border:1px solid var(--line);color:var(--ink);font-size:12.5px" value="${escapeHTML(existing?.translations?.zu?.name || '')}" /></div>
               <div><div style="font-size:10px;color:var(--ink-faint);margin-bottom:2px">isiZulu — description</div>
-                <input id="dishTrZuDesc" style="width:100%;padding:8px 10px;border-radius:6px;background:rgba(245,236,216,.03);border:1px solid var(--line);color:var(--ink);font-size:12.5px" value="${existing?.translations?.zu?.description || ''}" /></div>
+                <input id="dishTrZuDesc" style="width:100%;padding:8px 10px;border-radius:6px;background:rgba(245,236,216,.03);border:1px solid var(--line);color:var(--ink);font-size:12.5px" value="${escapeHTML(existing?.translations?.zu?.description || '')}" /></div>
               <div><div style="font-size:10px;color:var(--ink-faint);margin-bottom:2px">isiXhosa — name</div>
-                <input id="dishTrXhName" style="width:100%;padding:8px 10px;border-radius:6px;background:rgba(245,236,216,.03);border:1px solid var(--line);color:var(--ink);font-size:12.5px" value="${existing?.translations?.xh?.name || ''}" /></div>
+                <input id="dishTrXhName" style="width:100%;padding:8px 10px;border-radius:6px;background:rgba(245,236,216,.03);border:1px solid var(--line);color:var(--ink);font-size:12.5px" value="${escapeHTML(existing?.translations?.xh?.name || '')}" /></div>
               <div><div style="font-size:10px;color:var(--ink-faint);margin-bottom:2px">isiXhosa — description</div>
-                <input id="dishTrXhDesc" style="width:100%;padding:8px 10px;border-radius:6px;background:rgba(245,236,216,.03);border:1px solid var(--line);color:var(--ink);font-size:12.5px" value="${existing?.translations?.xh?.description || ''}" /></div>
+                <input id="dishTrXhDesc" style="width:100%;padding:8px 10px;border-radius:6px;background:rgba(245,236,216,.03);border:1px solid var(--line);color:var(--ink);font-size:12.5px" value="${escapeHTML(existing?.translations?.xh?.description || '')}" /></div>
             </div>
           </details>
         </div>
