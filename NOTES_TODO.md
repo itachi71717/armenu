@@ -269,6 +269,16 @@ Pick the top item, do it, commit, push, tick it off here.
 - ~~Basic test suite (vitest)~~ **DONE** — 22 tests pass (_db.js encoding, admin cookie signing, manager token round-trip).
 - ~~CI~~ **DONE** — `.github/workflows/ci.yml` runs `npm test` on push + PR to main.
 
+### Also shipped 2026-09-26 (features+polish batch)
+- Guest allergy warnings on menu dishes ("Contains 🥜 nuts · 🥛 dairy" / "🌱 Vegan · 🕌 Halal")
+- Kitchen line-items are tappable to strike-through (localStorage-persisted)
+- Order cancellation now captures a reason + audit-logs total_cents lost
+- Ownership transfer via POST /api/portal/transfer (owner → new email, old owner kept as manager)
+- Empty-state adoption in staff/kitchen views
+- Zero-dep syntax-check script (`scripts/syntax-check.js`) runs in CI
+- **Bug fix caught by syntax check: `api/_h/order.js` had `let body` + `const body` in same scope**
+- Vercel + CI badges added to README
+
 ### Also shipped 2026-09-26 (later batch)
 - Reservation confirmation email + .ics calendar attachment (Resend, silent no-op unless RESEND_API_KEY set)
 - Menu booking modal → success card with Add-to-calendar button

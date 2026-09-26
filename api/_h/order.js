@@ -152,10 +152,10 @@ export default async function handler(req, res) {
 
   // Fire-and-forget push to kitchen + manager
   const itemCount = resolved.reduce((s, i) => s + i.qty, 0);
-  const body = `${itemCount} item${itemCount === 1 ? '' : 's'}${table_label ? ' · Table ' + table_label : ''}`;
+  const pushBody = `${itemCount} item${itemCount === 1 ? '' : 's'}${table_label ? ' · Table ' + table_label : ''}`;
   sendPush(restaurant.id, {
     title: 'New order',
-    body,
+    body: pushBody,
     url: '/kitchen/',
     tag: 'order-' + order.id
   }).catch(() => {});

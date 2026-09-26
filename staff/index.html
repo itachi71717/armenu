@@ -283,7 +283,7 @@ function updateBadge(id, n) {
 }
 
 function renderOrders(orders) {
-  if (!orders.length) return $('view-orders').innerHTML = `<div class="empty"><h3>No active orders</h3><p>New orders appear here the moment a guest places one.</p></div>`;
+  if (!orders.length) return $('view-orders').innerHTML = `<div class="empty-state" data-icon="📋"><h3>No active orders</h3><p>New orders appear here the moment a guest places one.</p></div>`;
   const sym = 'R';
   $('view-orders').innerHTML = `<div class="grid">${orders.map(o => `
     <div class="card ${o.status}">
@@ -377,7 +377,7 @@ function openSplitBill(totalCents) {
 }
 
 function renderCalls(calls) {
-  if (!calls.length) return $('view-calls').innerHTML = `<div class="empty"><h3>No open calls</h3><p>Guests tap "Call Waiter" from their menu and it appears here.</p></div>`;
+  if (!calls.length) return $('view-calls').innerHTML = `<div class="empty-state" data-icon="🛎"><h3>No open calls</h3><p>Guests tap "Call Waiter" from their menu and it appears here.</p></div>`;
   $('view-calls').innerHTML = `<div class="grid">${calls.map(c => `
     <div class="card new">
       <h4>🛎 ${c.table_label ? 'Table ' + escapeHTML(c.table_label) : 'Walk-up'}</h4>
@@ -395,7 +395,7 @@ function renderCalls(calls) {
 }
 
 function renderTables(tables) {
-  if (!tables.length) return $('view-tables').innerHTML = `<div class="empty"><h3>No tables yet</h3><p>The owner sets these up in the admin console.</p></div>`;
+  if (!tables.length) return $('view-tables').innerHTML = `<div class="empty-state" data-icon="🪑"><h3>No tables yet</h3><p>The owner sets these up in the admin console.</p></div>`;
   $('view-tables').innerHTML = `<div class="tables-grid">${tables.map(t => `
     <div class="tbl ${t.status}" data-tid="${t.id}">
       <div>

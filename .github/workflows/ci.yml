@@ -16,5 +16,7 @@ jobs:
           cache: 'npm'
       - name: Install
         run: npm install --no-audit --no-fund
+      - name: Syntax check
+        run: node --experimental-vm-modules scripts/syntax-check.js
       - name: Test
         run: npm test

@@ -1,9 +1,12 @@
 # ARMenu
 
+![CI](https://github.com/itachi71717/armenu/actions/workflows/ci.yml/badge.svg?branch=main)
+
 South Africa's augmented-reality menu platform. Diners scan a QR beside any dish,
 the meal appears on their table life-size and photo-real — no app install.
 
-**Production:** [armenu.co.za](https://armenu.co.za)
+**Production:** [armenu.co.za](https://armenu.co.za) · every push to `main`
+auto-deploys via Vercel · every PR gets its own preview URL.
 
 ---
 
