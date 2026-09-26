@@ -10,6 +10,7 @@
 <meta property="og:image" content="https://armenu.co.za/favicon.svg" />
 <meta property="og:url" content="https://armenu.co.za/menu.html" />
 <link rel="canonical" href="https://armenu.co.za/menu.html" />
+<link rel="manifest" href="/manifest.json" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <meta name="description" content="Browse this restaurant's menu and see every dish in augmented reality on your table." />
 
@@ -336,6 +337,36 @@ function applyBranding() {
         old.replaceWith(img);
       }
     }
+    // Per-restaurant favicon — swap the ARMenu default for the restaurant's logo
+    // so browser tabs + "Add to home screen" show THEIR brand, not ours.
+    try {
+      const existing = document.querySelector('link[rel="icon"]');
+      if (existing) existing.href = b.logo;
+      const apple = document.createElement('link');
+      apple.rel = 'apple-touch-icon';
+      apple.href = b.logo;
+      document.head.appendChild(apple);
+      // Dynamic manifest so PWA install prompt uses the restaurant's name + logo
+      const rname = state.settings.restaurant?.name || 'Menu';
+      const rslug = state.settings.restaurant?.slug || '';
+      const dyn = {
+        name: rname,
+        short_name: rname.length > 12 ? rname.slice(0, 12) : rname,
+        start_url: rslug ? `/m/${rslug}` : '/',
+        display: 'standalone',
+        background_color: b.bg || '#0a0806',
+        theme_color: primary,
+        icons: [{ src: b.logo, sizes: 'any', type: b.logo.endsWith('.svg') ? 'image/svg+xml' : 'image/png', purpose: 'any' }]
+      };
+      const blob = new Blob([JSON.stringify(dyn)], { type: 'application/manifest+json' });
+      const url = URL.createObjectURL(blob);
+      const mfLink = document.querySelector('link[rel="manifest"]') || (() => { const l = document.createElement('link'); l.rel = 'manifest'; document.head.appendChild(l); return l; })();
+      mfLink.href = url;
+    } catch {}
+  }
+  // Update the page title to the restaurant's name so browser tabs read right
+  if (state.settings.restaurant?.name) {
+    try { document.title = state.settings.restaurant.name + ' · Menu'; } catch {}
   }
 }
 

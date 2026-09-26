@@ -1,0 +1,19 @@
+{
+  "name": "ARMenu",
+  "short_name": "ARMenu",
+  "description": "South Africa's AR menu platform. Every restaurant's menu, life-size on the table.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0806",
+  "theme_color": "#0a0806",
+  "categories": ["food", "business"],
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Portal",   "short_name": "Portal",   "description": "Restaurant manager portal", "url": "/portal/" },
+    { "name": "Kitchen",  "short_name": "Kitchen",  "description": "Kitchen display",             "url": "/kitchen/" },
+    { "name": "Staff",    "short_name": "Staff",    "description": "Waiter console",              "url": "/staff/" }
+  ]
+}

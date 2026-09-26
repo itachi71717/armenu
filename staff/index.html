@@ -205,6 +205,21 @@ function signOut() {
 }
 $('signout').onclick = signOut;
 
+// Idle timeout — auto-signout after 12h idle (one full shift + safety margin).
+// A staff tablet left unlocked on the counter with an active session is a scope
+// leak: whoever picks it up sees the order queue. Any pointer/key/touch resets.
+const IDLE_MS = 12 * 60 * 60 * 1000;
+let _idleAt = Date.now();
+['pointerdown', 'keydown', 'touchstart', 'mousemove'].forEach(ev =>
+  window.addEventListener(ev, () => { _idleAt = Date.now(); }, { passive: true })
+);
+setInterval(() => {
+  if (session && Date.now() - _idleAt > IDLE_MS) {
+    toast('Signed out — tablet was idle for 12h');
+    signOut();
+  }
+}, 60_000);
+
 function onLoggedIn() {
   $('login').style.display = 'none';
   $('whoami').textContent = `${session.staff.name} · ${session.restaurant.name}`;

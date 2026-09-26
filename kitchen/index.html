@@ -162,6 +162,16 @@ function signOut() {
 }
 $('signout').onclick = signOut;
 
+// Idle timeout — auto-signout after 12h idle so an abandoned tablet stops leaking data.
+const IDLE_MS = 12 * 60 * 60 * 1000;
+let _idleAt = Date.now();
+['pointerdown','keydown','touchstart','mousemove'].forEach(ev =>
+  window.addEventListener(ev, () => { _idleAt = Date.now(); }, { passive: true })
+);
+setInterval(() => {
+  if (session && Date.now() - _idleAt > IDLE_MS) { toast('Signed out — tablet was idle for 12h'); signOut(); }
+}, 60_000);
+
 function onIn() {
   $('login').style.display = 'none';
   $('whoRestaurant').textContent = session.restaurant.name;

@@ -40,6 +40,7 @@ const ROUTES = {
   'admin/schedules':     'admin/schedules',
   'admin/categories/reorder': 'admin/categories-reorder',
   'admin/dishes/reorder':     'admin/dishes-reorder',
+  'admin/audit':              'admin/audit',
 
   'staff/login':  'staff/login',
   'staff/orders': 'staff/orders',

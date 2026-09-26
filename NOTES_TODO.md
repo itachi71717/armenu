@@ -32,6 +32,16 @@ Update after every completed item.
 - **[B-blocked] PayFast** — needs merchant sign-up + PAYFAST_MERCHANT_ID / KEY / PASSPHRASE
 - **[B-blocked] Sentry** — needs SENTRY_DSN
 
+## ✅ Session C — what I could do without your keys (checkpoint)
+- **[C1] PWA install** — /manifest.json + rel=manifest linked on 8 core pages. Diners get "Add to home screen" prompts; kitchen/staff can install as standalone apps. Includes shortcut list for Portal / Kitchen / Staff.
+- **[C2] Kiosk idle timeout** — staff + kitchen auto-signout after 12h idle (any pointer/keyboard/touch resets). Prevents an unattended tablet from leaking data.
+- **[C3] Audit log** — new audit_log table + auditLog(req, rid, action, {target, metadata}) helper. Wired into dish create/update/delete. Actor auto-derived from token headers (admin / manager:<rid> / staff:<id>). New /api/admin/audit endpoint returns last 100 events, scoped or platform-wide.
+- **[C4] Favicon per restaurant** — menu.html now swaps the ARMenu favicon for the restaurant's logo on branded menu pages. Also generates a dynamic PWA manifest so "Add to home screen" uses the restaurant's name + logo (not ARMenu's). Page title updates to "<Restaurant> · Menu".
+
+## Still blocked (Session C bits needing external accounts)
+- **Redis rate limiter** — needs Upstash sign-up + UPSTASH_REDIS_URL. Current in-memory limiter still works, just per-instance.
+- **Custom domain per restaurant** (e.g. menu.oceanbasket.co.za) — needs wildcard DNS first, then per-restaurant DNS record + Vercel domain add. Middleware code already supports subdomain routing.
+
 ## Awaiting from Ian
 - Sentry DSN (sign up at sentry.io — Google OAuth — copy DSN)
 - Meshy Pro subscription → MESHY_API_KEY
