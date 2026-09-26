@@ -19,7 +19,7 @@ export default async function handler(req, res) {
       .select('scanned_at, dish_id, user_agent')
       .eq('restaurant_id', r.id).gte('scanned_at', since),
     supabase.from('orders')
-      .select('created_at, total_cents, status, source, order_items(dish_id, dish_name, qty, price_cents)')
+      .select('id, created_at, total_cents, status, source')
       .eq('restaurant_id', r.id).gte('created_at', since),
     supabase.from('reviews')
       .select('created_at, stars, routed_to_google')
@@ -32,6 +32,16 @@ export default async function handler(req, res) {
   const reviews = reviewsQ.data || [];
   const dishes = dishesQ.data || [];
   const dishName = Object.fromEntries(dishes.map(d => [d.id, d.name]));
+
+  // Fetch order_items separately (shim doesn't understand embedded relations)
+  if (orders.length) {
+    const { data: items = [] } = await supabase.from('order_items')
+      .select('order_id, dish_id, dish_name, qty, price_cents')
+      .in('order_id', orders.map(o => o.id));
+    const byOrder = {};
+    for (const it of items) (byOrder[it.order_id] = byOrder[it.order_id] || []).push(it);
+    for (const o of orders) o.order_items = byOrder[o.id] || [];
+  }
 
   // Per-day buckets
   const dayKey = ts => ts.slice(0, 10);

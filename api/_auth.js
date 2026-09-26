@@ -14,9 +14,11 @@ const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
 export function requireAdmin(req) {
   // New path: signed httpOnly cookie (issued by /api/admin/login)
   if (readAdminCookie(req)) return true;
-  // Legacy path: raw password in x-admin-secret header (to be deprecated
-  // once every admin page is migrated to cookie sessions).
-  if (req.headers['x-admin-secret'] === process.env.ADMIN_SECRET) return true;
+  // Legacy path: raw password in x-admin-secret header. GUARD against the
+  // undefined===undefined trap: if ADMIN_SECRET isn't set, no header value
+  // should ever authenticate.
+  const secret = process.env.ADMIN_SECRET;
+  if (secret && req.headers['x-admin-secret'] === secret) return true;
   // Accept a portal_token issued via /api/portal/manager-token — it grants
   // admin rights SCOPED to the manager's own restaurant. Callers that mutate
   // rows should check getScopedRestaurantId(req) and enforce the scope.
@@ -29,7 +31,8 @@ export function getScopedRestaurantId(req) {
   // If the caller authenticated with the master ADMIN_SECRET (cookie or
   // legacy header), no scope enforced.
   if (readAdminCookie(req)) return null;
-  if (req.headers['x-admin-secret'] === process.env.ADMIN_SECRET) return null;
+  const secret = process.env.ADMIN_SECRET;
+  if (secret && req.headers['x-admin-secret'] === secret) return null;
   const tok = req.headers['x-portal-token'] || req.query?.portal_token;
   if (!tok) return null;
   const v = verifyManagerToken(tok);

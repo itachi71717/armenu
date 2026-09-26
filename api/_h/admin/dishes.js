@@ -2,7 +2,7 @@
 // PATCH  /api/admin/dishes?id=<id>            → { name?, price?, scale?, active?, thumb_url?, glb_url?, usdz_url?, description?, category_id?, camera_orbit? }
 // DELETE /api/admin/dishes?id=<id>
 import { supabase, supabaseAdmin } from '../../_db.js';
-import { requireAdmin } from '../../_auth.js';
+import { requireAdmin, assertScope } from '../../_auth.js';
 import { auditLog } from '../_audit.js';
 
 const slugify = s => String(s || 'dish').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50) || 'dish';
@@ -61,6 +61,12 @@ export default async function handler(req, res) {
   if (req.method === 'PATCH') {
     const id = await resolveDishId();
     if (!id) return res.status(404).json({ error: 'dish not found' });
+    // Resolve owner FIRST so a scoped token can't touch a dish from a
+    // restaurant that isn't theirs just by guessing the UUID.
+    const { data: dishRow } = await supabase.from('dishes').select('restaurant_id, slug').eq('id', id).maybeSingle();
+    if (!dishRow) return res.status(404).json({ error: 'dish not found' });
+    const guard = assertScope(req, dishRow.restaurant_id);
+    if (guard) return res.status(guard.status).json({ error: guard.error });
     let body = {};
     try { body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body; } catch {}
     const patch = {};
@@ -70,8 +76,7 @@ export default async function handler(req, res) {
     if ('price' in body) patch.price_cents = parseCents(body.price);
     if ('scale' in body) patch.scale = Math.max(0.1, Math.min(5, parseFloat(body.scale) || 1));
     await supabaseAdmin.from('dishes').update(patch).eq('id', id);
-    const { data: dishRow } = await supabase.from('dishes').select('restaurant_id, slug').eq('id', id).maybeSingle();
-    auditLog(req, dishRow?.restaurant_id, 'dish.update', { target: dishRow?.slug || id, metadata: { fields: Object.keys(patch) } }).catch(() => {});
+    auditLog(req, dishRow.restaurant_id, 'dish.update', { target: dishRow.slug || id, metadata: { fields: Object.keys(patch) } }).catch(() => {});
     return res.status(200).json({ ok: true });
   }
 
@@ -79,8 +84,11 @@ export default async function handler(req, res) {
     const id = await resolveDishId();
     if (!id) return res.status(404).json({ error: 'dish not found' });
     const { data: dishRow } = await supabase.from('dishes').select('restaurant_id, slug').eq('id', id).maybeSingle();
+    if (!dishRow) return res.status(404).json({ error: 'dish not found' });
+    const guard = assertScope(req, dishRow.restaurant_id);
+    if (guard) return res.status(guard.status).json({ error: guard.error });
     await supabaseAdmin.from('dishes').delete().eq('id', id);
-    auditLog(req, dishRow?.restaurant_id, 'dish.delete', { target: dishRow?.slug || id }).catch(() => {});
+    auditLog(req, dishRow.restaurant_id, 'dish.delete', { target: dishRow.slug || id }).catch(() => {});
     return res.status(200).json({ ok: true });
   }
   return res.status(405).end();

@@ -18,13 +18,20 @@ export default async function handler(req, res) {
   if (!session) return res.status(401).json({ error: 'unauthorized' });
 
   if (req.method === 'GET') {
-    const { data = [] } = await supabase.from('orders')
-      .select('*, order_items(*)')
+    const { data: orders = [] } = await supabase.from('orders')
+      .select('*')
       .eq('restaurant_id', session.restaurant_id)
       .in('status', ['new','prep','ready'])
       .order('created_at', { ascending: true })
       .limit(100);
-    return res.status(200).json({ orders: data });
+    if (orders.length) {
+      const { data: items = [] } = await supabase.from('order_items')
+        .select('*').in('order_id', orders.map(o => o.id));
+      const byOrder = {};
+      for (const it of items) (byOrder[it.order_id] = byOrder[it.order_id] || []).push(it);
+      for (const o of orders) o.order_items = byOrder[o.id] || [];
+    }
+    return res.status(200).json({ orders });
   }
 
   if (req.method === 'POST') {

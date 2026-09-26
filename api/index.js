@@ -113,7 +113,9 @@ export default async function handler(req, res) {
   // ============================================================
   if (key.startsWith('admin/')) {
     // Master-admin can arrive via signed cookie (new) OR the legacy header.
-    let isMasterAdmin = req.headers['x-admin-secret'] === process.env.ADMIN_SECRET;
+    // Guard the header comparison so undefined===undefined can never grant.
+    const _adminSecret = process.env.ADMIN_SECRET;
+    let isMasterAdmin = !!(_adminSecret && req.headers['x-admin-secret'] === _adminSecret);
     if (!isMasterAdmin) {
       try {
         const { readAdminCookie } = await import('./_h/admin/login.js');

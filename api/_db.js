@@ -147,7 +147,10 @@ class Query {
       const rows = await sql(text, params);
       return this._shape(rows);
     } catch (e) {
-      return { data: null, error: { message: e.message, details: e.detail || null, code: e.code || null } };
+      // data:[] (not null) so downstream `const { data = [] }` destructures
+      // to an iterable instead of tripping on a .map/.filter of null.
+      // Callers that need the error still get it via `.error`.
+      return { data: [], error: { message: e.message, details: e.detail || null, code: e.code || null } };
     }
   }
 
