@@ -1,6 +1,6 @@
 // Tables: GET list | POST create | PATCH (status/label/seats) | DELETE
 import { supabase, supabaseAdmin } from '../../_db.js';
-import { requireAdmin } from '../../_auth.js';
+import { requireAdmin, assertScope } from '../../_auth.js';
 import { auditLog } from '../_audit.js';
 
 export default async function handler(req, res) {
@@ -33,6 +33,10 @@ export default async function handler(req, res) {
 
   if (req.method === 'PATCH') {
     const { id } = req.query;
+    const { data: row } = await supabase.from('restaurant_tables').select('restaurant_id, label').eq('id', id).maybeSingle();
+    if (!row) return res.status(404).json({ error: 'not found' });
+    const guard = assertScope(req, row.restaurant_id);
+    if (guard) return res.status(guard.status).json({ error: guard.error });
     let body = {};
     try { body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body; } catch {}
     const patch = { updated_at: new Date().toISOString() };
@@ -40,20 +44,29 @@ export default async function handler(req, res) {
     if ('seats' in body)  patch.seats  = parseInt(body.seats) || 2;
     if ('status' in body) patch.status = String(body.status);
     if ('assigned_staff_id' in body) {
+      // Validate that the staff belongs to THIS restaurant (block cross-tenant assignment)
+      if (body.assigned_staff_id) {
+        const { data: st } = await supabase.from('staff').select('id, restaurant_id').eq('id', body.assigned_staff_id).maybeSingle();
+        if (!st || st.restaurant_id !== row.restaurant_id) {
+          return res.status(400).json({ error: 'invalid_staff_for_restaurant' });
+        }
+      }
       patch.assigned_staff_id = body.assigned_staff_id || null;
       patch.assigned_at = body.assigned_staff_id ? new Date().toISOString() : null;
     }
     await supabaseAdmin.from('restaurant_tables').update(patch).eq('id', id);
-    const { data: row } = await supabase.from('restaurant_tables').select('restaurant_id, label').eq('id', id).maybeSingle();
-    auditLog(req, row?.restaurant_id, 'table.update', { target: row?.label || id, metadata: { fields: Object.keys(patch).filter(k => k !== 'updated_at') } }).catch(() => {});
+    auditLog(req, row.restaurant_id, 'table.update', { target: row.label || id, metadata: { fields: Object.keys(patch).filter(k => k !== 'updated_at') } }).catch(() => {});
     return res.status(200).json({ ok: true });
   }
 
   if (req.method === 'DELETE') {
     const { id } = req.query;
     const { data: row } = await supabase.from('restaurant_tables').select('restaurant_id, label').eq('id', id).maybeSingle();
+    if (!row) return res.status(404).json({ error: 'not found' });
+    const guard = assertScope(req, row.restaurant_id);
+    if (guard) return res.status(guard.status).json({ error: guard.error });
     await supabaseAdmin.from('restaurant_tables').delete().eq('id', id);
-    auditLog(req, row?.restaurant_id, 'table.delete', { target: row?.label || id }).catch(() => {});
+    auditLog(req, row.restaurant_id, 'table.delete', { target: row.label || id }).catch(() => {});
     return res.status(200).json({ ok: true });
   }
   return res.status(405).end();

@@ -5,7 +5,7 @@
 // DELETE ?id
 import crypto from 'node:crypto';
 import { supabase, supabaseAdmin } from '../../_db.js';
-import { requireAdmin } from '../../_auth.js';
+import { requireAdmin, assertScope } from '../../_auth.js';
 import { auditLog } from '../_audit.js';
 
 const hashPin = (pin, rid) => crypto.createHash('sha256').update(String(pin) + ':' + rid).digest('hex');
@@ -48,6 +48,12 @@ export default async function handler(req, res) {
     try { body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body; } catch {}
     const { data: existing } = await supabase.from('staff').select('restaurant_id, name').eq('id', id).single();
     if (!existing) return res.status(404).json({ error: 'not found' });
+    // Scope: a manager portal_token can only touch staff in their restaurant.
+    // Without this, anyone with a valid portal_token could PATCH pin= against
+    // another restaurant's staff row (silently resetting the PIN) then log in
+    // via /api/staff/login. Highest-impact of the audit findings.
+    const guard = assertScope(req, existing.restaurant_id);
+    if (guard) return res.status(guard.status).json({ error: guard.error });
     const patch = {};
     if ('name' in body) patch.name = String(body.name).trim();
     if ('active' in body) patch.active = !!body.active;
@@ -62,8 +68,11 @@ export default async function handler(req, res) {
   if (req.method === 'DELETE') {
     const { id } = req.query;
     const { data: row } = await supabase.from('staff').select('restaurant_id, name').eq('id', id).maybeSingle();
+    if (!row) return res.status(404).json({ error: 'not found' });
+    const guard = assertScope(req, row.restaurant_id);
+    if (guard) return res.status(guard.status).json({ error: guard.error });
     await supabaseAdmin.from('staff').delete().eq('id', id);
-    auditLog(req, row?.restaurant_id, 'staff.delete', { target: row?.name || id }).catch(() => {});
+    auditLog(req, row.restaurant_id, 'staff.delete', { target: row.name || id }).catch(() => {});
     return res.status(200).json({ ok: true });
   }
   return res.status(405).end();

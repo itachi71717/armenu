@@ -1,8 +1,14 @@
 // Offers (happy hour, weekend specials).
 // GET ?slug=r · POST ?slug=r · PATCH ?id · DELETE ?id
 import { supabase, supabaseAdmin } from '../../_db.js';
-import { requireAdmin } from '../../_auth.js';
+import { requireAdmin, assertScope } from '../../_auth.js';
 import { auditLog } from '../_audit.js';
+
+const clampPct = v => {
+  const n = parseInt(v);
+  if (!Number.isFinite(n)) return null;
+  return Math.max(0, Math.min(100, n));
+};
 
 export default async function handler(req, res) {
   if (!requireAdmin(req)) return res.status(401).json({ error: 'unauthorized' });
@@ -21,12 +27,14 @@ export default async function handler(req, res) {
     if (!r) return res.status(404).json({ error: 'not found' });
     let body = {};
     try { body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body; } catch {}
-    if (!body.name || !body.starts_at || !body.ends_at || !body.discount_pct)
+    if (!body.name || !body.starts_at || !body.ends_at || body.discount_pct == null)
       return res.status(400).json({ error: 'name, starts_at, ends_at, discount_pct required' });
+    const pct = clampPct(body.discount_pct);
+    if (pct == null) return res.status(400).json({ error: 'discount_pct must be a number 0-100' });
     const { data, error } = await supabaseAdmin.from('offers').insert({
       restaurant_id: r.id,
       name: body.name,
-      discount_pct: parseInt(body.discount_pct),
+      discount_pct: pct,
       starts_at: body.starts_at,
       ends_at: body.ends_at,
       days_of_week: Array.isArray(body.days_of_week) ? body.days_of_week : [0,1,2,3,4,5,6],
@@ -39,23 +47,34 @@ export default async function handler(req, res) {
 
   if (req.method === 'PATCH') {
     const { id } = req.query;
+    const { data: row } = await supabase.from('offers').select('restaurant_id, name').eq('id', id).maybeSingle();
+    if (!row) return res.status(404).json({ error: 'not found' });
+    const guard = assertScope(req, row.restaurant_id);
+    if (guard) return res.status(guard.status).json({ error: guard.error });
     let body = {};
     try { body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body; } catch {}
     const patch = {};
-    for (const k of ['name','discount_pct','starts_at','ends_at','days_of_week','dish_ids','active']) {
+    for (const k of ['name','starts_at','ends_at','days_of_week','dish_ids','active']) {
       if (k in body) patch[k] = body[k];
     }
+    if ('discount_pct' in body) {
+      const pct = clampPct(body.discount_pct);
+      if (pct == null) return res.status(400).json({ error: 'discount_pct must be a number 0-100' });
+      patch.discount_pct = pct;
+    }
     await supabaseAdmin.from('offers').update(patch).eq('id', id);
-    const { data: row } = await supabase.from('offers').select('restaurant_id, name').eq('id', id).maybeSingle();
-    auditLog(req, row?.restaurant_id, 'offer.update', { target: row?.name || id, metadata: { fields: Object.keys(patch) } }).catch(() => {});
+    auditLog(req, row.restaurant_id, 'offer.update', { target: row.name || id, metadata: { fields: Object.keys(patch) } }).catch(() => {});
     return res.status(200).json({ ok: true });
   }
 
   if (req.method === 'DELETE') {
     const { id } = req.query;
     const { data: row } = await supabase.from('offers').select('restaurant_id, name').eq('id', id).maybeSingle();
+    if (!row) return res.status(404).json({ error: 'not found' });
+    const guard = assertScope(req, row.restaurant_id);
+    if (guard) return res.status(guard.status).json({ error: guard.error });
     await supabaseAdmin.from('offers').delete().eq('id', id);
-    auditLog(req, row?.restaurant_id, 'offer.delete', { target: row?.name || id }).catch(() => {});
+    auditLog(req, row.restaurant_id, 'offer.delete', { target: row.name || id }).catch(() => {});
     return res.status(200).json({ ok: true });
   }
   return res.status(405).end();

@@ -3,14 +3,21 @@
 // Admin-only.
 
 import { supabase, supabaseAdmin } from '../../_db.js';
-import { requireAdmin } from '../../_auth.js';
+import { requireAdmin, getScopedRestaurantId } from '../../_auth.js';
 import { auditLog } from '../_audit.js';
 
-const ALLOWED = new Set([
+// Fields a scoped MANAGER may edit via their portal_token.
+const MANAGER_ALLOWED = new Set([
   'orders_enabled','waiter_call_enabled','kitchen_display','reviews_enabled','tables_enabled',
   'logo_url','cover_url','theme_primary','theme_bg','tagline',
   'default_currency','currency_symbol','default_language','enabled_languages',
-  'google_review_url','plan','subscription_status','trial_ends_at','paddle_subscription_id'
+  'google_review_url'
+]);
+// Server/billing-owned fields. Only master admin (ADMIN_SECRET cookie / header
+// with no portal_token in play) may write these. Otherwise a manager could
+// PATCH plan=premium and self-upgrade for free.
+const MASTER_ONLY = new Set([
+  'plan','subscription_status','trial_ends_at','paddle_subscription_id'
 ]);
 
 export default async function handler(req, res) {
@@ -35,7 +42,15 @@ export default async function handler(req, res) {
     let body = {};
     try { body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body; } catch {}
     const patch = { updated_at: new Date().toISOString() };
-    for (const k of Object.keys(body || {})) if (ALLOWED.has(k)) patch[k] = body[k];
+    // A scoped manager (portal_token in play) can only edit MANAGER_ALLOWED.
+    // Master admin (no scope) can edit both sets.
+    const isMasterAdmin = getScopedRestaurantId(req) === null;
+    for (const k of Object.keys(body || {})) {
+      if (MANAGER_ALLOWED.has(k)) patch[k] = body[k];
+      else if (MASTER_ONLY.has(k) && isMasterAdmin) patch[k] = body[k];
+      // else: silently dropped — a rejected billing-field attempt from a
+      // scoped manager doesn't 400 to avoid enumeration, just isn't applied.
+    }
 
     // Upsert
     const { data: existing } = await supabaseAdmin.from('restaurant_settings').select('restaurant_id').eq('restaurant_id', r.id).maybeSingle();
