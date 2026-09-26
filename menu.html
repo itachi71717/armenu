@@ -4,8 +4,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="theme-color" content="#0a0806" />
-<title>Menu. AR Menu</title>
-<meta property="og:title" content="Menu. AR Menu" />
+<title>Menu. ARMenu</title>
+<meta property="og:title" content="Menu. ARMenu" />
 <meta property="og:description" content="Browse this restaurant's menu and see every dish in augmented reality on your table." />
 <meta property="og:image" content="https://armenu.co.za/favicon.svg" />
 <meta property="og:url" content="https://armenu.co.za/menu.html" />
@@ -187,6 +187,7 @@
   .foot-hint .powered{margin-top:18px;padding-top:18px;border-top:1px solid var(--line);font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase}
   .foot-hint .powered a{color:var(--accent-2)}
 </style>
+<script src="/vendor/armenu-sounds.js" defer></script>
 <script src="/vendor/sentry-client.js" defer></script>
 <script src="/vendor/cookie-consent.js" defer></script>
 </head>
@@ -436,7 +437,7 @@ function render() {
     : `<div class="brand-badge">Powered by <b>ARMenu</b></div>`;
 
   if (!dishes.length) {
-    $('content').innerHTML = `${cover}<section class="hero"><div class="pre">AR Menu</div><h1>${escapeHTML(restaurant.name)}</h1><p class="sub">No dishes are live yet. <em>Check back soon.</em></p></section>`;
+    $('content').innerHTML = `${cover}<section class="hero"><div class="pre">ARMenu</div><h1>${escapeHTML(restaurant.name)}</h1><p class="sub">No dishes are live yet. <em>Check back soon.</em></p></section>`;
     return;
   }
 
@@ -446,7 +447,7 @@ function render() {
   $('content').innerHTML = `
     ${cover}
     <section class="hero">
-      <div class="pre">AR Menu</div>
+      <div class="pre">ARMenu</div>
       <h1>${escapeHTML(restaurant.name)}</h1>
       <p class="sub">${heroSub}</p>
       ${tableTag}
@@ -458,7 +459,7 @@ function render() {
       <div class="dishes">${dishesHtml}</div>
       <div class="foot-hint">
         Point your phone at the table after tapping <em>View in AR</em>. your meal appears at real size.
-        <div class="powered">Powered by <a href="https://armenu.co.za" target="_blank" rel="noopener">AR Menu</a></div>
+        <div class="powered">Powered by <a href="https://armenu.co.za" target="_blank" rel="noopener">ARMenu</a></div>
       </div>
     </main>`;
 

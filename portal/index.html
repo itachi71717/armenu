@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>AR Menu · Restaurant Portal</title>
+<title>ARMenu · Restaurant Portal</title>
 
 <meta name="theme-color" content="#0a0806" />
-<meta property="og:title" content="AR Menu Restaurant Portal" />
-<meta property="og:description" content="Restaurant portal for AR Menu." />
+<meta property="og:title" content="ARMenu Restaurant Portal" />
+<meta property="og:description" content="Restaurant portal for ARMenu." />
 <meta property="og:image" content="https://armenu.co.za/favicon.svg" />
 <meta property="og:url" content="https://armenu.co.za/portal/" />
 <link rel="canonical" href="https://armenu.co.za/portal/" />
@@ -217,6 +217,7 @@
   .wa-qr-block img{width:160px;height:160px;background:#fff;padding:8px;border-radius:10px;display:block;margin:0 auto 10px}
   .wa-qr-block .wa-cta{display:inline-flex;align-items:center;gap:6px;color:#25D366;font-weight:600;font-size:13px}
 </style>
+<script src="/vendor/armenu-sounds.js" defer></script>
 <script src="/vendor/sentry-client.js" defer></script>
 <script src="/vendor/cookie-consent.js" defer></script>
 </head>
@@ -233,7 +234,7 @@
     <div id="link-error" style="display:none">
       <div class="err-block">
         <strong>Almost there — we just need to link your account.</strong>
-        Tell us about your restaurant and the AR Menu team will activate your portal within 1 business day.
+        Tell us about your restaurant and the ARMenu team will activate your portal within 1 business day.
       </div>
       <div class="lead-form" id="leadForm">
         <div class="form-row"><label>Restaurant name</label><input type="text" id="leadName" placeholder="e.g. Ocean Basket Sandton" /></div>
@@ -242,7 +243,7 @@
         <button class="btn-primary" id="leadBtn">Submit details →</button>
       </div>
       <div class="lead-success" id="leadSuccess" style="display:none">
-        ✓ <strong>Got it.</strong> AR Menu will reach out via WhatsApp within 1 business day to activate your portal.
+        ✓ <strong>Got it.</strong> ARMenu will reach out via WhatsApp within 1 business day to activate your portal.
         <div class="wa-qr-block" id="leadWaBlock" style="display:none">
           <div class="wa-qr-label">Scan to chat now on WhatsApp</div>
           <img id="leadWaQr" alt="WhatsApp QR" />
@@ -604,7 +605,7 @@
     $('leadSuccess').style.display = 'block';
     // Generate WhatsApp QR so support can be reached in one tap.
     try {
-      const waMsg = `Hi AR Menu, this is ${restaurant_name}. I just submitted my restaurant details in the portal — please activate my account.`;
+      const waMsg = `Hi ARMenu, this is ${restaurant_name}. I just submitted my restaurant details in the portal — please activate my account.`;
       const waUrl = `https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent(waMsg)}`;
       const dataUrl = await qrDataUrl(waUrl, 500);
       $('leadWaQr').src = dataUrl;
@@ -680,8 +681,8 @@
       } catch (e) { console.error('token fetch failed:', e); }
     })();
     $('welcomeSub').textContent = data.dishes.length
-      ? `Your AR menu is live with ${data.dishes.length} dish${data.dishes.length === 1 ? '' : 'es'}. Performance reports are emailed by AR Menu monthly.`
-      : `Your account is set up. AR Menu will publish your first dishes after the kitchen visit.`;
+      ? `Your AR menu is live with ${data.dishes.length} dish${data.dishes.length === 1 ? '' : 'es'}. Performance reports are emailed by ARMenu monthly.`
+      : `Your account is set up. ARMenu will publish your first dishes after the kitchen visit.`;
 
     // Multi-location roll-up: if the manager has >1 restaurant linked, render
     // an org overview card + a grid of location cards ABOVE the primary dishes.
@@ -891,7 +892,7 @@
     const { ok, data } = await authFetch('/api/portal/request', { method: 'POST', body: JSON.stringify({ message }) });
     if (!ok) return toast(data.error || 'Failed', 'err');
     $('reqInput').value = '';
-    toast('Request sent — AR Menu will reply within 1 business day.', 'ok');
+    toast('Request sent — ARMenu will reply within 1 business day.', 'ok');
   });
 
   // Boot. Listener fires on sign-in / sign-out events; when a user shows up
