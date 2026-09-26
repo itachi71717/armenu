@@ -17,7 +17,7 @@ export default async function handler(req, res) {
   const { data: restaurant, error: restErr } = await supabaseAdmin
     .from('restaurants')
     .select('id')
-    .ilike('email', auth.email)
+    .eq('email', String(auth.email).toLowerCase())
     .maybeSingle();
 
   if (restErr) {

@@ -119,7 +119,7 @@ export default async function handler(req, res) {
       to: created.guest_email,
       subject: `Booking received — ${rest.name}, ${local}`,
       html: guestHtml,
-      replyTo: rest.email || undefined
+      replyTo: safeHeader(rest.email)
     }));
   }
   if (rest.email) {
@@ -139,7 +139,7 @@ export default async function handler(req, res) {
       to: rest.email,
       subject: `New booking — ${guest_name}, ${local}`,
       html: mgrHtml,
-      replyTo: created.guest_email || undefined
+      replyTo: safeHeader(created.guest_email)
     }));
   }
   Promise.allSettled(emailPromises).then(results => {
@@ -157,4 +157,12 @@ export default async function handler(req, res) {
 
 function escapeHtml(s) {
   return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+// Defence in depth: strip CR/LF from any string routed into an email header
+// (replyTo, from, to). Resend does its own sanitisation; this closes the
+// injection door regardless.
+function safeHeader(s) {
+  if (!s) return undefined;
+  const cleaned = String(s).replace(/[\r\n\t]+/g, ' ').trim();
+  return cleaned || undefined;
 }

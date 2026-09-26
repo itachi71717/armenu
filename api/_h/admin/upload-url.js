@@ -18,6 +18,13 @@ export default async function handler(req, res) {
 
   const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
   const original = (body.filename || 'dish.glb').toLowerCase().replace(/[^a-z0-9._-]+/g, '-');
+  // Extension whitelist — only 3D-asset formats and image thumbnails may land
+  // in the public `dishes` bucket. Blocks .html/.svg/.js payloads that would
+  // otherwise be servable as XSS from an armenu.co.za origin.
+  const ALLOWED_EXT = /\.(glb|gltf|usdz|obj|fbx|jpg|jpeg|png|webp|avif)$/i;
+  if (!ALLOWED_EXT.test(original)) {
+    return res.status(400).json({ error: 'unsupported_file_type', message: 'Only 3D models (.glb, .gltf, .usdz, .obj, .fbx) and images (.jpg, .png, .webp, .avif) are allowed.' });
+  }
   const path = `originals/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${original}`;
 
   const { data, error } = await supabaseAdmin.storage

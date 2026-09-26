@@ -22,7 +22,7 @@ export default async function handler(req, res) {
   const { data: existing, error: lookupErr } = await supabaseAdmin
     .from('pending_signups')
     .select('id')
-    .ilike('email', email)
+    .eq('email', email)
     .maybeSingle();
 
   if (lookupErr) {

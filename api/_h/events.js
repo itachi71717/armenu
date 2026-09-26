@@ -23,7 +23,6 @@ export default async function handler(req, res) {
   // when both counts are zero — otherwise clients that rely on the first
   // event to seed their badges see nothing until state changes.
   let lastOrders = null, lastCalls = null, closed = false;
-  req.on('close', () => { closed = true; });
 
   async function tick() {
     if (closed) return;
@@ -48,6 +47,17 @@ export default async function handler(req, res) {
   await tick();
   const iv = setInterval(tick, 3000);
   const hb = setInterval(() => { if (!closed) res.write(': hb\n\n'); }, 25000);
-  const stop = setTimeout(() => { closed = true; clearInterval(iv); clearInterval(hb); res.end(); }, 270_000);
-  req.on('close', () => { clearInterval(iv); clearInterval(hb); clearTimeout(stop); });
+  // Single teardown path — flip closed, clear both intervals, clear the
+  // stop timer, end the response. Runs once whether the trigger is client
+  // disconnect or the 270s max-duration timeout.
+  const teardown = () => {
+    if (closed) return;
+    closed = true;
+    clearInterval(iv);
+    clearInterval(hb);
+    clearTimeout(stop);
+    try { res.end(); } catch {}
+  };
+  const stop = setTimeout(teardown, 270_000);
+  req.on('close', teardown);
 }

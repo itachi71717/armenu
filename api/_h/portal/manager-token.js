@@ -38,26 +38,27 @@ export default async function handler(req, res) {
   // Optional ?slug= narrows to a specific restaurant (multi-location case).
   // Without it, we return a token for the primary (alphabetically first) one.
   const wantedSlug = req.query.slug;
+  const email = String(auth.email || '').toLowerCase();
   let rest;
   if (wantedSlug) {
     const { data } = await supabaseAdmin.from('restaurants').select('id, slug, email').eq('slug', wantedSlug).maybeSingle();
     if (!data) return res.status(404).json({ error: 'no_restaurant_linked' });
-    const isOwner = String(data.email || '').toLowerCase() === String(auth.email || '').toLowerCase();
+    const isOwner = String(data.email || '').toLowerCase() === email;
     if (!isOwner) {
       // Team member? Check manager_users
       const { data: tm } = await supabaseAdmin.from('manager_users')
-        .select('id').eq('restaurant_id', data.id).ilike('email', auth.email).maybeSingle();
+        .select('id').eq('restaurant_id', data.id).eq('email', email).maybeSingle();
       if (!tm) return res.status(403).json({ error: 'not your restaurant' });
     }
     rest = data;
   } else {
-    const { data } = await supabaseAdmin.from('restaurants').select('id, slug').ilike('email', auth.email).order('name').limit(1).maybeSingle();
+    const { data } = await supabaseAdmin.from('restaurants').select('id, slug').eq('email', email).order('name').limit(1).maybeSingle();
     if (data) {
       rest = data;
     } else {
       // No owned restaurant — try the first restaurant they've been invited to.
       const { data: tm } = await supabaseAdmin.from('manager_users')
-        .select('restaurant_id').ilike('email', auth.email).limit(1).maybeSingle();
+        .select('restaurant_id').eq('email', email).limit(1).maybeSingle();
       if (!tm) return res.status(404).json({ error: 'no_restaurant_linked' });
       const { data: r2 } = await supabaseAdmin.from('restaurants').select('id, slug').eq('id', tm.restaurant_id).maybeSingle();
       if (!r2) return res.status(404).json({ error: 'no_restaurant_linked' });

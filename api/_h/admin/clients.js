@@ -40,7 +40,7 @@ export default async function handler(req, res) {
     if (error) return res.status(400).json({ error: error.message });
 
     // If this email had a pending sign-up, auto-clear it now that they're linked.
-    await supabaseAdmin.from('pending_signups').delete().ilike('email', email);
+    await supabaseAdmin.from('pending_signups').delete().eq('email', email);
 
     return res.status(201).json(data);
   }

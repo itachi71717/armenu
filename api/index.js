@@ -77,8 +77,18 @@ const RATE_WINDOW_MS = 60_000;
 const rateMap = new Map();
 
 function clientIp(req) {
+  // Vercel sets x-vercel-forwarded-for with the true client IP (not spoofable
+  // by the client). Prefer it. Fallback: LAST hop of x-forwarded-for — behind
+  // Vercel the chain is "client, edge1, edge2..." and only the trailing hops
+  // are proxies we control; the LEADING value is client-supplied so anyone
+  // could inject a fake IP there to bypass rate limits by cycling values.
+  const vercel = req.headers['x-vercel-forwarded-for'];
+  if (vercel) return String(vercel).split(',')[0].trim();
   const xf = req.headers['x-forwarded-for'];
-  if (xf) return String(xf).split(',')[0].trim();
+  if (xf) {
+    const hops = String(xf).split(',').map(s => s.trim()).filter(Boolean);
+    if (hops.length) return hops[hops.length - 1];
+  }
   return req.headers['x-real-ip'] || req.socket?.remoteAddress || 'unknown';
 }
 

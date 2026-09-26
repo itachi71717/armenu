@@ -42,7 +42,7 @@ export default async function handler(req, res) {
 
   // If the new owner was already a teammate, remove the redundant row.
   await supabaseAdmin.from('manager_users')
-    .delete().eq('restaurant_id', restaurant_id).ilike('email', newOwner).catch(() => {});
+    .delete().eq('restaurant_id', restaurant_id).eq('email', newOwner).catch(() => {});
 
   await auditLog(req, restaurant_id, 'ownership.transferred', {
     target: newOwner, metadata: { from: oldOwner }

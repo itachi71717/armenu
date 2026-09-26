@@ -14,7 +14,7 @@ export default async function handler(req, res) {
   const auth = await requireManager(req);
   if (!auth) return res.status(401).json({ error: 'Sign-in required' });
 
-  const { data: rest } = await supabase.from('restaurants').select('id, slug, name, meshy_credits, email').ilike('email', auth.email).maybeSingle();
+  const { data: rest } = await supabase.from('restaurants').select('id, slug, name, meshy_credits, email').eq('email', String(auth.email).toLowerCase()).maybeSingle();
   if (!rest) return res.status(404).json({ error: 'no_restaurant_linked' });
 
   if (req.method === 'GET') {

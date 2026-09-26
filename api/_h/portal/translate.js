@@ -15,7 +15,7 @@ export default async function handler(req, res) {
   if (!auth) return res.status(401).json({ error: 'Sign-in required' });
   if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'Translation not configured', message: 'ANTHROPIC_API_KEY not set — contact ARMenu support.' });
 
-  const { data: rest } = await supabase.from('restaurants').select('id, name').ilike('email', auth.email).maybeSingle();
+  const { data: rest } = await supabase.from('restaurants').select('id, name').eq('email', String(auth.email).toLowerCase()).maybeSingle();
   if (!rest) return res.status(404).json({ error: 'no_restaurant_linked' });
 
   const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});

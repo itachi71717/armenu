@@ -7,7 +7,7 @@ export default async function handler(req, res) {
   const auth = await requireManager(req);
   if (!auth) return res.status(401).json({ error: 'Sign-in required' });
 
-  const { data: rest } = await supabase.from('restaurants').select('id, slug, name').ilike('email', auth.email).order('name').limit(1).maybeSingle();
+  const { data: rest } = await supabase.from('restaurants').select('id, slug, name').eq('email', String(auth.email).toLowerCase()).order('name').limit(1).maybeSingle();
   if (!rest) return res.status(404).json({ error: 'no_restaurant_linked' });
 
   const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);

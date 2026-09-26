@@ -583,7 +583,11 @@
       currentClientSlug = slug;
       const r = c.restaurant;
       $('crumbName').textContent = r.name;
-      $('cName').innerHTML = `<b>${r.name}</b>`;
+      // Use <b> element + textContent so an attacker-controlled restaurant
+      // name can't inject markup into the master-admin console.
+      $('cName').innerHTML = '';
+      const _b = document.createElement('b'); _b.textContent = r.name;
+      $('cName').appendChild(_b);
       $('cSlug').textContent = `/r/${r.slug}`;
       $('cEmail').textContent = r.email;
       $('cAvatar').textContent = avatarFor(r.name);
@@ -708,7 +712,11 @@
     if (pickedFileUrl) URL.revokeObjectURL(pickedFileUrl);
     pickedFileUrl = URL.createObjectURL(file);
     const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
-    $('ndDropMsg').innerHTML = `<strong>${file.name}</strong> · ${sizeMb} MB ready`;
+    // Filename comes from the OS but treat it as untrusted anyway
+    $('ndDropMsg').innerHTML = '';
+    const _s = document.createElement('strong'); _s.textContent = file.name;
+    $('ndDropMsg').appendChild(_s);
+    $('ndDropMsg').append(' · ' + sizeMb + ' MB ready');
     $('ndDrop').style.borderColor = 'rgba(255,87,34,.4)';
     showPreviewFromUrl(pickedFileUrl);
   }

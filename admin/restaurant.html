@@ -628,7 +628,12 @@ async function boot() {
   await load('settings');
   // Meta
   const c = await api('/api/admin/client?slug=' + slug).catch(() => null);
-  if (c?.restaurant) { $('hName').innerHTML = `<b>${c.restaurant.name}</b>`; $('hSlug').textContent = '/r/' + c.restaurant.slug; }
+  if (c?.restaurant) {
+    $('hName').innerHTML = '';
+    const _b = document.createElement('b'); _b.textContent = c.restaurant.name;
+    $('hName').appendChild(_b);
+    $('hSlug').textContent = '/r/' + c.restaurant.slug;
+  }
 }
 
 async function load(tab) {

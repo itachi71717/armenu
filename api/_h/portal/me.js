@@ -14,9 +14,10 @@ export default async function handler(req, res) {
 
   // Owned restaurants (their email is on the row) PLUS any restaurant they've
   // been invited to as a teammate (manager_users row for their email).
+  const email = String(auth.email).toLowerCase();
   const [ownRes, teamRes] = await Promise.all([
-    supabaseAdmin.from('restaurants').select('id, slug, name, email').ilike('email', auth.email),
-    supabaseAdmin.from('manager_users').select('restaurant_id, role').ilike('email', auth.email)
+    supabaseAdmin.from('restaurants').select('id, slug, name, email').eq('email', email),
+    supabaseAdmin.from('manager_users').select('restaurant_id, role').eq('email', email)
   ]);
   if (ownRes.error) {
     console.error('portal/me.js restaurant lookup failed:', ownRes.error);
