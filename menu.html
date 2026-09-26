@@ -104,9 +104,9 @@
   .dish .thumb{aspect-ratio:4/3;background:#1a1410 center/cover no-repeat;position:relative;display:grid;place-items:center}
   .dish .thumb-fallback{font-family:var(--serif);font-style:italic;font-size:48px;color:var(--ink-faint)}
   .dish .ar-tag{position:absolute;top:12px;right:12px;padding:4px 10px;border-radius:999px;font-family:var(--mono);font-size:10px;font-weight:600;background:linear-gradient(135deg,var(--accent),#c93d00);color:#fff;letter-spacing:.08em;text-transform:uppercase;box-shadow:0 4px 12px rgba(255,87,34,.4)}
-  .dish .stock-tag{position:absolute;top:12px;right:12px;padding:4px 10px;border-radius:999px;font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;box-shadow:0 4px 12px rgba(0,0,0,.4)}
-  .dish .stock-tag.sold{background:rgba(20,20,20,.9);color:#f5efe6;border:1px solid rgba(245,239,220,.2)}
-  .dish .stock-tag.low{background:linear-gradient(135deg,#e8c58a,#d4a574);color:#0a0806}
+  .dish .stock-tag{position:absolute;top:12px;right:12px;padding:5px 11px;border-radius:999px;font-family:var(--mono);font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;box-shadow:0 4px 14px rgba(0,0,0,.55)}
+  .dish .stock-tag.sold{background:#1a1410;color:#fff;border:1.5px solid rgba(245,239,220,.4)}
+  .dish .stock-tag.low{background:linear-gradient(135deg,#f0b060,#e05252);color:#fff;border:1.5px solid rgba(255,255,255,.2);text-shadow:0 1px 2px rgba(0,0,0,.35)}
   .dish.sold-out{opacity:.62;filter:grayscale(.5)}
   .dish.sold-out .thumb::after{content:"";position:absolute;inset:0;background:rgba(0,0,0,.35)}
   .dish .info{padding:14px 16px 12px;display:flex;flex-direction:column;gap:6px;flex:1}
@@ -204,6 +204,15 @@
 
 <div id="content">
   <div class="state"><div class="spinner"></div><p>Loading the menu…</p></div>
+</div>
+
+<!-- Search + dietary chips (populated by render()) -->
+<div id="menuFilters" style="display:none;position:sticky;top:52px;z-index:14;background:rgba(10,8,6,.92);backdrop-filter:blur(12px);padding:10px 14px;border-bottom:1px solid var(--line)">
+  <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+    <input type="search" id="menuSearch" placeholder="🔍 Search dishes…" style="flex:1;padding:9px 12px;border-radius:9px;background:rgba(255,239,220,.05);border:1px solid var(--line);color:var(--ink);font-size:14px;font-family:inherit" />
+    <button id="menuSearchClear" style="display:none;background:none;border:none;color:var(--ink-faint);font-size:14px;cursor:pointer;padding:6px 8px">✕</button>
+  </div>
+  <div id="dietChips" style="display:flex;gap:6px;flex-wrap:wrap;overflow-x:auto"></div>
 </div>
 
 <!-- Bottom action bar: shown only when at least one action is enabled -->
@@ -441,7 +450,26 @@ function render() {
     return;
   }
 
-  const activeItems = state.categories.find(c => c.key === state.activeCategory)?.items || dishes;
+  let activeItems = state.categories.find(c => c.key === state.activeCategory)?.items || dishes;
+  // Client-side search filter
+  const q = (state.searchQuery || '').trim().toLowerCase();
+  if (q) activeItems = activeItems.filter(d =>
+    (d.name || '').toLowerCase().includes(q) ||
+    (d.description || '').toLowerCase().includes(q));
+  // Client-side dietary filter
+  const diet = state.dietFilter;
+  if (diet) {
+    activeItems = activeItems.filter(d => {
+      const al = (d.allergens || '').toLowerCase();
+      if (diet === 'vegetarian')  return !al.match(/\b(beef|pork|chicken|fish|meat|lamb|prawn|shrimp)\b/) || al.includes('vegetarian');
+      if (diet === 'vegan')       return al.includes('vegan') || (!al.match(/\b(beef|pork|chicken|fish|meat|lamb|prawn|shrimp|dairy|egg|cheese|milk|butter|honey)\b/));
+      if (diet === 'gluten-free') return !al.match(/\b(gluten|wheat|barley|rye)\b/) || al.includes('gluten-free');
+      if (diet === 'dairy-free')  return !al.match(/\b(dairy|milk|cheese|butter|cream|yogurt)\b/) || al.includes('dairy-free');
+      if (diet === 'halal')       return al.includes('halal') && !al.match(/\b(pork|bacon|ham|alcohol|wine|beer)\b/);
+      if (diet === 'kosher')      return al.includes('kosher');
+      return true;
+    });
+  }
   const dishesHtml = activeItems.map(d => renderDish(d)).join('');
 
   $('content').innerHTML = `
@@ -473,6 +501,7 @@ function render() {
 
   updateActionbar();
   wireCategoryStuck();
+  wireMenuFilters();
 }
 
 function wireCategoryStuck() {
@@ -534,9 +563,55 @@ function updateActionbar() {
   $('waiterBtn').style.display  = f.waiter_call ? 'flex' : 'none';
   $('cartBtn').style.display    = f.orders ? 'flex' : 'none';
   $('reviewBtn').style.display  = f.reviews ? 'flex' : 'none';
-  // Reservations always on unless a future flag disables them
-  $('reserveBtn').style.display = 'flex';
+  // Reservations button ONLY shows when guest is NOT at a table (no ?t= param).
+  // If they scanned a table QR, they're already there — booking is nonsense.
+  $('reserveBtn').style.display = (f.reservations !== false && !table) ? 'flex' : 'none';
   $('cartCount').textContent = state.cart.reduce((s, i) => s + i.qty, 0);
+  // Make Order button primary (full-width when it's the only cart action)
+  const cartOnlyPrimary = f.orders && !f.waiter_call && !f.reviews;
+  $('cartBtn').style.flex = cartOnlyPrimary ? '2' : '1';
+}
+
+// Wire search + dietary chip filters (idempotent — safe to call every render)
+function wireMenuFilters() {
+  const filters = $('menuFilters');
+  if (!filters) return;
+  filters.style.display = '';
+  // Search
+  const s = $('menuSearch');
+  if (s && !s.dataset.wired) {
+    s.dataset.wired = '1';
+    s.oninput = (e) => {
+      state.searchQuery = e.target.value;
+      $('menuSearchClear').style.display = e.target.value ? 'inline-block' : 'none';
+      render();
+    };
+    $('menuSearchClear').onclick = () => { s.value = ''; state.searchQuery = ''; s.dispatchEvent(new Event('input')); };
+  }
+  // Dietary chips
+  const chips = $('dietChips');
+  if (chips && !chips.children.length) {
+    const opts = [
+      { key: 'vegetarian', label: '🥬 Veg' },
+      { key: 'vegan', label: '🌱 Vegan' },
+      { key: 'gluten-free', label: '🌾 GF' },
+      { key: 'dairy-free', label: '🥛 Dairy-free' },
+      { key: 'halal', label: '☪ Halal' }
+    ];
+    chips.innerHTML = opts.map(o => `<button data-diet="${o.key}" style="flex-shrink:0;padding:5px 11px;border-radius:999px;background:rgba(255,239,220,.04);border:1px solid var(--line);color:var(--ink-dim);font-size:11.5px;font-weight:600;cursor:pointer;white-space:nowrap">${o.label}</button>`).join('');
+    chips.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-diet]'); if (!b) return;
+      const same = state.dietFilter === b.dataset.diet;
+      state.dietFilter = same ? null : b.dataset.diet;
+      chips.querySelectorAll('[data-diet]').forEach(c => {
+        const on = c.dataset.diet === state.dietFilter;
+        c.style.background = on ? 'rgba(232,197,138,.18)' : 'rgba(255,239,220,.04)';
+        c.style.color = on ? '#e8c58a' : 'var(--ink-dim)';
+        c.style.borderColor = on ? 'rgba(232,197,138,.4)' : 'var(--line)';
+      });
+      render();
+    });
+  }
 }
 
 // ============ RESERVATION ============
