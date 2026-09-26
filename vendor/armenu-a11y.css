@@ -38,3 +38,86 @@
 .armenu-skip-link:focus {
   top: 8px;
 }
+
+/* ============================================================
+   Empty-state (used everywhere lists render zero rows)
+   Usage: <div class="empty-state" data-icon="🍽">
+            <h3>Nothing yet</h3><p>Add your first dish to get going.</p>
+          </div>
+   ============================================================ */
+.empty-state {
+  padding: 40px 24px;
+  text-align: center;
+  border: 1px dashed rgba(245, 236, 216, 0.14);
+  border-radius: 14px;
+  background: rgba(245, 236, 216, 0.02);
+}
+.empty-state::before {
+  content: attr(data-icon);
+  display: block;
+  font-size: 44px;
+  line-height: 1;
+  margin-bottom: 14px;
+  opacity: 0.7;
+}
+.empty-state h3 {
+  margin: 0 0 6px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: inherit;
+}
+.empty-state p {
+  margin: 0;
+  color: rgba(168, 157, 132, 0.9);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.empty-state .cta {
+  display: inline-block;
+  margin-top: 14px;
+  padding: 9px 16px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #e8c58a, #d4a574);
+  color: #0a0806 !important;
+  font-weight: 700;
+  font-size: 13px;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+/* ============================================================
+   Skeleton + spinner (unified loading states)
+   .sk-line          — one text-line skeleton
+   .sk-card          — a card-shaped skeleton
+   .sk-shimmer       — animated gradient sweep
+   .btn-spinner      — 14px inline spinner for in-button loading
+   ============================================================ */
+@keyframes armenuShimmer {
+  0%   { background-position: -200px 0; }
+  100% { background-position: calc(200px + 100%) 0; }
+}
+.sk-shimmer, .sk-line, .sk-card {
+  background: linear-gradient(90deg,
+    rgba(245,236,216,0.05) 0%,
+    rgba(245,236,216,0.12) 40%,
+    rgba(245,236,216,0.05) 80%);
+  background-size: 200px 100%;
+  background-repeat: no-repeat;
+  animation: armenuShimmer 1.4s ease-in-out infinite;
+  border-radius: 6px;
+}
+.sk-line  { height: 12px; margin: 8px 0; }
+.sk-card  { height: 78px; margin: 10px 0; border-radius: 12px; }
+
+@keyframes armenuSpin { to { transform: rotate(360deg); } }
+.btn-spinner {
+  display: inline-block;
+  width: 14px; height: 14px;
+  border: 2px solid rgba(255,255,255,0.25);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: armenuSpin 0.7s linear infinite;
+  vertical-align: -3px;
+  margin-right: 8px;
+}

@@ -1320,7 +1320,7 @@ Sub gluten-free bun +1200</code></div>
         const items = await loadItems();
         $('listBody').innerHTML = items.length
           ? items.map(renderRow).join('')
-          : '<div style="padding:24px;text-align:center;color:var(--ink-faint);font-size:13px;border:1px dashed var(--line);border-radius:10px">Nothing yet. Add your first one below.</div>';
+          : '<div class="empty-state" data-icon="✨"><h3>Nothing yet</h3><p>Add your first one using the form below.</p></div>';
         // Wire per-row deletes
         $('listBody').querySelectorAll('[data-del]').forEach(el => el.onclick = async () => {
           if (!confirm('Delete this item?')) return;
@@ -1575,7 +1575,7 @@ Sub gluten-free bun +1200</code></div>
                 ${isOwner ? `<button data-tm-del="${encodeURIComponent(t.email)}" style="background:rgba(248,113,113,.1);color:#f87171;border:1px solid rgba(248,113,113,.25);padding:6px 10px;border-radius:8px;font-size:11px;cursor:pointer">Remove</button>` : ''}
               </div>`;
             }).join('')
-          : '<div style="padding:24px;text-align:center;color:var(--ink-faint);font-size:13px;border:1px dashed var(--line);border-radius:10px">No teammates yet. Invite one below.</div>';
+          : '<div class="empty-state" data-icon="✉"><h3>No teammates yet</h3><p>Invite a co-manager using the form below.</p></div>';
         $('teamListBody').querySelectorAll('[data-tm-del]').forEach(el => el.onclick = async () => {
           if (!confirm('Remove this teammate?')) return;
           const email = el.dataset.tmDel;

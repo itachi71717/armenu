@@ -135,15 +135,7 @@
 </style>
 <header class="ar-hdr">
   <a class="ar-brand" href="/"><img src="/favicon.svg" alt="ARMenu" /><span class="ar-brand-w"><span class="ar-brand-n1">ARMenu</span><span class="ar-brand-n2">South Africa</span></span></a>
-  <nav class="ar-nav">
-    <a href="/how">How</a>
-    <a href="/#features">Features</a>
-    <a href="/plans">Pricing</a>
-    <a href="/faq">FAQ</a>
-    <a href="/contact">Contact</a>
-    <a href="/portal/">Sign in</a>
-    <a href="/contact" class="ar-cta">Enquire &rarr;</a>
-  </nav>
+  <div id="mkNav"></div>
 </header>
 <!-- /ar-unified-header -->
 
@@ -263,21 +255,7 @@
   .ar-ft-tag{color:#a89d84;font-size:14px;line-height:1.55;max-width:300px}
   .ar-ft-legal{max-width:1200px;margin:40px auto 0;padding-top:24px;border-top:1px solid rgba(245,236,216,.08);display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#4d4638}
 </style>
-<footer class="ar-ft">
-  <div class="ar-ft-grid">
-    <div>
-      <a class="ar-brand" href="/"><img src="/favicon.svg" alt="ARMenu" /><span class="ar-brand-w"><span class="ar-brand-n1">ARMenu</span><span class="ar-brand-n2">South Africa</span></span></a>
-      <p class="ar-ft-tag">South Africa's immersive AR menu platform for restaurants that plate with pride.</p>
-    </div>
-    <div><h5>Product</h5><a href="/how">How it works</a><a href="/dishes">Live demo</a><a href="/#features">Features</a><a href="/faq">FAQs</a></div>
-    <div><h5>Company</h5><a href="/contact">Contact</a><a href="/plans">Pricing</a><a href="/contact?type=enterprise">Enterprise</a></div>
-    <div><h5>Legal</h5><a href="/legal#terms">Terms</a><a href="/legal#privacy">Privacy</a><a href="/legal#refund">Refund</a></div>
-  </div>
-  <div class="ar-ft-legal">
-    <span>&copy; 2026 ARMenu. All rights reserved</span>
-    <span>Johannesburg &middot; Cape Town &middot; Durban</span>
-  </div>
-</footer>
+<div id="mkFooter"></div>
 <!-- /ar-unified-footer -->
 
 
@@ -301,5 +279,6 @@
   const finalBg=document.getElementById('finalBg');
   if(finalBg){(function fpx(){const r=document.querySelector('.final').getBoundingClientRect();const c=r.top+r.height/2-window.innerHeight/2;finalBg.style.transform=`translateY(${c*-.15}px) scale(1.08)`;requestAnimationFrame(fpx)})()}
 </script>
+<script src="/vendor/marketing-chrome.js" defer></script>
 </body>
 </html>
