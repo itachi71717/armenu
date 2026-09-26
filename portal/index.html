@@ -51,6 +51,29 @@
   .hello h1 b{font-style:normal;font-family:'Inter',sans-serif;font-weight:800}
   .hello p{color:var(--ink-dim);font-size:15px}
 
+  /* ==== Live dashboard tiles ==== */
+  .dash-tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:24px}
+  @media(max-width:760px){.dash-tiles{grid-template-columns:repeat(2,1fr)}}
+  .dash-tile{padding:14px 16px;border-radius:14px;background:linear-gradient(180deg,rgba(232,197,138,.07),rgba(232,197,138,.02));border:1px solid rgba(232,197,138,.18);text-align:center}
+  .dash-tile .dt-lbl{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:4px}
+  .dash-tile .dt-num{font-size:26px;font-weight:800;color:#e8c58a;letter-spacing:-.02em}
+  .dash-tile.alert .dt-num{color:#f0b060}
+  /* ==== Grouped tool sections ==== */
+  .tools-section{margin-bottom:40px}
+  .tools-group{margin-bottom:12px;border:1px solid var(--line);border-radius:14px;background:rgba(245,236,216,.02);overflow:hidden}
+  .tools-group .tg-head{width:100%;text-align:left;padding:14px 18px;background:none;border:none;color:var(--ink);font-family:inherit;font-size:14px;font-weight:700;letter-spacing:-.01em;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .tools-group .tg-head .tg-hint{color:var(--ink-faint);font-weight:400;font-size:12px;font-family:var(--mono);letter-spacing:.06em}
+  .tools-group .tg-body{display:none;padding:0 12px 12px;grid-template-columns:repeat(2,1fr);gap:10px}
+  @media(max-width:760px){.tools-group .tg-body{grid-template-columns:1fr}.tools-group .tg-head .tg-hint{display:none}}
+  .tools-group[data-open="1"] .tg-body{display:grid}
+  /* Search bar on dish grid */
+  .dish-search{margin:8px 0 14px;display:flex;gap:8px;align-items:center}
+  .dish-search input{flex:1;padding:10px 14px;border-radius:10px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:14px;font-family:inherit}
+  .dish-search input:focus{outline:none;border-color:rgba(232,197,138,.4)}
+  .dish-search .clear{background:none;border:none;color:var(--ink-faint);font-size:14px;cursor:pointer;padding:6px}
+  /* Help pill */
+  .help-pill{position:fixed;top:16px;right:16px;z-index:60;padding:8px 12px;border-radius:999px;background:rgba(232,197,138,.1);border:1px solid rgba(232,197,138,.28);color:#e8c58a;font-size:12px;font-weight:700;cursor:pointer}
+  .help-pill:hover{background:rgba(232,197,138,.18)}
   .actions-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:40px}
   @media(max-width:760px){.actions-grid{grid-template-columns:1fr}}
   .action{padding:24px;border-radius:16px;background:linear-gradient(180deg,rgba(255,239,220,.03),rgba(255,239,220,.005));border:1px solid var(--line);cursor:pointer;transition:border-color .2s,transform .2s;display:flex;align-items:center;gap:18px}
@@ -283,107 +306,76 @@
       <p id="welcomeSub">—</p>
     </div>
 
+    <!-- Live dashboard tiles — the manager sees today's state at a glance -->
+    <div class="dash-tiles" id="dashTiles">
+      <div class="dash-tile"><div class="dt-lbl">Today's orders</div><div class="dt-num" id="dtOrders">—</div></div>
+      <div class="dash-tile"><div class="dt-lbl">Tonight's bookings</div><div class="dt-num" id="dtBookings">—</div></div>
+      <div class="dash-tile"><div class="dt-lbl">In waitlist</div><div class="dt-num" id="dtWaitlist">—</div></div>
+      <div class="dash-tile"><div class="dt-lbl">Low-stock alerts</div><div class="dt-num" id="dtLowStock">—</div></div>
+    </div>
+
+    <!-- Grouped tools — collapsible sections, max 4 buttons visible per section -->
     <div class="tools-section">
-      <h2 style="font-size:20px;margin-bottom:6px">Restaurant tools</h2>
-      <p class="section-sub" style="margin-bottom:14px">Everything you need to run your restaurant on ARMenu. One tap.</p>
-      <div class="actions-grid">
-        <a class="action action-primary" id="manageAction" href="#" style="text-decoration:none">
-          <span class="ico">⚙</span>
-          <div>
-            <h3>Manage menu &amp; staff</h3>
-            <p>Add dishes, upload GLBs, set staff PINs, tables, branding — the full admin.</p>
+      <div class="tools-group" data-open="1">
+        <button class="tg-head"><span>▾ Live now</span><span class="tg-hint">Real-time services running tonight</span></button>
+        <div class="tg-body">
+          <a class="action" id="kitchenAction" href="#" style="text-decoration:none">
+            <span class="ico">🔥</span><div><h3>Kitchen display</h3><p>Live ticket board for the kitchen tablet.</p></div>
+          </a>
+          <a class="action" id="staffAction" href="#" style="text-decoration:none">
+            <span class="ico">◐</span><div><h3>Staff console</h3><p>Waiter queue + table board.</p></div>
+          </a>
+          <div class="action" id="walkinsAction">
+            <span class="ico">🚶</span><div><h3>Walk-in queue</h3><p>Waitlist for guests without a booking.</p></div>
           </div>
-        </a>
-        <a class="action" id="kitchenAction" href="#" style="text-decoration:none">
-          <span class="ico">🔥</span>
-          <div>
-            <h3>Open kitchen display</h3>
-            <p>Live order board. Open on the tablet in your kitchen.</p>
-          </div>
-        </a>
-        <a class="action" id="staffAction" href="#" style="text-decoration:none">
-          <span class="ico">◐</span>
-          <div>
-            <h3>Open staff console</h3>
-            <p>Waiter queue, table board, order status. For the floor tablet.</p>
-          </div>
-        </a>
-        <div class="action" id="masterQrAction">
-          <span class="ico">◉</span>
-          <div>
-            <h3>Master menu QR</h3>
-            <p>One QR for the whole menu — perfect for table tents.</p>
+          <div class="action" id="reservationsAction">
+            <span class="ico">🗓</span><div><h3>Reservations</h3><p>Confirm / decline table bookings.</p></div>
           </div>
         </div>
-        <div class="action" id="dlAllAction">
-          <span class="ico">⬇</span>
-          <div>
-            <h3>Per-dish QR codes</h3>
-            <p>One QR per dish — for placing next to each menu item.</p>
+      </div>
+
+      <div class="tools-group" data-open="1">
+        <button class="tg-head"><span>▾ Your menu</span><span class="tg-hint">Set what diners see and when</span></button>
+        <div class="tg-body">
+          <div class="action" id="brandingAction">
+            <span class="ico">🎨</span><div><h3>Branding &amp; look</h3><p>Logo, cover, colour, tagline.</p></div>
+          </div>
+          <div class="action" id="categoriesAction">
+            <span class="ico">📂</span><div><h3>Categories</h3><p>Starters, Mains, Desserts…</p></div>
+          </div>
+          <div class="action" id="offersAction">
+            <span class="ico">🎉</span><div><h3>Happy hour &amp; offers</h3><p>Time-limited discounts.</p></div>
+          </div>
+          <div class="action" id="schedulesAction">
+            <span class="ico">⏰</span><div><h3>Menu scheduler</h3><p>Auto-switch breakfast / lunch / dinner.</p></div>
           </div>
         </div>
-        <div class="action" id="brandingAction">
-          <span class="ico">🎨</span>
-          <div>
-            <h3>Branding &amp; look</h3>
-            <p>Upload logo, cover, tagline. Auto-picks your colour.</p>
+      </div>
+
+      <div class="tools-group" data-open="0">
+        <button class="tg-head"><span>▸ Team &amp; tables</span><span class="tg-hint">Staff PINs, tables, waiter assignments</span></button>
+        <div class="tg-body">
+          <div class="action" id="tablesAction">
+            <span class="ico">🪑</span><div><h3>Tables &amp; waiters</h3><p>Add tables, assign waiters, print QRs.</p></div>
+          </div>
+          <div class="action" id="staffAction2">
+            <span class="ico">👥</span><div><h3>Staff PINs</h3><p>Waiter + kitchen tablet PINs.</p></div>
           </div>
         </div>
-        <div class="action" id="walkinsAction">
-          <span class="ico">🚶</span>
-          <div>
-            <h3>Walk-in queue</h3>
-            <p>Waitlist for guests without a booking.</p>
+      </div>
+
+      <div class="tools-group" data-open="0">
+        <button class="tg-head"><span>▸ Print &amp; support</span><span class="tg-hint">QR codes and help</span></button>
+        <div class="tg-body">
+          <div class="action" id="printQrAction">
+            <span class="ico">🖨</span><div><h3>Print QR codes</h3><p>Master menu, per-dish, per-table sheets.</p></div>
           </div>
-        </div>
-        <div class="action" id="reservationsAction">
-          <span class="ico">🗓</span>
-          <div>
-            <h3>Reservations</h3>
-            <p>View, confirm, decline table bookings.</p>
+          <div class="action" id="contactAction">
+            <span class="ico">💬</span><div><h3>WhatsApp support</h3><p>Direct line to ARMenu. Same-day.</p></div>
           </div>
-        </div>
-        <div class="action" id="schedulesAction">
-          <span class="ico">⏰</span>
-          <div>
-            <h3>Menu scheduler</h3>
-            <p>Auto-switch breakfast, lunch, dinner menus.</p>
-          </div>
-        </div>
-        <div class="action" id="categoriesAction">
-          <span class="ico">📂</span>
-          <div>
-            <h3>Categories</h3>
-            <p>Group dishes: Starters, Mains, Desserts…</p>
-          </div>
-        </div>
-        <div class="action" id="tablesAction">
-          <span class="ico">🪑</span>
-          <div>
-            <h3>Tables</h3>
-            <p>Add tables and print per-table QR codes.</p>
-          </div>
-        </div>
-        <div class="action" id="offersAction">
-          <span class="ico">🎉</span>
-          <div>
-            <h3>Happy hour &amp; offers</h3>
-            <p>Time-limited discounts. Auto-applied to the menu.</p>
-          </div>
-        </div>
-        <div class="action" id="staffAction2">
-          <span class="ico">👥</span>
-          <div>
-            <h3>Staff PINs</h3>
-            <p>Waiter + kitchen PINs for the tablets.</p>
-          </div>
-        </div>
-        <div class="action" id="contactAction">
-          <span class="ico">✉</span>
-          <div>
-            <h3>WhatsApp support</h3>
-            <p>Direct line to ARMenu. Same-day reply.</p>
-          </div>
+          <a class="action" id="manageAction" href="#" style="text-decoration:none">
+            <span class="ico">⚙</span><div><h3>Advanced admin</h3><p>Full 15-tab console (analytics, billing, live orders).</p></div>
+          </a>
         </div>
       </div>
     </div>
@@ -753,12 +745,17 @@
     }
 
     $('dishesWrap').innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-        <div class="section-sub" style="margin:0">Tap a dish to edit price, description or hide it. Add new dishes with the + button.</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:10px;flex-wrap:wrap">
+        <div class="section-sub" style="margin:0">Tap a dish to edit. Search below or add a new one.</div>
         <button class="btn btn-primary" id="addDishBtn" style="padding:9px 16px">+ New dish</button>
       </div>
-      ${data.dishes.length
-        ? `<div class="dishes-grid">${data.dishes.map(d => `
+      <div class="dish-search">
+        <input type="search" id="dishSearch" placeholder="🔍 Search dishes (name, description)…" />
+        <button class="clear" id="dishSearchClear" style="display:none" title="Clear">✕</button>
+      </div>
+      <div id="dishGridInner"></div>`;
+    const renderTiles = (dishes) => dishes.length
+        ? `<div class="dishes-grid">${dishes.map(d => `
             <div class="dish-tile" data-dish="${d.slug}">
               <div class="thumb" ${d.thumb_url ? `style="background-image:url('${d.thumb_url}')"` : ''}>
                 ${d.thumb_url ? '' : `<span class="thumb-fallback">${d.name[0]}</span>`}
@@ -779,8 +776,20 @@
                 <button class="qr-btn" data-action="open-ar" data-slug="${d.slug}">↗ AR</button>
               </div>
             </div>`).join('')}</div>`
-        : `<div class="empty-state"><h3>No dishes yet.</h3><p>Tap <b>+ New dish</b> above to add your first one. You can upload a photo, a 3D file (GLB), or just create it and add the model later.</p></div>`}
-    `;
+        : `<div class="empty-state"><h3>No dishes match.</h3><p>Try a different search term, or tap <b>+ New dish</b> above to add your first one.</p></div>`;
+    // Initial render
+    $('dishGridInner').innerHTML = renderTiles(data.dishes);
+    // Search filter — client-side, instant
+    $('dishSearch').oninput = (e) => {
+      const q = e.target.value.trim().toLowerCase();
+      $('dishSearchClear').style.display = q ? 'inline-block' : 'none';
+      const filtered = !q ? data.dishes : data.dishes.filter(d =>
+        (d.name || '').toLowerCase().includes(q) ||
+        (d.description || '').toLowerCase().includes(q)
+      );
+      $('dishGridInner').innerHTML = renderTiles(filtered);
+    };
+    $('dishSearchClear').onclick = () => { $('dishSearch').value = ''; $('dishSearch').dispatchEvent(new Event('input')); };
     // Wire the + New button
     $('addDishBtn').onclick = () => openDishEditor(null);
 
@@ -846,8 +855,8 @@
   $('qrClose').addEventListener('click', () => $('qrModal').classList.remove('show'));
   $('qrModal').addEventListener('click', e => { if (e.target === $('qrModal')) $('qrModal').classList.remove('show'); });
 
-  // Master menu QR — opens modal with the single whole-menu QR
-  $('masterQrAction').addEventListener('click', async () => {
+  // Unified Print-QR modal — replaces separate masterQrAction + dlAllAction cards
+  async function openMasterQr() {
     if (!CURRENT?.restaurant?.slug) return toast('Loading…', 'err');
     try {
       const targetUrl = menuTargetUrl(CURRENT.restaurant.slug);
@@ -860,15 +869,10 @@
       $('qrDownload').setAttribute('download', `armenu-menu-${CURRENT.restaurant.slug}.png`);
       $('qrModal').classList.add('show');
     } catch (e) {
-      console.error('masterQrAction failed:', e);
-      toast('Could not generate QR code — please refresh and try again', 'err');
+      console.error('openMasterQr failed:', e); toast('Could not generate QR code — refresh and try again', 'err');
     }
-  });
-
-  // Download all QRs — each as a blob: URL download (no third-party service,
-  // no cross-origin download-attribute issue, and reliable on mobile browsers
-  // where data: URI downloads often just open/display the image instead)
-  $('dlAllAction').addEventListener('click', async () => {
+  }
+  async function downloadAllQrs() {
     if (!CURRENT?.dishes?.length) return toast('No dishes to download yet', 'err');
     toast(`Downloading ${CURRENT.dishes.length} QR codes…`, 'ok');
     try {
@@ -876,15 +880,45 @@
         const d = CURRENT.dishes[i];
         const blobUrl = await qrBlobUrl(dishTargetUrl(CURRENT.restaurant.slug, d.slug));
         const a = document.createElement('a');
-        a.href = blobUrl;
-        a.download = `armenu-qr-${d.slug}.png`;
+        a.href = blobUrl; a.download = `armenu-qr-${d.slug}.png`;
         document.body.appendChild(a); a.click(); a.remove();
       }
-    } catch (e) {
-      console.error('dlAllAction failed:', e);
-      toast('Could not generate all QR codes — please refresh and try again', 'err');
-    }
-  });
+    } catch (e) { toast('Could not generate all QR codes — refresh and try', 'err'); }
+  }
+  function openPrintQrModal() {
+    const slug = CURRENT.restaurant.slug;
+    $('wizKicker').textContent = 'Print QR codes';
+    $('wizTitle').textContent = 'Which QRs do you need?';
+    $('wizProgress').innerHTML = '';
+    $('wizBody').innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button data-qr="master" style="text-align:left;padding:14px 16px;border-radius:11px;background:rgba(232,197,138,.08);border:1px solid rgba(232,197,138,.25);color:var(--ink);cursor:pointer">
+          <div style="font-weight:700;font-size:14.5px;color:#e8c58a">◉ Master menu QR</div>
+          <div style="font-size:12.5px;color:var(--ink-dim);margin-top:3px">One QR for the whole menu — perfect for table tents.</div>
+        </button>
+        <button data-qr="dishes" style="text-align:left;padding:14px 16px;border-radius:11px;background:rgba(232,197,138,.08);border:1px solid rgba(232,197,138,.25);color:var(--ink);cursor:pointer">
+          <div style="font-weight:700;font-size:14.5px;color:#e8c58a">⬇ Per-dish QRs</div>
+          <div style="font-size:12.5px;color:var(--ink-dim);margin-top:3px">Download one PNG per dish — place beside each menu item.</div>
+        </button>
+        <a href="/qr-print.html?r=${slug}&type=tables" target="_blank" style="text-align:left;padding:14px 16px;border-radius:11px;background:rgba(232,197,138,.08);border:1px solid rgba(232,197,138,.25);color:var(--ink);text-decoration:none">
+          <div style="font-weight:700;font-size:14.5px;color:#e8c58a">🪑 Per-table QR sheet (A4)</div>
+          <div style="font-size:12.5px;color:var(--ink-dim);margin-top:3px">Printable A4 with all your table QRs (4/6/9 per page).</div>
+        </a>
+      </div>`;
+    $('wizActions').innerHTML = `<button class="wiz-secondary" id="qrPickClose">Close</button>`;
+    $('wizOverlay').classList.add('on');
+    $('wizClose').onclick = $('qrPickClose').onclick = () => $('wizOverlay').classList.remove('on');
+    $('wizBody').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-qr]');
+      if (!b) return;
+      $('wizOverlay').classList.remove('on');
+      if (b.dataset.qr === 'master') openMasterQr();
+      if (b.dataset.qr === 'dishes') downloadAllQrs();
+    });
+  }
+  document.addEventListener('click', (e) => { if (e.target.closest('#printQrAction')) openPrintQrModal(); });
+
+  // (masterQr + downloadAll logic now lives inside openPrintQrModal above)
 
   $('reqBtn').addEventListener('click', async () => {
     const message = $('reqInput').value.trim();
@@ -894,6 +928,64 @@
     $('reqInput').value = '';
     toast('Request sent — ARMenu will reply within 1 business day.', 'ok');
   });
+
+  // Collapsible sections + help pill
+  document.addEventListener('click', (e) => {
+    const head = e.target.closest('.tg-head');
+    if (head) {
+      const g = head.parentElement;
+      const open = g.dataset.open === '1';
+      g.dataset.open = open ? '0' : '1';
+      head.querySelector('span:first-child').textContent = head.querySelector('span:first-child').textContent.replace(open ? '▾' : '▸', open ? '▸' : '▾');
+      window.ArMenuSound?.play('tick');
+    }
+    if (e.target.id === 'helpPill') {
+      // Force-relaunch the onboarding wizard, even for managers with dishes
+      const rest = CURRENT?.restaurant;
+      if (rest) { try { sessionStorage.removeItem('armenu_wizard_seen'); } catch {} ; showOnboardingWizard(rest); }
+    }
+  });
+
+  // Live dashboard tile loader
+  async function loadDashTiles() {
+    try {
+      // Today's orders — /api/admin/orders?slug + today filter would be ideal; use scoped fetch
+      const t0 = new Date(); t0.setHours(0,0,0,0);
+      const since = t0.toISOString();
+      const slug = CURRENT?.restaurant?.slug;
+      if (!slug) return;
+      const [ordersRes, bookingsRes, walkinsRes] = await Promise.all([
+        mgrFetch(`/api/admin/orders?slug=${slug}&since=${encodeURIComponent(since)}`).catch(() => ({ok:false})),
+        mgrFetch(`/api/admin/reservations?slug=${slug}&status=pending`).catch(() => ({ok:false})),
+        mgrFetch(`/api/admin/walkins?slug=${slug}`).catch(() => ({ok:false}))
+      ]);
+      if (ordersRes.ok) $('dtOrders').textContent = String((ordersRes.data.orders || []).length);
+      if (bookingsRes.ok) {
+        // Only tonight (up to midnight)
+        const tnEnd = new Date(); tnEnd.setHours(24,0,0,0);
+        const tonight = (bookingsRes.data.reservations || []).filter(r => {
+          const t = new Date(r.reserved_at).getTime();
+          return t >= Date.now() && t < tnEnd.getTime();
+        });
+        $('dtBookings').textContent = String(tonight.length);
+      }
+      if (walkinsRes.ok) $('dtWaitlist').textContent = String((walkinsRes.data.walkins || []).length);
+      // Low-stock: dishes with stock ≤ 3 (from CURRENT.dishes which portal/me already returned)
+      const low = (CURRENT.dishes || []).filter(d => typeof d.stock_count === 'number' && d.stock_count <= 3).length;
+      $('dtLowStock').textContent = String(low);
+      if (low > 0) $('dtLowStock').parentElement.classList.add('alert');
+    } catch (e) { console.warn('dash tiles:', e); }
+  }
+
+  // Add help pill to DOM
+  (function addHelpPill() {
+    if (document.getElementById('helpPill')) return;
+    const b = document.createElement('button');
+    b.id = 'helpPill'; b.className = 'help-pill';
+    b.innerHTML = '❓ Tour';
+    b.title = 'Show me around';
+    document.body.appendChild(b);
+  })();
 
   // Boot. Listener fires on sign-in / sign-out events; when a user shows up
   // we always re-run loadMe (which will render the app, or fall into
@@ -1938,7 +2030,7 @@ Sub gluten-free bun +1200</code></div>
       { kicker: 'Step 4 · Go live', title: 'Print your QR codes.', body:
         `<p>Download the master menu QR (one for each table tent) and per-dish QRs (place beside items on the printed menu). Diners scan, everything opens.</p>`,
         actions: async () => [
-          { label: 'Download master QR', primary: true, next: 5, click: () => document.getElementById('masterQrAction').click() },
+          { label: 'Download master QR', primary: true, next: 5, click: () => openMasterQr() },
           { label: 'Skip', secondary: true, next: 5 }
         ]
       },
@@ -2042,6 +2134,7 @@ Sub gluten-free bun +1200</code></div>
     await origLoadMe();
     if ($('app').classList.contains('ready')) {
       loadCreditBalance();
+      loadDashTiles();
       setTimeout(offerPushOptIn, 4000);
     }
   };
