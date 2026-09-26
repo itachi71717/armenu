@@ -310,12 +310,14 @@
       <p id="welcomeSub">—</p>
     </div>
 
-    <!-- Live dashboard tiles — the manager sees today's state at a glance -->
+    <!-- Live dashboard tiles — the manager sees today's state at a glance.
+         .loading state renders a shimmer strip in place of the value so a
+         slow first paint doesn't look broken. Cleared in loadDashboard(). -->
     <div class="dash-tiles" id="dashTiles">
-      <div class="dash-tile"><div class="dt-lbl">Today's orders</div><div class="dt-num" id="dtOrders">—</div></div>
-      <div class="dash-tile"><div class="dt-lbl">Tonight's bookings</div><div class="dt-num" id="dtBookings">—</div></div>
-      <div class="dash-tile"><div class="dt-lbl">In waitlist</div><div class="dt-num" id="dtWaitlist">—</div></div>
-      <div class="dash-tile"><div class="dt-lbl">Low-stock alerts</div><div class="dt-num" id="dtLowStock">—</div></div>
+      <div class="dash-tile loading"><div class="dt-lbl">Today's orders</div><div class="dt-num" id="dtOrders"><span class="sk-line" style="width:60px;margin:6px auto;display:inline-block"></span></div></div>
+      <div class="dash-tile loading"><div class="dt-lbl">Tonight's bookings</div><div class="dt-num" id="dtBookings"><span class="sk-line" style="width:60px;margin:6px auto;display:inline-block"></span></div></div>
+      <div class="dash-tile loading"><div class="dt-lbl">In waitlist</div><div class="dt-num" id="dtWaitlist"><span class="sk-line" style="width:60px;margin:6px auto;display:inline-block"></span></div></div>
+      <div class="dash-tile loading"><div class="dt-lbl">Low-stock alerts</div><div class="dt-num" id="dtLowStock"><span class="sk-line" style="width:60px;margin:6px auto;display:inline-block"></span></div></div>
     </div>
 
     <!-- Grouped tools — collapsible sections, max 4 buttons visible per section -->
@@ -955,15 +957,27 @@
 
   // Live dashboard tile loader — one round-trip via /api/portal/dashboard
   async function loadDashTiles() {
+    // Clear .loading state after fetch (skeletons → real numbers)
+    const clearLoading = () => document.querySelectorAll('#dashTiles .dash-tile.loading').forEach(el => el.classList.remove('loading'));
     try {
       const { ok, data } = await authFetch('/api/portal/dashboard');
-      if (!ok) return;
+      if (!ok) {
+        // Show em-dashes rather than perpetual skeleton on failure
+        ['dtOrders','dtBookings','dtWaitlist','dtLowStock'].forEach(id => $(id).textContent = '—');
+        clearLoading();
+        return;
+      }
       $('dtOrders').textContent = String(data.orders_today ?? 0);
       $('dtBookings').textContent = String(data.bookings_tonight ?? 0);
       $('dtWaitlist').textContent = String(data.walkins_active ?? 0);
       $('dtLowStock').textContent = String(data.low_stock ?? 0);
       if (data.low_stock > 0) $('dtLowStock').parentElement.classList.add('alert');
-    } catch (e) { console.warn('dash tiles:', e); }
+      clearLoading();
+    } catch (e) {
+      ['dtOrders','dtBookings','dtWaitlist','dtLowStock'].forEach(id => $(id).textContent = '—');
+      clearLoading();
+      console.warn('dash tiles:', e);
+    }
   }
 
   // Add help pill to DOM
