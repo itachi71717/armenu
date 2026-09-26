@@ -1374,6 +1374,11 @@ Sub gluten-free bun +1200</code></div>
 
   function openCategoriesModal() {
     const slug = CURRENT.restaurant.slug;
+    // Count dishes per category from CURRENT so managers see "Mains · 8 dishes"
+    const dishCountByCat = (CURRENT.dishes || []).reduce((acc, d) => {
+      if (d.category_id) acc[d.category_id] = (acc[d.category_id] || 0) + 1;
+      return acc;
+    }, {});
     openListModal({
       title: 'Categories',
       subtitle: 'Group dishes on your menu. Drag by the ≡ handle to reorder — diners see them in this order.',
@@ -1381,11 +1386,14 @@ Sub gluten-free bun +1200</code></div>
         const items = (await mgrFetch(`/api/admin/categories?slug=${slug}`)).data.categories || [];
         return items.slice().sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
       },
-      renderRow: c => `<div class="drag-row" draggable="true" data-id="${c.id}" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;background:rgba(245,236,216,.03);margin-bottom:6px;cursor:grab">
-        <span style="color:var(--ink-faint);font-size:16px;user-select:none">≡</span>
-        <div style="flex:1"><div style="font-weight:600;font-size:14px">${escapeHTML(c.name)}</div><div style="color:var(--ink-faint);font-size:11px;font-family:var(--mono);letter-spacing:.06em">${escapeHTML(c.slug)}</div></div>
-        <button data-del="/api/admin/categories?id=${c.id}&slug=${slug}" style="background:rgba(248,113,113,.1);color:#f87171;border:1px solid rgba(248,113,113,.25);padding:6px 10px;border-radius:8px;font-size:11px;cursor:pointer">Delete</button>
-      </div>`,
+      renderRow: c => {
+        const n = dishCountByCat[c.id] || 0;
+        return `<div class="drag-row" draggable="true" data-id="${c.id}" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;background:rgba(245,236,216,.03);margin-bottom:6px;cursor:grab">
+          <span style="color:var(--ink-faint);font-size:16px;user-select:none">≡</span>
+          <div style="flex:1"><div style="font-weight:600;font-size:14px">${escapeHTML(c.name)} <span style="color:#e8c58a;font-family:var(--mono);font-size:11px;margin-left:6px">· ${n} dish${n === 1 ? '' : 'es'}</span></div><div style="color:var(--ink-faint);font-size:11px;font-family:var(--mono);letter-spacing:.06em">${escapeHTML(c.slug)}</div></div>
+          <button data-del="/api/admin/categories?id=${c.id}&slug=${slug}" style="background:rgba(248,113,113,.1);color:#f87171;border:1px solid rgba(248,113,113,.25);padding:6px 10px;border-radius:8px;font-size:11px;cursor:pointer">Delete</button>
+        </div>`;
+      },
       addForm: `${inputRow('Category name', 'catName', 'e.g. Mains')}
         <button class="wiz-primary" id="addSubmit" style="width:100%;padding:11px;border-radius:9px;border:none;font-weight:700;cursor:pointer">Add category</button>`,
       onAdd: async () => {
@@ -1443,8 +1451,8 @@ Sub gluten-free bun +1200</code></div>
       loadItems: async () => (await mgrFetch(`/api/admin/tables?slug=${slug}`)).data.tables || [],
       renderRow: t => {
         const assigned = staff.find(s => s.id === t.assigned_staff_id);
-        return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;background:rgba(245,236,216,.03);margin-bottom:6px">
-          <div style="flex:1;min-width:0">
+        return `<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:9px;background:rgba(245,236,216,.03);margin-bottom:6px;flex-wrap:wrap">
+          <div style="flex:1;min-width:150px">
             <div style="font-weight:600;font-size:14px">${escapeHTML(t.label)}${assigned ? ' · <span style="color:#e8c58a">👤 ' + escapeHTML(assigned.name) + '</span>' : ''}</div>
             <div style="color:var(--ink-faint);font-size:11px;font-family:var(--mono);letter-spacing:.06em">${t.seats || 2} seats · ${t.status || 'available'}</div>
           </div>
@@ -1452,7 +1460,8 @@ Sub gluten-free bun +1200</code></div>
             <option value="">— unassigned —</option>
             ${waiterOpts.map(s => `<option value="${s.id}" ${t.assigned_staff_id === s.id ? 'selected' : ''}>${escapeHTML(s.name)}</option>`).join('')}
           </select>
-          <button data-del="/api/admin/tables?id=${t.id}&slug=${slug}" style="background:rgba(248,113,113,.1);color:#f87171;border:1px solid rgba(248,113,113,.25);padding:6px 10px;border-radius:8px;font-size:11px;cursor:pointer">Delete</button>
+          <button data-print-table="${t.label}" title="Print this table's QR" style="background:rgba(232,197,138,.1);color:#e8c58a;border:1px solid rgba(232,197,138,.28);padding:6px 10px;border-radius:8px;font-size:11px;cursor:pointer">🖨 QR</button>
+          <button data-del="/api/admin/tables?id=${t.id}&slug=${slug}" style="background:rgba(248,113,113,.1);color:#f87171;border:1px solid rgba(248,113,113,.25);padding:6px 10px;border-radius:8px;font-size:11px;cursor:pointer">🗑</button>
         </div>`;
       },
       addForm: `${inputRow('Table label', 'tblLabel', 'e.g. T7 or Patio-3')}
@@ -1467,7 +1476,7 @@ Sub gluten-free bun +1200</code></div>
         $('tblLabel').value = ''; $('tblSeats').value = '';
       }
     });
-    // Wire per-row assign selects (once, via delegation)
+    // Wire per-row assign selects + per-row print QR (delegation)
     setTimeout(() => {
       $('listBody')?.addEventListener('change', async (e) => {
         const sel = e.target.closest('[data-assign]');
@@ -1477,6 +1486,22 @@ Sub gluten-free bun +1200</code></div>
         });
         if (!ok) return toast(data.error || 'Failed', 'err');
         toast(sel.value ? 'Waiter assigned' : 'Waiter cleared', 'ok');
+      });
+      $('listBody')?.addEventListener('click', async (e) => {
+        const b = e.target.closest('[data-print-table]');
+        if (!b) return;
+        const label = b.dataset.printTable;
+        const url = 'https://armenu.co.za/t/' + slug + '/' + encodeURIComponent(label);
+        try {
+          const dataUrl = await qrDataUrl(url);
+          const blobUrl = await qrBlobUrl(url);
+          $('qrTitle').textContent = `${slug} · Table ${label}`;
+          $('qrSub').textContent = `Print this and place on table ${label}. When guests scan it, the menu opens with the table pre-filled.`;
+          $('qrImg').src = dataUrl;
+          $('qrDownload').href = blobUrl;
+          $('qrDownload').setAttribute('download', `armenu-table-${slug}-${label}.png`);
+          $('qrModal').classList.add('show');
+        } catch (err) { toast('Could not generate QR', 'err'); }
       });
     }, 100);
   }
@@ -1585,10 +1610,14 @@ Sub gluten-free bun +1200</code></div>
     const statusColor = s => s === 'confirmed' ? '#8fa971' : s === 'declined' ? '#f87171' : '#e8c58a';
     openListModal({
       title: 'Reservations',
-      subtitle: 'Every table booking, newest first. Confirm to send the guest a WhatsApp, decline to release the slot.',
+      subtitle: 'Upcoming bookings. Toggle to see past. Confirm to WhatsApp the guest; decline to release the slot.',
       loadItems: async () => {
         const { data } = await mgrFetch(`/api/admin/reservations?slug=${slug}`);
-        return (data.reservations || []).slice().sort((a, b) => new Date(a.reserved_at) - new Date(b.reserved_at));
+        const all = (data.reservations || []).slice().sort((a, b) => new Date(a.reserved_at) - new Date(b.reserved_at));
+        window.__allRes = all;
+        // Default: upcoming only (reserved_at >= now - 2h to catch just-passed)
+        const cutoff = Date.now() - 2 * 60 * 60 * 1000;
+        return (window.__showPastRes ? all : all.filter(r => new Date(r.reserved_at).getTime() >= cutoff));
       },
       renderRow: r => `
         <div style="padding:12px;border-radius:9px;background:rgba(245,236,216,.03);margin-bottom:6px">
@@ -1607,11 +1636,16 @@ Sub gluten-free bun +1200</code></div>
             <button data-del="/api/admin/reservations?id=${r.id}&slug=${slug}" style="padding:6px 10px;border-radius:6px;background:rgba(248,113,113,.1);color:#f87171;border:1px solid rgba(248,113,113,.25);font-size:11px;cursor:pointer">🗑</button>
           </div>
         </div>`,
-      addForm: '',
+      addForm: `<label style="display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);cursor:pointer;font-size:13px;color:var(--ink-dim);width:100%">
+        <input type="checkbox" id="showPastRes" ${window.__showPastRes ? 'checked' : ''} style="accent-color:#d4a574" />
+        Show past reservations
+      </label>`,
       onAdd: async () => {}
     });
-    // Wire the confirm/decline buttons via delegation after render
+    // Wire show-past toggle + confirm/decline buttons via delegation after render
     setTimeout(() => {
+      const past = $('showPastRes');
+      if (past) past.onchange = () => { window.__showPastRes = past.checked; openReservationsModal(); };
       $('listBody')?.addEventListener('click', async (e) => {
         const btn = e.target.closest('[data-res-status]');
         if (!btn) return;
@@ -1628,6 +1662,52 @@ Sub gluten-free bun +1200</code></div>
   }
 
   // ============= MENU SCHEDULES =============
+  // Weekly visual grid — 7 days × 24 hours. Each schedule paints its active cells.
+  function renderScheduleGrid(schedules) {
+    const box = $('listBody');
+    if (!box) return;
+    if (box.querySelector('.sched-grid')) return; // already there
+    const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const colors = ['#e8c58a','#8fa971','#d4a574','#a5b4ff','#f0b060','#e05252','#c891e0'];
+    const cellFor = (dow, hour) => {
+      const active = schedules.filter(s => {
+        if (s.active === false) return false;
+        const dw = (s.days_of_week || [0,1,2,3,4,5,6]);
+        if (!dw.includes(dow)) return false;
+        const sh = parseInt((s.starts_at || '0:0').split(':')[0]);
+        const eh = parseInt((s.ends_at || '0:0').split(':')[0]);
+        if (sh <= eh) return hour >= sh && hour < eh;
+        return hour >= sh || hour < eh; // overnight
+      });
+      if (!active.length) return '';
+      const idx = schedules.indexOf(active[0]);
+      return colors[idx % colors.length];
+    };
+    let html = '<div class="sched-grid" style="margin-bottom:14px;padding:10px;border-radius:10px;background:rgba(245,236,216,.03);border:1px solid var(--line)">';
+    html += '<div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:8px">Weekly coverage</div>';
+    html += '<div style="display:grid;grid-template-columns:32px repeat(24,1fr);gap:1px;font-size:9px;color:var(--ink-faint)">';
+    html += '<div></div>';
+    for (let h = 0; h < 24; h += 1) html += `<div style="text-align:center">${h % 3 === 0 ? h : ''}</div>`;
+    for (let d = 0; d < 7; d++) {
+      html += `<div style="color:var(--ink-dim);font-weight:600;font-size:10px">${DAYS[d]}</div>`;
+      for (let h = 0; h < 24; h++) {
+        const c = cellFor(d, h);
+        html += `<div style="height:14px;background:${c || 'rgba(255,255,255,.02)'};border-radius:2px"></div>`;
+      }
+    }
+    html += '</div>';
+    // Legend
+    if (schedules.length) {
+      html += '<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px;font-size:11px">';
+      schedules.forEach((s, i) => {
+        html += `<span style="display:inline-flex;align-items:center;gap:4px;color:var(--ink-dim)"><span style="width:10px;height:10px;background:${colors[i%colors.length]};border-radius:2px"></span>${escapeHTML(s.name)}</span>`;
+      });
+      html += '</div>';
+    }
+    html += '</div>';
+    box.insertAdjacentHTML('afterbegin', html);
+  }
+
   function openSchedulesModal() {
     const slug = CURRENT.restaurant.slug;
     const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -1640,8 +1720,13 @@ Sub gluten-free bun +1200</code></div>
     })();
     openListModal({
       title: 'Menu scheduler',
-      subtitle: 'Auto-switch categories on the clock. E.g. show Breakfast 07:00–11:00 Mon–Sun, then Lunch 11:30–14:30. Dishes in unscheduled categories are always visible.',
-      loadItems: async () => (await mgrFetch(`/api/admin/schedules?slug=${slug}`)).data.schedules || [],
+      subtitle: 'Auto-switch categories on the clock. Grid below shows when each schedule is active across the week.',
+      loadItems: async () => {
+        const items = (await mgrFetch(`/api/admin/schedules?slug=${slug}`)).data.schedules || [];
+        // Prepend a visual weekly grid as the first "row"
+        setTimeout(() => renderScheduleGrid(items), 20);
+        return items;
+      },
       renderRow: s => itemRow(
         `${s.name} · ${s.starts_at.slice(0,5)}–${s.ends_at.slice(0,5)}`,
         `${daysToStr(s.days_of_week)}${s.category_ids?.length ? ' · ' + s.category_ids.length + ' cats' : ' · no cats'}${s.active === false ? ' · disabled' : ''}`,
@@ -1883,8 +1968,9 @@ Sub gluten-free bun +1200</code></div>
     $('wizTitle').textContent  = 'Branding & look';
     $('wizProgress').innerHTML = '';
     $('wizBody').innerHTML = `
-      <p style="color:var(--ink-dim);margin-bottom:14px">Your logo, cover photo, tagline, and brand colour. Applied instantly to every diner's phone.</p>
-      <div style="display:flex;flex-direction:column;gap:12px">
+      <p style="color:var(--ink-dim);margin-bottom:14px">Your logo, cover photo, tagline, and brand colour. Preview updates on the right.</p>
+      <div style="display:grid;grid-template-columns:1fr 200px;gap:16px;align-items:start">
+       <div style="display:flex;flex-direction:column;gap:12px">
         <div>
           <div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:4px">Logo</div>
           ${s.logo_url ? `<div style="margin-bottom:6px"><img src="${s.logo_url}" style="max-height:60px;background:#fff;padding:6px;border-radius:8px" /></div>` : ''}
@@ -1909,6 +1995,12 @@ Sub gluten-free bun +1200</code></div>
           <input id="brTagline" type="text" value="${(s.tagline || '').replace(/"/g,'&quot;')}" style="width:100%;padding:11px 13px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:14px" placeholder="e.g. Signature dishes, in your palm." />
         </div>
         <div id="brErr" style="color:#f87171;font-size:12.5px;min-height:16px"></div>
+       </div>
+       <div>
+         <div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:4px">Live preview</div>
+         <iframe id="brPreview" src="/m/${slug}?preview=1" style="width:100%;height:340px;border:1px solid var(--line);border-radius:10px;background:#0a0806"></iframe>
+         <button id="brRefreshPreview" style="width:100%;margin-top:6px;padding:7px;border-radius:8px;background:rgba(245,236,216,.06);border:1px solid var(--line);color:var(--ink-dim);font-size:11px;cursor:pointer">↻ Refresh preview</button>
+       </div>
       </div>`;
     $('wizActions').innerHTML = `
       <button class="wiz-secondary" id="brCancel">Close</button>
@@ -1944,14 +2036,21 @@ Sub gluten-free bun +1200</code></div>
         if (coverFile) patch.cover_url = await uploadAsset(coverFile, 'cover');
         const { ok, data } = await mgrFetch(`/api/admin/settings?slug=${slug}`, { method: 'PATCH', body: JSON.stringify(patch) });
         if (!ok) throw new Error(data.error || 'Save failed');
-        toast('Branding saved — refresh diner phones to see', 'ok');
-        $('wizOverlay').classList.remove('on');
+        // Refresh the iframe so the manager sees their change immediately
+        try { $('brPreview').src = `/m/${slug}?preview=1&t=` + Math.random().toString(36).slice(2, 8); } catch {}
+        window.ArMenuSound?.play('chime');
+        toast('Branding saved — see the preview →', 'ok');
       } catch (e) {
         $('brErr').textContent = e.message;
       } finally {
         $('brSave').disabled = false; $('brSave').textContent = 'Save branding';
       }
     };
+    // Refresh preview button
+    setTimeout(() => {
+      const r = $('brRefreshPreview');
+      if (r) r.onclick = () => { $('brPreview').src = `/m/${slug}?preview=1&t=` + Math.random().toString(36).slice(2, 8); };
+    }, 20);
   }
 
   async function uploadAsset(file, kind) {
