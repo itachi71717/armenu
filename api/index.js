@@ -70,8 +70,11 @@ const cache = {};
 // Map is wiped wholesale every 60s so it can never grow unbounded.
 const RATE_LIMIT = 60;
 const RATE_WINDOW_MS = 60_000;
-let rateMap = new Map();
-setInterval(() => { rateMap = new Map(); }, RATE_WINDOW_MS).unref?.();
+// Per-invocation Map: on Vercel serverless the runtime freezes between calls
+// so this only rate-limits requests that share a warm instance. Good enough
+// as a spam floor; distributed Redis limit remains a future TODO
+// (see NOTES_TODO.md "Rate limit needs Redis" — blocked on Upstash creds).
+const rateMap = new Map();
 
 function clientIp(req) {
   const xf = req.headers['x-forwarded-for'];
@@ -94,9 +97,13 @@ export default async function handler(req, res) {
   // Rate limit by (ip, top-level prefix) — e.g. all admin/* share a bucket per ip.
   const prefix = key.split('/')[0] || key;
   const rlKey = clientIp(req) + '|' + prefix;
-  const count = (rateMap.get(rlKey) || 0) + 1;
-  rateMap.set(rlKey, count);
-  if (count > RATE_LIMIT) {
+  // Sliding-window counter: prune anything older than the window on read,
+  // then push this timestamp on. Bounded per warm instance.
+  const now = Date.now();
+  const arr = (rateMap.get(rlKey) || []).filter(t => t > now - RATE_WINDOW_MS);
+  arr.push(now);
+  rateMap.set(rlKey, arr);
+  if (arr.length > RATE_LIMIT) {
     res.setHeader('Retry-After', '60');
     return res.status(429).json({ error: 'rate_limited', message: 'Too many requests, slow down.' });
   }

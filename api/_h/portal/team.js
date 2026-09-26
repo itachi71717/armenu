@@ -42,7 +42,9 @@ export default async function handler(req, res) {
   if (req.method === 'POST') {
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
     const email = String(body.email || '').trim().toLowerCase();
-    const role = ['manager', 'viewer', 'owner'].includes(body.role) ? body.role : 'manager';
+    // 'owner' is misleading here — the actual owner lives on restaurants.email
+    // and is set via /api/portal/transfer. Teammate roles are only manager or viewer.
+    const role = ['manager', 'viewer'].includes(body.role) ? body.role : 'manager';
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return res.status(400).json({ error: 'Invalid email address' });
     }
@@ -53,7 +55,8 @@ export default async function handler(req, res) {
       restaurant_id: rid, email, role, invited_by: auth.email
     });
     if (error) {
-      if (String(error.message).includes('duplicate')) {
+      // 23505 = unique_violation (Postgres); more robust than string match
+      if (error.code === '23505' || String(error.message).includes('duplicate')) {
         return res.status(409).json({ error: 'already_invited' });
       }
       return res.status(500).json({ error: error.message });

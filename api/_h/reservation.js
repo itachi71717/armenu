@@ -17,7 +17,8 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'restaurant slug, guest_name and reserved_at required' });
   }
   const when = new Date(reserved_at);
-  if (isNaN(when) || when.getTime() < Date.now() - 60 * 60 * 1000) {
+  // 5-minute forward buffer for clock skew, but no past bookings.
+  if (isNaN(when) || when.getTime() < Date.now() - 5 * 60 * 1000) {
     return res.status(400).json({ error: 'reserved_at must be a valid future ISO datetime' });
   }
   const size = Math.max(1, Math.min(50, parseInt(party_size) || 2));

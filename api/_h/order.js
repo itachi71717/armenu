@@ -18,9 +18,12 @@ export default async function handler(req, res) {
   const { data: restaurant } = await supabase.from('restaurants').select('id').eq('slug', r).single();
   if (!restaurant) return res.status(404).json({ error: 'Restaurant not found' });
 
+  // Default to orders-enabled when the settings row hasn't been created yet
+  // (brand-new restaurant). Managers can still disable via the portal.
   const { data: settings } = await supabase.from('restaurant_settings')
     .select('orders_enabled, default_currency').eq('restaurant_id', restaurant.id).maybeSingle();
-  if (!settings?.orders_enabled) return res.status(403).json({ error: 'Ordering is not enabled for this restaurant' });
+  const ordersEnabled = settings ? (settings.orders_enabled !== false) : true;
+  if (!ordersEnabled) return res.status(403).json({ error: 'Ordering is not enabled for this restaurant' });
 
   // Resolve table
   let table_id = null, table_label = table || null;

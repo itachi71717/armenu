@@ -33,13 +33,14 @@ export default async function handler(req, res) {
     rests = [...rests, ...teamRests];
   }
   rests.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
-  // Mark accepted_at on first login for any pending invites
-  if ((teamRes.data || []).some(t => true)) {
-    supabaseAdmin.raw(
-      "update manager_users set accepted_at = now() where lower(email) = lower($1) and accepted_at is null",
-      [auth.email]
-    ).catch(() => {});
-  }
+  // Mark accepted_at on first login for any pending invites this user is on.
+  // (Previously guarded by `.some(t => true)` which is always true — but if
+  // teamRes.error was set, teamRes.data was null and nothing ran. Now runs
+  // unconditionally on every /me call — fast and idempotent.)
+  supabaseAdmin.raw(
+    "update manager_users set accepted_at = now() where lower(email) = lower($1) and accepted_at is null",
+    [auth.email]
+  ).catch(() => {});
   if (!rests.length) {
     return res.status(404).json({
       error: 'no_restaurant_linked',

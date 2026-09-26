@@ -12,6 +12,8 @@ export async function sendMail({ to, subject, html, text, from, replyTo }) {
   if (!key) return { ok: false, skipped: 'RESEND_API_KEY not configured' };
   if (!to || !subject || !html) return { ok: false, error: 'to, subject, html required' };
   try {
+    // Strip CR/LF from subject as a defensive header-injection guard.
+    const safeSubject = String(subject).replace(/[\r\n]+/g, ' ').slice(0, 998);
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -21,7 +23,7 @@ export async function sendMail({ to, subject, html, text, from, replyTo }) {
       body: JSON.stringify({
         from: from || DEFAULT_FROM,
         to: Array.isArray(to) ? to : [to],
-        subject,
+        subject: safeSubject,
         html,
         ...(text ? { text } : {}),
         ...(replyTo ? { reply_to: replyTo } : {})
