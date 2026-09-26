@@ -365,6 +365,9 @@
           <div class="action" id="staffAction2">
             <span class="ico">👥</span><div><h3>Staff PINs</h3><p>Waiter + kitchen tablet PINs.</p></div>
           </div>
+          <div class="action" id="teamAction">
+            <span class="ico">✉</span><div><h3>Team members</h3><p>Invite co-managers to access this portal.</p></div>
+          </div>
         </div>
       </div>
 
@@ -1531,7 +1534,81 @@ Sub gluten-free bun +1200</code></div>
     if (e.target.closest('#reservationsAction')) openReservationsModal();
     if (e.target.closest('#schedulesAction'))    openSchedulesModal();
     if (e.target.closest('#walkinsAction'))      openWalkinsModal();
+    if (e.target.closest('#teamAction'))         openTeamModal();
   });
+
+  // ============= TEAM MEMBERS (co-managers) =============
+  // Uses Clerk-authed /api/portal/team (not mgrFetch), so only the OWNER
+  // (restaurants.email) can add / remove teammates.
+  async function openTeamModal() {
+    const rid = CURRENT.restaurant.id || CURRENT.locations?.[0]?.id;
+    const isOwner = (CURRENT.locations?.[0]?.role || 'owner') === 'owner';
+    $('wizKicker').textContent = 'Manage';
+    $('wizTitle').textContent = 'Team members';
+    $('wizProgress').innerHTML = '';
+    $('wizBody').innerHTML = `
+      <p style="color:var(--ink-dim);margin-bottom:14px">Invite co-managers by their Clerk email. They sign in at armenu.co.za/portal with the same email and get instant access to this restaurant's portal.</p>
+      <div id="teamListBody" style="max-height:44vh;overflow-y:auto;margin-bottom:16px"></div>
+      ${isOwner ? `
+        <div style="border-top:1px solid var(--line);padding-top:14px">
+          ${inputRow('Teammate email', 'tmEmail', 'colleague@restaurant.co.za', 'email')}
+          <button class="wiz-primary" id="tmAddBtn" style="width:100%;padding:11px;border-radius:9px;border:none;font-weight:700;cursor:pointer">Send invite</button>
+        </div>` : '<div style="color:var(--ink-faint);font-size:12px;text-align:center">Only the restaurant owner can manage the team.</div>'}
+      <div id="teamErr" style="color:#f87171;font-size:12.5px;min-height:16px;margin-top:8px"></div>`;
+    $('wizActions').innerHTML = `<button class="wiz-secondary" id="teamClose">Close</button>`;
+    $('wizOverlay').classList.add('on');
+    $('wizClose').onclick = $('teamClose').onclick = () => $('wizOverlay').classList.remove('on');
+
+    async function refresh() {
+      try {
+        const { ok, data } = await authFetch(`/api/portal/team?restaurant_id=${encodeURIComponent(rid)}`);
+        if (!ok) throw new Error(data.error || 'Failed to load');
+        const team = data.team || [];
+        $('teamListBody').innerHTML = team.length
+          ? team.map(t => {
+              const status = t.accepted_at ? '✓ active' : 'pending — hasn\'t signed in yet';
+              return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:9px;background:rgba(245,236,216,.03);margin-bottom:6px">
+                <div>
+                  <div style="font-weight:600;font-size:14px">${escapeHTML(t.email)}</div>
+                  <div style="color:var(--ink-faint);font-size:11px;font-family:var(--mono);letter-spacing:.06em">${escapeHTML(t.role)} · ${escapeHTML(status)}</div>
+                </div>
+                ${isOwner ? `<button data-tm-del="${encodeURIComponent(t.email)}" style="background:rgba(248,113,113,.1);color:#f87171;border:1px solid rgba(248,113,113,.25);padding:6px 10px;border-radius:8px;font-size:11px;cursor:pointer">Remove</button>` : ''}
+              </div>`;
+            }).join('')
+          : '<div style="padding:24px;text-align:center;color:var(--ink-faint);font-size:13px;border:1px dashed var(--line);border-radius:10px">No teammates yet. Invite one below.</div>';
+        $('teamListBody').querySelectorAll('[data-tm-del]').forEach(el => el.onclick = async () => {
+          if (!confirm('Remove this teammate?')) return;
+          const email = el.dataset.tmDel;
+          try {
+            const { ok, data } = await authFetch(`/api/portal/team?restaurant_id=${encodeURIComponent(rid)}&email=${email}`, { method: 'DELETE' });
+            if (!ok) throw new Error(data.error || 'Remove failed');
+            toast('Removed', 'ok'); refresh();
+          } catch (e) { $('teamErr').textContent = e.message; }
+        });
+      } catch (e) { $('teamErr').textContent = e.message; }
+    }
+    refresh();
+    setTimeout(() => {
+      const btn = $('tmAddBtn');
+      if (btn) btn.onclick = async () => {
+        $('teamErr').textContent = '';
+        const email = $('tmEmail').value.trim();
+        if (!email) return;
+        btn.disabled = true;
+        try {
+          const { ok, data } = await authFetch('/api/portal/team', {
+            method: 'POST',
+            body: JSON.stringify({ restaurant_id: rid, email, role: 'manager' })
+          });
+          if (!ok) throw new Error(data.error === 'already_invited' ? 'That email is already on the team.' : (data.error || 'Failed'));
+          $('tmEmail').value = '';
+          toast('Invite sent — they can sign in now', 'ok');
+          refresh();
+        } catch (e) { $('teamErr').textContent = e.message; }
+        finally { btn.disabled = false; }
+      };
+    }, 30);
+  }
 
   // ============= WALK-IN / WAITLIST QUEUE =============
   function openWalkinsModal() {

@@ -42,14 +42,27 @@ export default async function handler(req, res) {
   if (wantedSlug) {
     const { data } = await supabaseAdmin.from('restaurants').select('id, slug, email').eq('slug', wantedSlug).maybeSingle();
     if (!data) return res.status(404).json({ error: 'no_restaurant_linked' });
-    if (String(data.email || '').toLowerCase() !== String(auth.email || '').toLowerCase()) {
-      return res.status(403).json({ error: 'not your restaurant' });
+    const isOwner = String(data.email || '').toLowerCase() === String(auth.email || '').toLowerCase();
+    if (!isOwner) {
+      // Team member? Check manager_users
+      const { data: tm } = await supabaseAdmin.from('manager_users')
+        .select('id').eq('restaurant_id', data.id).ilike('email', auth.email).maybeSingle();
+      if (!tm) return res.status(403).json({ error: 'not your restaurant' });
     }
     rest = data;
   } else {
     const { data } = await supabaseAdmin.from('restaurants').select('id, slug').ilike('email', auth.email).order('name').limit(1).maybeSingle();
-    if (!data) return res.status(404).json({ error: 'no_restaurant_linked' });
-    rest = data;
+    if (data) {
+      rest = data;
+    } else {
+      // No owned restaurant — try the first restaurant they've been invited to.
+      const { data: tm } = await supabaseAdmin.from('manager_users')
+        .select('restaurant_id').ilike('email', auth.email).limit(1).maybeSingle();
+      if (!tm) return res.status(404).json({ error: 'no_restaurant_linked' });
+      const { data: r2 } = await supabaseAdmin.from('restaurants').select('id, slug').eq('id', tm.restaurant_id).maybeSingle();
+      if (!r2) return res.status(404).json({ error: 'no_restaurant_linked' });
+      rest = r2;
+    }
   }
 
   return res.status(200).json({

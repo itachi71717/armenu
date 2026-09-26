@@ -231,3 +231,23 @@ insert into restaurant_settings (restaurant_id)
   select id from restaurants
   where id not in (select restaurant_id from restaurant_settings)
 on conflict do nothing;
+
+-- =====================================================================
+-- Manager team members (multi-user access to one restaurant)
+-- A restaurant's primary email lives in restaurants.email — that person
+-- is the "owner". Additional teammates are added here; portal/me.js
+-- returns any restaurant whose id matches EITHER the owner email OR a
+-- row in this table for the signed-in Clerk user's email.
+-- =====================================================================
+create table if not exists manager_users (
+  id            uuid primary key default gen_random_uuid(),
+  restaurant_id uuid references restaurants(id) on delete cascade,
+  email         text not null,
+  role          text default 'manager',       -- 'manager' | 'viewer'
+  invited_by    text,                          -- email of the inviter
+  invited_at    timestamptz default now(),
+  accepted_at   timestamptz,
+  unique (restaurant_id, email)
+);
+create index if not exists manager_users_email on manager_users (lower(email));
+create index if not exists manager_users_rest on manager_users (restaurant_id);

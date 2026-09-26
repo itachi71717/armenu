@@ -57,6 +57,7 @@ const ROUTES = {
   'portal/credits':        'portal/credits',
   'portal/translate':      'portal/translate',
   'portal/dashboard':      'portal/dashboard',
+  'portal/team':           'portal/team',
 
   'paddle/webhook': 'paddle/webhook'
 };
