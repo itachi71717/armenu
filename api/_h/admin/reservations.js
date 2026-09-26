@@ -28,8 +28,13 @@ export default async function handler(req, res) {
     const { id } = req.query;
     if (!id) return res.status(400).json({ error: 'id required' });
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
+    const ALLOWED_STATUS = new Set(['pending', 'confirmed', 'declined', 'seated', 'left', 'no_show', 'cancelled']);
     const patch = {};
-    for (const k of ['status', 'table_id', 'notes', 'party_size', 'reserved_at']) if (k in body) patch[k] = body[k];
+    for (const k of ['table_id', 'notes', 'party_size', 'reserved_at']) if (k in body) patch[k] = body[k];
+    if ('status' in body) {
+      if (!ALLOWED_STATUS.has(body.status)) return res.status(400).json({ error: 'bad status' });
+      patch.status = body.status;
+    }
     // Enforce scope: if a manager token is in play, verify the reservation belongs to them.
     if (scopeRid) {
       const { data: r } = await supabase.from('reservations').select('restaurant_id').eq('id', id).maybeSingle();

@@ -3,7 +3,8 @@
 // Protected by ADMIN_SECRET header.
 
 import { supabaseAdmin } from '../../_db.js';
-import { requireAdmin } from '../../_auth.js';
+import { requireAdmin, getScopedRestaurantId } from '../../_auth.js';
+import { auditLog } from '../_audit.js';
 
 export default async function handler(req, res) {
   if (!requireAdmin(req)) return res.status(401).json({ error: 'Unauthorized' });
@@ -24,6 +25,20 @@ export default async function handler(req, res) {
   if (!restaurant) return res.status(404).json({ error: 'Not found' });
 
   if (req.method === 'DELETE') {
+    // Master-admin only — a scoped manager token must never be able to
+    // nuke their own restaurant (or anyone else's). The dispatcher
+    // already refuses cross-tenant, but this route is master-only either
+    // way; explicit guard against a same-tenant manager attempting it.
+    if (getScopedRestaurantId(req) !== null) {
+      return res.status(403).json({ error: 'master_admin_only' });
+    }
+    // Audit BEFORE the delete cascades — otherwise the cascade wipes
+    // audit_log rows for this restaurant along with everything else, so
+    // the record of who nuked what is lost.
+    await auditLog(req, restaurant.id, 'restaurant.delete', {
+      target: restaurant.slug,
+      metadata: { name: restaurant.name, email: restaurant.email }
+    }).catch(() => {});
     const { error } = await supabaseAdmin.from('restaurants').delete().eq('id', restaurant.id);
     if (error) return res.status(400).json({ error: error.message });
     return res.status(200).json({ ok: true });

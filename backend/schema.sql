@@ -289,3 +289,10 @@ create table if not exists staff_login_attempts (
 );
 create index if not exists staff_login_attempts_rest_ts on staff_login_attempts(restaurant_id, created_at desc);
 create index if not exists staff_login_attempts_rest_ip on staff_login_attempts(restaurant_id, ip, created_at desc);
+
+-- One-time data migration for legacy mixed-case email rows. Ensures every
+-- .eq('email', lower(x)) query hits the row it should. Idempotent — running
+-- again after new inserts (which are already lowercased) is a no-op.
+update restaurants     set email = lower(email) where email is not null and email <> lower(email);
+update manager_users   set email = lower(email) where email is not null and email <> lower(email);
+update pending_signups set email = lower(email) where email is not null and email <> lower(email);
