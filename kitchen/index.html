@@ -24,6 +24,7 @@
   .login-card .btn{background:linear-gradient(135deg,#e8c58a,#d4a574);color:#0a0806;font-weight:700;box-shadow:0 14px 30px rgba(212,165,116,.35)}
   .login-card input{width:100%;padding:16px;border-radius:12px;background:rgba(255,239,220,.03);border:1px solid var(--line);font-size:18px;margin-bottom:8px}
   .login-card .pin{letter-spacing:.5em;text-align:center;font-weight:700}
+  .login-card .slug{text-align:center;font-size:16px;font-weight:600;letter-spacing:.05em}
   .btn{padding:16px 22px;border-radius:12px;background:linear-gradient(135deg,var(--accent),#c93d00);color:#fff;font-weight:700;font-size:15px}
   .login-card .btn{width:100%;margin-top:6px}
   .err{color:var(--err);font-size:13px;min-height:18px;margin:8px 0}
@@ -86,7 +87,7 @@
     <img src="/favicon.svg" alt="ARMenu" style="width:60px;height:60px;filter:drop-shadow(0 10px 24px rgba(212,165,116,.4))" />
     <h1>Kitchen display</h1>
     <p>Sign in with a manager PIN.</p>
-    <input id="loginSlug" placeholder="restaurant-slug" autocomplete="off" />
+    <input id="loginSlug" class="slug" placeholder="restaurant-slug" autocomplete="off" />
     <input id="loginPin" class="pin" inputmode="numeric" maxlength="6" placeholder="••••" autocomplete="off" />
     <div class="err" id="loginErr"></div>
     <button class="btn" id="loginBtn">Enter kitchen →</button>

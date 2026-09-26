@@ -36,6 +36,7 @@
   .login-card label{display:block;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--ink-faint);margin-bottom:6px}
   .login-card input{width:100%;padding:14px;border-radius:10px;background:rgba(255,239,220,.03);border:1px solid var(--line);font-size:15px}
   .login-card .pin{letter-spacing:.4em;text-align:center;font-size:22px;font-weight:700}
+  .login-card .slug{text-align:center;font-size:16px;font-weight:600;letter-spacing:.05em}
   .login-card .btn{width:100%;padding:16px;border-radius:12px;background:linear-gradient(135deg,#e8c58a,#d4a574);color:#0a0806;font-weight:700;font-size:14px;margin-top:6px;box-shadow:0 14px 30px rgba(212,165,116,.35)}
   .login-card .err{color:var(--err);font-size:12px;min-height:18px;margin:8px 0}
 
@@ -114,7 +115,7 @@
     <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.28em;color:#a89d84;text-transform:uppercase;margin-top:4px">Staff console</div>
     <h2>Sign in</h2>
     <p>Enter your restaurant code and PIN.</p>
-    <div class="row"><label>Restaurant code</label><input id="loginSlug" placeholder="restaurant-slug" autocomplete="off" /></div>
+    <div class="row"><label>Restaurant code</label><input id="loginSlug" class="slug" placeholder="restaurant-slug" autocomplete="off" /></div>
     <div class="row"><label>Your PIN</label><input id="loginPin" class="pin" inputmode="numeric" maxlength="6" placeholder="••••" autocomplete="off" /></div>
     <div class="err" id="loginErr"></div>
     <button class="btn" id="loginBtn">Sign in →</button>
