@@ -622,18 +622,33 @@
     } catch (e) { toast(e.message, 'err'); }
   });
 
-  // ===== ADD CLIENT =====
+  // ===== ADD CLIENT — strict client-side validation, friendly errors =====
   $('ncSubmit').addEventListener('click', async () => {
     const name = $('ncName').value.trim();
-    const slug = $('ncSlug').value.trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-');
+    const slug = $('ncSlug').value.trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-|-$/g, '');
     const email = $('ncEmail').value.trim().toLowerCase();
-    if (!name || !slug || !email) return toast('Fill in all 3 fields', 'err');
+    // Validate one at a time so the user knows exactly which field failed
+    if (!name) { $('ncName').focus(); return toast('Restaurant name is required', 'err'); }
+    if (name.length < 2) { $('ncName').focus(); return toast('Name too short (min 2 chars)', 'err'); }
+    if (!slug) { $('ncSlug').focus(); return toast('URL slug is required', 'err'); }
+    if (slug.length < 2) { $('ncSlug').focus(); return toast('Slug too short (min 2 chars)', 'err'); }
+    if (!/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(slug) && slug.length > 1) { $('ncSlug').focus(); return toast('Slug can only have lowercase letters, numbers, and dashes', 'err'); }
+    if (['admin','api','portal','staff','kitchen','www','app','m','t','r','vendor','manifest.json','sw.js','favicon.svg','legal','faq','plans','contact','how','why','dishes'].includes(slug)) {
+      $('ncSlug').focus(); return toast('That slug is reserved — pick another', 'err');
+    }
+    if (!email) { $('ncEmail').focus(); return toast('Manager email is required', 'err'); }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { $('ncEmail').focus(); return toast('That email doesn\'t look valid', 'err'); }
+    $('ncSubmit').disabled = true; $('ncSubmit').textContent = 'Creating…';
     try {
       await api('/api/admin/clients', { method: 'POST', body: JSON.stringify({ name, slug, email }) });
       $('ncName').value = $('ncSlug').value = $('ncEmail').value = '';
       toast('Restaurant created — tell the manager to sign up at /portal/ with ' + email, 'ok');
       go('clients');
-    } catch (e) { toast(e.message, 'err'); }
+    } catch (e) {
+      toast(e.message.includes('duplicate') || e.message.includes('unique') ? 'That slug or email is already taken' : e.message, 'err');
+    } finally {
+      $('ncSubmit').disabled = false; $('ncSubmit').textContent = 'Create restaurant →';
+    }
   });
 
   // Auto-slug from name

@@ -62,7 +62,7 @@ Update after every completed item.
 - **Master admin audit log viewer** — new "◈ Audit log" tab in /admin/. Fetches /api/admin/audit, renders time/actor/action/target/metadata/IP grid. Filters by restaurant + action. Refresh button.
 - **Split-bill: intentionally deferred** — genuinely complex for a shipping session; needs per-item assignment UI + partial-payment orchestration. Flag it for a dedicated build.
 
-## ✅ Batches 1-10 (this session's audit fixes)
+## ✅ Batches 1-16 (this session — audit-driven full sweep)
 - Shared sound library site-wide (8 named cues, mute in localStorage)
 - Brand spelling normalized: "AR Menu" → "ARMenu" everywhere
 - **Portal redesign**: 4-tile dashboard + 4 collapsible tool groups (down from 14 loose buttons) + dish search + help pill for onboarding replay
@@ -77,6 +77,17 @@ Update after every completed item.
 - **FAQ**: 4 new answers (existing menu import, no order commission, offline resilience, in-app payments)
 - **Unsaved-changes guard** (vendor/armenu-dirty.js): watches modal inputs, prompts before nav-away
 - Guest cart sounds: pop on add, chime on order sent
+- **Batch 11**: Categories dish-count · Tables per-row 🖨 QR + 🗑 · Reservations upcoming-only + past toggle · Menu-scheduler 7×24 weekly visual grid with per-schedule colour legend
+- **Batch 12**: Branding modal → live iframe preview on the right, auto-refreshes on save + chime
+- **Batch 13**: Global error boundary bar site-wide (armenu-errorbar.js)
+- **Batch 15**: Automated 5-hourly cloud routine (`trig_0178Tk4Z5oazSa3miPNEQpVM`) — pivoted from GitHub-based build to a **silent uptime monitor** that curls 7 critical endpoints, pushes a phone notification only if something breaks
+- **Batch 16**: Cart 24h expiry (stale carts auto-purge) · Master admin Add-Restaurant validation with per-field focus + reserved-slug guard + duplicate detection
+
+## Cloud routine setup
+- Routine ID: trig_0178Tk4Z5oazSa3miPNEQpVM
+- Fires: every 5 hours (originally aimed for 4h30 but cron minimum + server-picked minute offset = every 5h)
+- Currently doing: silent uptime probe of armenu.co.za (7 endpoints). Only pushes a notification if a check fails.
+- Original build-loop plan blocked by two things: (a) GitHub not connected to Claude account, (b) cloud env's network policy blocks github.com. Both require Ian's action to unblock.
 
 ## Awaiting from Ian
 - Sentry DSN (sign up at sentry.io — Google OAuth — copy DSN)
