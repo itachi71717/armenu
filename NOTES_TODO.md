@@ -287,6 +287,14 @@ Pick the top item, do it, commit, push, tick it off here.
 - Staff + kitchen login: restaurant-slug input centred like PIN
 - Tests: buildIcs + sendMail (29 total, all green)
 
+### Also shipped 2026-09-26 (deep audit sweep — 20 verified bugs fixed)
+**Critical (4)** — `x-admin-secret` undefined===undefined bypass; shim `_shape` returning `data:null` breaking `const { data = [] }`; `.select('*, order_items(*)')` embedded-relation syntax the shim doesn't parse (staff/admin orders + analytics); PATCH/DELETE by `?id=` bypassed scope guard.
+**High (5)** — ownership-transfer trim; SSE first-tick emit; reservation email portal URL from request host; stock-decrement race (`UPDATE ... WHERE stock_count >= qty`); push-subscribe DELETE scoped by restaurant + atomic upsert.
+**Medium (5)** — missing `restaurant_settings` treated as orders-enabled; team-invite duplicate detection by Postgres error code; past-booking window tightened; portal/me dead `.some(t=>true)` fixed; teammate roles limited to manager/viewer (owner lives on restaurants.email).
+**Low (2)** — mailer subject strips CR/LF; rate-limit sliding window replaces useless setInterval.
+
+**Site-wide UI polish layer** — buttons auto-lift on hover, brand-tinted selection, refined scrollbars, focus glow ring, toast animation, card hover, modal entrance, .chip utility, print styles. Admin restaurant: 10 empty states migrated to `.empty-state`.
+
 ### Remaining next-session ideas
 - Adopt `.sk-line/.sk-card/.btn-spinner` in more places (portal, admin, staff, kitchen loading states).
 - Adopt `.empty-state` in more places.
