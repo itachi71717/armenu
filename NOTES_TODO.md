@@ -287,6 +287,12 @@ Pick the top item, do it, commit, push, tick it off here.
 - Staff + kitchen login: restaurant-slug input centred like PIN
 - Tests: buildIcs + sendMail (29 total, all green)
 
+### Also shipped 2026-09-26 (SECOND deep sweep — 20 MORE verified bugs fixed)
+**Critical (6)** — cross-tenant scope bypasses on 5 admin PATCH/DELETE endpoints (categories, tables, offers, schedules, staff — the staff one enabled silent PIN reset on another restaurant's staff). settings.js free-plan bypass fixed by splitting whitelist into MANAGER_ALLOWED and MASTER_ONLY.
+**High (5)** — modifier `price_cents_delta` now server-re-derived from `dishes.modifiers` (was client-trusted → negative totals possible); `settings?.default_currency` (was null-deref); ai-generate reservation-style debit + refund-on-failure (was: race allowed two concurrent generates to burn one credit for two Meshy jobs); kitchen+staff SSE reconnect no longer stacks 1Hz timers; Paddle webhook adds hex-length guard + ±5min timestamp freshness.
+**Medium (5)** — upload-url MIME whitelist (blocks .html/.svg/.js in `dishes` bucket); every `.ilike('email', X)` swapped for `.eq('email', X.toLowerCase())` in 10 files (LIKE metachars `_ %` broke matching); reservation replyTo scrubs CR/LF; clientIp() prefers `x-vercel-forwarded-for` (fallback: LAST hop of x-forwarded-for, not first-spoofable); events.js single teardown() replaces racing close+timeout handlers.
+**Low (4)** — admin master XSS via unescaped restaurant name (breadcrumb + filename drop + header) → all migrated to createElement+textContent; ai-generate body defaults to {} on empty POST.
+
 ### Also shipped 2026-09-26 (deep audit sweep — 20 verified bugs fixed)
 **Critical (4)** — `x-admin-secret` undefined===undefined bypass; shim `_shape` returning `data:null` breaking `const { data = [] }`; `.select('*, order_items(*)')` embedded-relation syntax the shim doesn't parse (staff/admin orders + analytics); PATCH/DELETE by `?id=` bypassed scope guard.
 **High (5)** — ownership-transfer trim; SSE first-tick emit; reservation email portal URL from request host; stock-decrement race (`UPDATE ... WHERE stock_count >= qty`); push-subscribe DELETE scoped by restaurant + atomic upsert.
