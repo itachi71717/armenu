@@ -36,7 +36,7 @@ export default async function handler(req, res) {
   // Resolve dishes and snapshot prices
   const slugs = items.map(i => String(i.dish_slug || '').trim()).filter(Boolean);
   const { data: dishes = [] } = await supabase.from('dishes')
-    .select('id, slug, name, price_cents, price, stock_count')
+    .select('id, slug, name, price_cents, price, stock_count, modifiers')
     .eq('restaurant_id', restaurant.id)
     .in('slug', slugs);
 
@@ -75,16 +75,36 @@ export default async function handler(req, res) {
     const qty = Math.max(1, Math.min(99, parseInt(i.qty || 1)));
     const baseCents = d.price_cents ?? parsePrice(d.price);
     const pct = discountPctFor(d.id);
-    // Sanitize modifiers to trusted structure (label/name/delta only — never trust client price arithmetic later)
-    const mods = Array.isArray(i.modifiers) ? i.modifiers.slice(0, 12).map(m => ({
-      id: String(m.id || '').slice(0, 40),
-      group: String(m.group || '').slice(0, 60),
-      name: String(m.name || '').slice(0, 60),
-      price_cents_delta: Math.max(-50000, Math.min(50000, parseInt(m.price_cents_delta) || 0))
-    })) : [];
+    // Re-derive modifier deltas from the AUTHORITATIVE dishes.modifiers on the
+    // server row. The client's price_cents_delta is entirely discarded —
+    // otherwise a guest could send -R500 on 12 mods and drop total to negative.
+    // Dish modifiers shape (from admin UI):
+    //   [{ id, group, name, price_cents_delta }, ...]
+    const dishMods = Array.isArray(d.modifiers) ? d.modifiers : [];
+    const modLookup = new Map();
+    for (const m of dishMods) {
+      const key = String(m.group || '') + '::' + String(m.id || '');
+      modLookup.set(key, {
+        id: String(m.id || '').slice(0, 40),
+        group: String(m.group || '').slice(0, 60),
+        name: String(m.name || '').slice(0, 60),
+        price_cents_delta: Math.max(-50000, Math.min(50000, parseInt(m.price_cents_delta) || 0))
+      });
+    }
+    const rawPicks = Array.isArray(i.modifiers) ? i.modifiers.slice(0, 12) : [];
+    const mods = [];
+    for (const pick of rawPicks) {
+      const key = String(pick.group || '') + '::' + String(pick.id || '');
+      const authoritative = modLookup.get(key);
+      if (authoritative) mods.push(authoritative);
+      // Unknown mods are silently dropped — they'd only get here if the client
+      // sent a modifier the dish doesn't offer (stale menu / tamper).
+    }
     const modCents = mods.reduce((s, m) => s + m.price_cents_delta, 0);
     const withMods = (baseCents || 0) + modCents;
-    const finalCents = pct ? Math.round(withMods * (100 - pct) / 100) : withMods;
+    // Guard: a mispriced dish (modifiers that net negative deeper than base)
+    // must never result in a negative charge.
+    const finalCents = Math.max(0, pct ? Math.round(withMods * (100 - pct) / 100) : withMods);
     return {
       dish_id: d.id,
       dish_name: d.name,
@@ -109,7 +129,7 @@ export default async function handler(req, res) {
   }
 
   const subtotal = resolved.reduce((s, it) => s + (it.price_cents || 0) * it.qty, 0);
-  const currency = settings.default_currency || 'ZAR';
+  const currency = settings?.default_currency || 'ZAR';
   const tipC = Math.max(0, Math.min(500_00, parseInt(tip_cents) || 0));   // cap at R500 to prevent runaway typos
   const totalC = subtotal + tipC;
 

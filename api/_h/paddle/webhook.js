@@ -18,14 +18,24 @@ async function readRaw(req) {
   });
 }
 
+const REPLAY_WINDOW_SEC = 300; // 5 minutes — Paddle-recommended
 function verify(raw, header) {
   if (!header || !process.env.PADDLE_WEBHOOK_SECRET) return false;
   // Header format: ts=<unix>;h1=<hex>
   const parts = Object.fromEntries(header.split(';').map(kv => kv.split('=')));
   if (!parts.ts || !parts.h1) return false;
-  const signed = parts.ts + ':' + raw;
-  const expected = crypto.createHmac('sha256', process.env.PADDLE_WEBHOOK_SECRET).update(signed).digest('hex');
-  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(parts.h1));
+  // 1. Freshness: reject anything older than REPLAY_WINDOW_SEC
+  const ts = parseInt(parts.ts, 10);
+  if (!Number.isFinite(ts)) return false;
+  const nowSec = Math.floor(Date.now() / 1000);
+  if (Math.abs(nowSec - ts) > REPLAY_WINDOW_SEC) return false;
+  // 2. Length + hex-parse guard so a malformed h1 (e.g. odd length) never
+  // reaches timingSafeEqual — which throws RangeError on length mismatch.
+  const expected = crypto.createHmac('sha256', process.env.PADDLE_WEBHOOK_SECRET).update(parts.ts + ':' + raw).digest();
+  let received;
+  try { received = Buffer.from(parts.h1, 'hex'); } catch { return false; }
+  if (received.length !== expected.length) return false;
+  return crypto.timingSafeEqual(expected, received);
 }
 
 function planFromPrice(priceId) {

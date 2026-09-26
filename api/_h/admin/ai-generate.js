@@ -17,7 +17,7 @@
 import crypto from 'node:crypto';
 import { supabase, supabaseAdmin } from '../../_db.js';
 import { requireAdmin } from '../../_auth.js';
-import { enforceCredits, consumeCredits, logUsage } from '../_quota.js';
+import { enforceCredits, consumeCredits, grantCredits, logUsage } from '../_quota.js';
 
 const UPSTREAM = 'https://api.meshy.ai/openapi/v1';
 const BUCKET = 'dishes';
@@ -135,7 +135,10 @@ export default async function handler(req, res) {
 
     let body = {};
     if (req.method === 'POST') {
-      try { body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body; } catch {}
+      try {
+        const parsed = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+        body = parsed || {};      // req.body can be undefined for empty POSTs
+      } catch { body = {}; }
     }
 
     // ---- RETRY (rerun same image) — FREE up to 4 retries per task ----
@@ -255,10 +258,15 @@ export default async function handler(req, res) {
         const { data } = await supabase.from('restaurants').select('id').eq('slug', restaurant_slug).single();
         restaurant_id = data?.id || null;
       }
+      // Reservation-style debit: atomic UPDATE reserves the credits FIRST
+      // (row-locks against concurrent generates) then we submit to Meshy.
+      // If Meshy submit fails we refund. Prevents two concurrent requests
+      // with balance=10 both passing enforce and both paying Meshy while
+      // only one debit succeeds.
+      let debited = false;
       if (restaurant_id) {
         const gate = await enforceCredits(restaurant_id, 'meshy_generate');
         if (!gate.ok) {
-          // 402 Payment Required — client-side UI turns this into a "buy credits" CTA
           return res.status(402).json({
             error: gate.reason,
             message: gate.message,
@@ -267,18 +275,35 @@ export default async function handler(req, res) {
             cost: gate.cost
           });
         }
+        const debit = await consumeCredits(restaurant_id, 'meshy_generate', 10, { stage: 'reserve', image_url });
+        if (!debit.ok) {
+          // Race: another concurrent generate consumed the last credits between
+          // enforce and consume. Surface as 402 so the client re-prompts.
+          return res.status(402).json({
+            error: 'insufficient_credits',
+            message: 'A concurrent generation just used the last of your credits. Top up in the portal.'
+          });
+        }
+        debited = true;
       }
-      const created = await upstream('/image-to-3d', {
-        method: 'POST',
-        body: JSON.stringify({
-          image_url, enable_pbr: true, should_remesh: true, should_texture: true, ai_model: 'meshy-4'
-        })
-      });
+      let created;
+      try {
+        created = await upstream('/image-to-3d', {
+          method: 'POST',
+          body: JSON.stringify({
+            image_url, enable_pbr: true, should_remesh: true, should_texture: true, ai_model: 'meshy-4'
+          })
+        });
+      } catch (e) {
+        // Refund the reservation — Meshy never accepted so we don't owe them.
+        if (debited && restaurant_id) {
+          await grantCredits(restaurant_id, 10, 'refund', { reason: 'meshy_submit_failed', error: String(e.message).slice(0, 200) });
+        }
+        throw e;
+      }
       const job_id = created.result || created.id || created.task_id;
       if (restaurant_id) {
         await saveJobMeta(restaurant_id, job_id, image_url, dish_id || null);
-        // Debit AFTER Meshy accepts the job so a failed submit doesn't burn credits.
-        await consumeCredits(restaurant_id, 'meshy_generate', 10, { job_id, image_url });
         await logUsage(restaurant_id, 'meshy_generate', 15, { job_id, image_url });  // ~15¢ our cost
       }
       return res.status(200).json({ job_id });

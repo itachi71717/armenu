@@ -135,7 +135,7 @@ try { session = JSON.parse(localStorage.getItem('armenu_kitchen_session') || 'nu
       }).catch(() => {});
   }
 })();
-let poll = null, es = null;
+let poll = null, es = null, tickTimer = null;
 let previousIds = new Set();
 
 async function api(path, opts = {}) {
@@ -183,14 +183,20 @@ setInterval(() => {
 function onIn() {
   $('login').style.display = 'none';
   $('whoRestaurant').textContent = session.restaurant.name;
+  // Idempotent: clear any prior timers/SSE from a previous onIn() before
+  // arming new ones. Without this, every SSE reconnect stacks another
+  // 12s poll and 1Hz tick until the tab is a hundred timers deep.
+  if (poll) { clearInterval(poll); poll = null; }
+  if (tickTimer) { clearInterval(tickTimer); tickTimer = null; }
+  if (es) { try { es.close(); } catch {} es = null; }
   tick();
   refresh();
   poll = setInterval(refresh, 12000);
-  setInterval(tick, 1000);
+  tickTimer = setInterval(tick, 1000);
   try {
     es = new EventSource('/api/events?token=' + encodeURIComponent(session.token));
     es.addEventListener('orders', () => refresh());
-    es.onerror = () => { try { es.close(); } catch {} setTimeout(() => { if (session) onIn(); }, 4000); };
+    es.onerror = () => { try { es.close(); } catch {} es = null; setTimeout(() => { if (session) onIn(); }, 4000); };
   } catch {}
 }
 

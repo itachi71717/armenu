@@ -228,6 +228,9 @@ setInterval(() => {
 function onLoggedIn() {
   $('login').style.display = 'none';
   $('whoami').textContent = `${session.staff.name} · ${session.restaurant.name}`;
+  // Idempotent: clear any prior poll from an earlier session (rare, but
+  // prevents timer leaks if this ever runs twice).
+  if (poll) { clearInterval(poll); poll = null; }
   refresh();
   poll = setInterval(refresh, 15000);   // fallback poll — SSE handles instant updates
   startSSE();
