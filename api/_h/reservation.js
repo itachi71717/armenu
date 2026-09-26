@@ -59,7 +59,7 @@ export default async function handler(req, res) {
     restaurant_id: rest.id,
     guest_name,
     guest_phone: guest_phone || null,
-    guest_email: guest_email || null,
+    guest_email: guest_email ? String(guest_email).trim().toLowerCase() : null,
     party_size: size,
     reserved_at: when.toISOString(),
     notes: notes || null,

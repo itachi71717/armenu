@@ -21,10 +21,14 @@ export default async function handler(req, res) {
 
   if (req.method === 'POST') {
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-    const { name, email, slug } = body;
+    const { name, slug } = body;
+    const email = body.email ? String(body.email).trim().toLowerCase() : '';
 
     if (!name || !email || !slug) {
       return res.status(400).json({ error: 'name, email and slug required' });
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ error: 'Invalid email address' });
     }
 
     const { data, error } = await supabaseAdmin
