@@ -256,3 +256,25 @@ create index if not exists manager_users_rest on manager_users (restaurant_id);
 alter table orders add column if not exists cancelled_at  timestamptz;
 alter table orders add column if not exists cancel_reason text;
 create index if not exists orders_cancelled on orders(restaurant_id, cancelled_at) where cancelled_at is not null;
+
+-- Web Push subscriptions (unique per endpoint for race-safe upsert)
+create table if not exists push_subscriptions (
+  id            uuid primary key default gen_random_uuid(),
+  restaurant_id uuid references restaurants(id) on delete cascade,
+  endpoint      text not null unique,
+  keys          jsonb not null,
+  role          text default 'manager',        -- 'kitchen' | 'waiter' | 'manager'
+  user_label    text,
+  active        boolean default true,
+  created_at    timestamptz default now()
+);
+create index if not exists push_subs_restaurant on push_subscriptions(restaurant_id, active);
+-- Older deploys without the unique constraint (idempotent):
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'push_subscriptions_endpoint_key'
+  ) then
+    alter table push_subscriptions add constraint push_subscriptions_endpoint_key unique (endpoint);
+  end if;
+end $$;

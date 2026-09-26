@@ -19,7 +19,10 @@ export default async function handler(req, res) {
   res.setHeader('x-accel-buffering', 'no');
   res.write(': connected\n\n');
 
-  let lastOrders = 0, lastCalls = 0, closed = false;
+  // lastOrders/lastCalls start as null so the first tick ALWAYS emits, even
+  // when both counts are zero — otherwise clients that rely on the first
+  // event to seed their badges see nothing until state changes.
+  let lastOrders = null, lastCalls = null, closed = false;
   req.on('close', () => { closed = true; });
 
   async function tick() {

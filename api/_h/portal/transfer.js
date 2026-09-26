@@ -26,7 +26,7 @@ export default async function handler(req, res) {
   const { data: rest } = await supabaseAdmin
     .from('restaurants').select('id, email, name').eq('id', restaurant_id).maybeSingle();
   if (!rest) return res.status(404).json({ error: 'not_found' });
-  const oldOwner = String(rest.email || '').toLowerCase();
+  const oldOwner = String(rest.email || '').trim().toLowerCase();
   if (oldOwner !== String(auth.email).toLowerCase()) {
     return res.status(403).json({ error: 'not_owner' });
   }

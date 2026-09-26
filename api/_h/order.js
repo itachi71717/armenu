@@ -142,11 +142,27 @@ export default async function handler(req, res) {
 
   // Decrement stock for tracked dishes (best-effort — but LOG when it fails so
   // we notice stock-drift rather than silently leaving stock at yesterday's number).
+  // Race-safe: single conditional UPDATE that only succeeds if the CURRENT
+  // stock at commit time is still >= qty. Prevents overselling when two
+  // orders for the last plate hit the API simultaneously.
   for (const it of resolved) {
     if (it.stock_count != null) {
-      const next = Math.max(0, it.stock_count - it.qty);
-      const upd = await supabase.from('dishes').update({ stock_count: next, stock_updated_at: new Date().toISOString() }).eq('id', it.dish_id);
-      if (upd.error) console.warn('stock decrement failed for', it.dish_name, upd.error.message);
+      try {
+        const r = await supabase.raw(
+          `update dishes
+             set stock_count = stock_count - $1,
+                 stock_updated_at = now()
+           where id = $2
+             and stock_count >= $1
+           returning id`,
+          [it.qty, it.dish_id]
+        );
+        if (!r.data || r.data.length === 0) {
+          console.warn('stock decrement blocked (would go negative):', it.dish_name);
+        }
+      } catch (e) {
+        console.warn('stock decrement failed for', it.dish_name, e.message);
+      }
     }
   }
 

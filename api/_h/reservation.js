@@ -94,6 +94,11 @@ export default async function handler(req, res) {
   // Fire-and-forget confirmation email — silent no-op unless RESEND_API_KEY
   // is set. We send to the guest AND cc the restaurant so the manager has a
   // record independent of the portal.
+  // Portal URL from the incoming request host so preview deploys and any
+  // future white-label subdomain point to themselves, not prod.
+  const proto = (req.headers['x-forwarded-proto'] || 'https').split(',')[0];
+  const host  = req.headers['x-forwarded-host'] || req.headers.host || (process.env.VERCEL_URL || 'armenu.co.za');
+  const portalUrl = `${proto}://${host}/portal/`;
   const emailPromises = [];
   if (created.guest_email) {
     const guestHtml = `<!doctype html><html><body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#1a1a1a">
@@ -127,7 +132,7 @@ export default async function handler(req, res) {
         ${created.guest_email ? `<div><b>Email:</b> ${escapeHtml(created.guest_email)}</div>` : ''}
         ${notes ? `<div><b>Notes:</b> ${escapeHtml(notes)}</div>` : ''}
       </div>
-      <p><a href="https://armenu.co.za/portal/" style="display:inline-block;padding:10px 18px;background:#e8c58a;color:#0a0806;border-radius:8px;text-decoration:none;font-weight:700">Open portal</a></p>
+      <p><a href="${escapeHtml(portalUrl)}" style="display:inline-block;padding:10px 18px;background:#e8c58a;color:#0a0806;border-radius:8px;text-decoration:none;font-weight:700">Open portal</a></p>
     </body></html>`;
     emailPromises.push(sendMail({
       to: rest.email,

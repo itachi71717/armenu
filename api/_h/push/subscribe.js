@@ -31,7 +31,13 @@ export default async function handler(req, res) {
   if (req.method === 'DELETE') {
     const endpoint = body.endpoint;
     if (!endpoint) return res.status(400).json({ error: 'endpoint required' });
-    await supabaseAdmin.from('push_subscriptions').delete().eq('endpoint', endpoint);
+    // Scope by caller's restaurant so any authenticated staff/manager
+    // can't wipe another restaurant's subscription just by knowing the
+    // endpoint URL.
+    await supabaseAdmin.from('push_subscriptions')
+      .delete()
+      .eq('endpoint', endpoint)
+      .eq('restaurant_id', caller.restaurant_id);
     return res.status(200).json({ ok: true });
   }
 
@@ -42,27 +48,15 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'subscription required' });
   }
 
-  // Upsert on endpoint
-  const { data: existing } = await supabase.from('push_subscriptions')
-    .select('id').eq('endpoint', subscription.endpoint).maybeSingle();
-
-  if (existing) {
-    await supabaseAdmin.from('push_subscriptions').update({
-      restaurant_id: caller.restaurant_id,
-      keys: subscription.keys,
-      role: role || caller.role,
-      user_label: user_label || null,
-      active: true
-    }).eq('id', existing.id);
-  } else {
-    await supabaseAdmin.from('push_subscriptions').insert({
-      restaurant_id: caller.restaurant_id,
-      endpoint: subscription.endpoint,
-      keys: subscription.keys,
-      role: role || caller.role,
-      user_label: user_label || null,
-      active: true
-    });
-  }
+  // Race-safe: single upsert keyed on endpoint. Two concurrent subscribe
+  // calls for the same endpoint no longer both insert.
+  await supabaseAdmin.from('push_subscriptions').upsert({
+    restaurant_id: caller.restaurant_id,
+    endpoint: subscription.endpoint,
+    keys: subscription.keys,
+    role: role || caller.role,
+    user_label: user_label || null,
+    active: true
+  }, { onConflict: 'endpoint' });
   return res.status(200).json({ ok: true });
 }
