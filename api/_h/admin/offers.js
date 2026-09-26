@@ -2,6 +2,7 @@
 // GET ?slug=r · POST ?slug=r · PATCH ?id · DELETE ?id
 import { supabase, supabaseAdmin } from '../../_db.js';
 import { requireAdmin } from '../../_auth.js';
+import { auditLog } from '../_audit.js';
 
 export default async function handler(req, res) {
   if (!requireAdmin(req)) return res.status(401).json({ error: 'unauthorized' });
@@ -32,6 +33,7 @@ export default async function handler(req, res) {
       dish_ids: Array.isArray(body.dish_ids) ? body.dish_ids : []
     }).select().single();
     if (error) return res.status(400).json({ error: error.message });
+    auditLog(req, r.id, 'offer.create', { target: data?.name, metadata: { pct: data?.discount_pct } }).catch(() => {});
     return res.status(200).json({ offer: data });
   }
 
@@ -44,12 +46,16 @@ export default async function handler(req, res) {
       if (k in body) patch[k] = body[k];
     }
     await supabaseAdmin.from('offers').update(patch).eq('id', id);
+    const { data: row } = await supabase.from('offers').select('restaurant_id, name').eq('id', id).maybeSingle();
+    auditLog(req, row?.restaurant_id, 'offer.update', { target: row?.name || id, metadata: { fields: Object.keys(patch) } }).catch(() => {});
     return res.status(200).json({ ok: true });
   }
 
   if (req.method === 'DELETE') {
     const { id } = req.query;
+    const { data: row } = await supabase.from('offers').select('restaurant_id, name').eq('id', id).maybeSingle();
     await supabaseAdmin.from('offers').delete().eq('id', id);
+    auditLog(req, row?.restaurant_id, 'offer.delete', { target: row?.name || id }).catch(() => {});
     return res.status(200).json({ ok: true });
   }
   return res.status(405).end();

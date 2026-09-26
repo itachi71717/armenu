@@ -3,6 +3,7 @@
 // DELETE /api/admin/reservations?id=<id>
 import { supabase, supabaseAdmin } from '../../_db.js';
 import { requireAdmin, getScopedRestaurantId } from '../../_auth.js';
+import { auditLog } from '../_audit.js';
 
 export default async function handler(req, res) {
   if (!requireAdmin(req)) return res.status(401).json({ error: 'Unauthorized' });
@@ -35,6 +36,8 @@ export default async function handler(req, res) {
       if (!r || r.restaurant_id !== scopeRid) return res.status(403).json({ error: 'out of scope' });
     }
     await supabaseAdmin.from('reservations').update(patch).eq('id', id);
+    const { data: row } = await supabase.from('reservations').select('restaurant_id, guest_name').eq('id', id).maybeSingle();
+    auditLog(req, row?.restaurant_id, 'reservation.update', { target: row?.guest_name || id, metadata: { fields: Object.keys(patch) } }).catch(() => {});
     return res.status(200).json({ ok: true });
   }
 
@@ -45,7 +48,9 @@ export default async function handler(req, res) {
       const { data: r } = await supabase.from('reservations').select('restaurant_id').eq('id', id).maybeSingle();
       if (!r || r.restaurant_id !== scopeRid) return res.status(403).json({ error: 'out of scope' });
     }
+    const { data: row } = await supabase.from('reservations').select('restaurant_id, guest_name').eq('id', id).maybeSingle();
     await supabaseAdmin.from('reservations').delete().eq('id', id);
+    auditLog(req, row?.restaurant_id, 'reservation.delete', { target: row?.guest_name || id }).catch(() => {});
     return res.status(200).json({ ok: true });
   }
   return res.status(405).end();

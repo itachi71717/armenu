@@ -4,6 +4,7 @@
 // DELETE /api/admin/categories?id=<id>
 import { supabase, supabaseAdmin } from '../../_db.js';
 import { requireAdmin } from '../../_auth.js';
+import { auditLog } from '../_audit.js';
 
 const slugify = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50);
 
@@ -32,6 +33,7 @@ export default async function handler(req, res) {
       restaurant_id: r.id, name, slug: s, sort_order: body.sort_order || 0
     }).select().single();
     if (error) return res.status(400).json({ error: error.message });
+    auditLog(req, r.id, 'category.create', { target: data?.name || name }).catch(() => {});
     return res.status(200).json({ category: data });
   }
 
@@ -44,12 +46,16 @@ export default async function handler(req, res) {
     if ('sort_order' in body) patch.sort_order = parseInt(body.sort_order) || 0;
     if ('active' in body) patch.active = !!body.active;
     await supabaseAdmin.from('categories').update(patch).eq('id', id);
+    const { data: row } = await supabase.from('categories').select('restaurant_id, name').eq('id', id).maybeSingle();
+    auditLog(req, row?.restaurant_id, 'category.update', { target: row?.name || id, metadata: { fields: Object.keys(patch) } }).catch(() => {});
     return res.status(200).json({ ok: true });
   }
 
   if (req.method === 'DELETE') {
     const { id } = req.query;
+    const { data: row } = await supabase.from('categories').select('restaurant_id, name').eq('id', id).maybeSingle();
     await supabaseAdmin.from('categories').delete().eq('id', id);
+    auditLog(req, row?.restaurant_id, 'category.delete', { target: row?.name || id }).catch(() => {});
     return res.status(200).json({ ok: true });
   }
 

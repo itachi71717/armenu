@@ -23,6 +23,37 @@ export default async function handler(req, res) {
   const { data: rest } = await supabase.from('restaurants').select('id, name').eq('slug', r).single();
   if (!rest) return res.status(404).json({ error: 'restaurant not found' });
 
+  // Time-slot capacity check: don't accept a booking if the restaurant already
+  // has ≥ their table count of confirmed/pending reservations within a 90-min
+  // window around the requested time. Prevents overbooking.
+  // The restaurant's TABLE count = ceiling for concurrent bookings. If they
+  // haven't set up tables, we fall back to a generous default of 20 slots.
+  try {
+    const [{ data: tbls = [] }, { data: nearby = [] }] = await Promise.all([
+      supabase.from('restaurant_tables').select('id').eq('restaurant_id', rest.id),
+      supabase.from('reservations')
+        .select('id, reserved_at, duration_minutes, status')
+        .eq('restaurant_id', rest.id)
+        .in('status', ['pending', 'confirmed'])
+        .gte('reserved_at', new Date(when.getTime() - 90 * 60 * 1000).toISOString())
+        .lte('reserved_at', new Date(when.getTime() + 90 * 60 * 1000).toISOString())
+    ]);
+    const capacity = Math.max(1, tbls.length || 20);
+    // Count reservations whose window overlaps the requested slot
+    const targetT = when.getTime();
+    const overlapping = nearby.filter(x => {
+      const s = new Date(x.reserved_at).getTime();
+      const durMs = (x.duration_minutes || 90) * 60 * 1000;
+      return targetT < s + durMs && targetT + 90 * 60 * 1000 > s;
+    });
+    if (overlapping.length >= capacity) {
+      return res.status(409).json({
+        error: 'slot_full',
+        message: `Sorry — ${rest.name} is fully booked around ${when.toLocaleString('en-ZA', { dateStyle: 'medium', timeStyle: 'short' })}. Try a different time.`
+      });
+    }
+  } catch {}
+
   const { data: created, error } = await supabaseAdmin.from('reservations').insert({
     restaurant_id: rest.id,
     guest_name,

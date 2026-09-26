@@ -196,6 +196,7 @@
   <div class="brand"><span class="mark"></span><b>AR</b><i>Menu</i></div>
   <div class="header-right">
     <button class="lang-btn" id="langBtn" style="display:none">EN</button>
+    <button class="lang-btn" id="currencyBtn" title="Convert prices" style="display:none">ZAR</button>
     <div class="venue-pill" id="navVenue">Loading…</div>
   </div>
 </header>
@@ -241,10 +242,21 @@ function escapeHTML(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+// Static ZAR conversion rates. Refreshed manually per quarter — good enough
+// for tourists eyeballing prices; NEVER charged in the tourist currency.
+// Format: 1 ZAR = X of target currency.
+const FX_RATES = { ZAR: 1, USD: 0.055, EUR: 0.051, GBP: 0.044, AUD: 0.083 };
+const CURRENCY_SYMBOLS = { ZAR: 'R', USD: '$', EUR: '€', GBP: '£', AUD: 'A$' };
+let _displayCcy = 'ZAR';
+try { const saved = localStorage.getItem('armenu_display_ccy'); if (saved && FX_RATES[saved]) _displayCcy = saved; } catch {}
+
 function fmtPrice(cents, sym) {
   if (!cents && cents !== 0) return '';
-  const v = (cents / 100).toFixed(2);
-  return `${sym || 'R'}${v}`;
+  const zarValue = cents / 100;
+  const rate = FX_RATES[_displayCcy] || 1;
+  const converted = zarValue * rate;
+  const symbol = _displayCcy === 'ZAR' ? (sym || 'R') : CURRENCY_SYMBOLS[_displayCcy];
+  return `${symbol}${converted.toFixed(2)}`;
 }
 
 function showError(title, sub) {
@@ -381,6 +393,21 @@ function render() {
   if (langs.length > 1) {
     $('langBtn').style.display = 'inline-block';
     $('langBtn').textContent = state.lang.toUpperCase();
+  }
+  // Currency toggle — only shown if the restaurant charges in ZAR (so tourists get a peek)
+  const baseCcy = settings.locale.currency || 'ZAR';
+  if (baseCcy === 'ZAR') {
+    const btn = $('currencyBtn');
+    btn.style.display = 'inline-block';
+    btn.textContent = _displayCcy;
+    btn.onclick = () => {
+      const order = ['ZAR', 'USD', 'EUR', 'GBP', 'AUD'];
+      _displayCcy = order[(order.indexOf(_displayCcy) + 1) % order.length];
+      try { localStorage.setItem('armenu_display_ccy', _displayCcy); } catch {}
+      btn.textContent = _displayCcy;
+      render();
+      if (_displayCcy !== 'ZAR') toast(`Prices shown in ${_displayCcy} — you'll still be charged in ZAR`, 'ok');
+    };
   }
 
   // Group dishes by category (from the payload if present)

@@ -4,6 +4,7 @@
 
 import { supabase, supabaseAdmin } from '../../_db.js';
 import { requireAdmin } from '../../_auth.js';
+import { auditLog } from '../_audit.js';
 
 const ALLOWED = new Set([
   'orders_enabled','waiter_call_enabled','kitchen_display','reviews_enabled','tables_enabled',
@@ -43,6 +44,7 @@ export default async function handler(req, res) {
     } else {
       await supabaseAdmin.from('restaurant_settings').insert({ restaurant_id: r.id, ...patch });
     }
+    auditLog(req, r.id, 'settings.update', { metadata: { fields: Object.keys(patch).filter(k => k !== 'updated_at') } }).catch(() => {});
     return res.status(200).json({ ok: true });
   }
 

@@ -3,6 +3,7 @@
 //   days_of_week int[], category_ids uuid[], active bool)
 import { supabase, supabaseAdmin } from '../../_db.js';
 import { requireAdmin } from '../../_auth.js';
+import { auditLog } from '../_audit.js';
 
 export default async function handler(req, res) {
   if (!requireAdmin(req)) return res.status(401).json({ error: 'unauthorized' });
@@ -30,6 +31,7 @@ export default async function handler(req, res) {
       active: body.active !== false
     }).select().single();
     if (error) return res.status(400).json({ error: error.message });
+    auditLog(req, r.id, 'schedule.create', { target: data?.name }).catch(() => {});
     return res.status(200).json({ schedule: data });
   }
   if (req.method === 'PATCH') {
@@ -38,11 +40,15 @@ export default async function handler(req, res) {
     const patch = {};
     for (const k of ['name','starts_at','ends_at','days_of_week','category_ids','active']) if (k in body) patch[k] = body[k];
     await supabaseAdmin.from('menu_schedules').update(patch).eq('id', id);
+    const { data: row } = await supabase.from('menu_schedules').select('restaurant_id, name').eq('id', id).maybeSingle();
+    auditLog(req, row?.restaurant_id, 'schedule.update', { target: row?.name || id, metadata: { fields: Object.keys(patch) } }).catch(() => {});
     return res.status(200).json({ ok: true });
   }
   if (req.method === 'DELETE') {
     const { id } = req.query;
+    const { data: row } = await supabase.from('menu_schedules').select('restaurant_id, name').eq('id', id).maybeSingle();
     await supabaseAdmin.from('menu_schedules').delete().eq('id', id);
+    auditLog(req, row?.restaurant_id, 'schedule.delete', { target: row?.name || id }).catch(() => {});
     return res.status(200).json({ ok: true });
   }
   return res.status(405).end();

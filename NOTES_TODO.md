@@ -42,6 +42,20 @@ Update after every completed item.
 - **Redis rate limiter** — needs Upstash sign-up + UPSTASH_REDIS_URL. Current in-memory limiter still works, just per-instance.
 - **Custom domain per restaurant** (e.g. menu.oceanbasket.co.za) — needs wildcard DNS first, then per-restaurant DNS record + Vercel domain add. Middleware code already supports subdomain routing.
 
+## ✅ Batch 4 — cleaning up all remaining unblocked work (checkpoint)
+- **Audit log fully wired** — added to settings, offers, categories, tables, staff, schedules, reservations (was only dishes before). Every mutation now leaves an actor-attributed trail in audit_log.
+- **Push opt-in on kitchen + staff kiosks** — shared vendor/push-optin.js injected into both, appears 6s after page load if the tablet is signed in and hasn't been prompted.
+- **Push test-send button** — new /api/admin/push-test endpoint + "🔔 Send test" button in the portal Credits modal ("Notifications working?" section). Fires a test push to every subscription for that restaurant, reports how many devices received it.
+- **Reservation slot capacity** — /api/reservation now rejects bookings when a 90-min window around the requested time already has ≥ restaurant table count of pending/confirmed reservations. Falls back to a generous 20-slot default when no tables are configured. Returns 409 slot_full with a friendly message.
+- **Multi-currency toggle for tourists** — guest menu header shows a currency pill (ZAR default) that cycles ZAR → USD → EUR → GBP → AUD. Prices convert on the fly using quarterly-refreshed FX rates. Charging stays in ZAR — a toast reminds the guest they'll be billed in ZAR. Choice remembered in localStorage per device.
+
+## Explained "customer profiles" business model to Ian (deferred by him)
+- Recognition via WhatsApp identity (best UX for SA), phone OTP, or passive browser token
+- Profile stores favourites, allergies, party size, spend history
+- Network effect: profile works across every ARMenu restaurant → defensive moat
+- Revenue: promoted dishes, cross-restaurant benchmarks, WhatsApp campaigns
+- Recommendation: build as v2 once 10 paying restaurants land, not launch feature
+
 ## Awaiting from Ian
 - Sentry DSN (sign up at sentry.io — Google OAuth — copy DSN)
 - Meshy Pro subscription → MESHY_API_KEY

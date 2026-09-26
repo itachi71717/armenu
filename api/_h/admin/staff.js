@@ -6,6 +6,7 @@
 import crypto from 'node:crypto';
 import { supabase, supabaseAdmin } from '../../_db.js';
 import { requireAdmin } from '../../_auth.js';
+import { auditLog } from '../_audit.js';
 
 const hashPin = (pin, rid) => crypto.createHash('sha256').update(String(pin) + ':' + rid).digest('hex');
 
@@ -37,6 +38,7 @@ export default async function handler(req, res) {
       role: body.role === 'manager' ? 'manager' : 'waiter'
     }).select('id, name, role').single();
     if (error) return res.status(400).json({ error: error.message });
+    auditLog(req, r.id, 'staff.create', { target: data?.name || name, metadata: { role: data?.role } }).catch(() => {});
     return res.status(200).json({ staff: data });
   }
 
@@ -44,7 +46,7 @@ export default async function handler(req, res) {
     const { id } = req.query;
     let body = {};
     try { body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body; } catch {}
-    const { data: existing } = await supabase.from('staff').select('restaurant_id').eq('id', id).single();
+    const { data: existing } = await supabase.from('staff').select('restaurant_id, name').eq('id', id).single();
     if (!existing) return res.status(404).json({ error: 'not found' });
     const patch = {};
     if ('name' in body) patch.name = String(body.name).trim();
@@ -52,12 +54,16 @@ export default async function handler(req, res) {
     if ('role' in body) patch.role = body.role === 'manager' ? 'manager' : 'waiter';
     if ('pin' in body && /^\d{4,6}$/.test(body.pin)) patch.pin_hash = hashPin(body.pin, existing.restaurant_id);
     await supabaseAdmin.from('staff').update(patch).eq('id', id);
+    // PIN changes are sensitive — log them but redact the hash
+    auditLog(req, existing.restaurant_id, 'staff.update', { target: existing.name, metadata: { fields: Object.keys(patch).map(f => f === 'pin_hash' ? 'pin' : f) } }).catch(() => {});
     return res.status(200).json({ ok: true });
   }
 
   if (req.method === 'DELETE') {
     const { id } = req.query;
+    const { data: row } = await supabase.from('staff').select('restaurant_id, name').eq('id', id).maybeSingle();
     await supabaseAdmin.from('staff').delete().eq('id', id);
+    auditLog(req, row?.restaurant_id, 'staff.delete', { target: row?.name || id }).catch(() => {});
     return res.status(200).json({ ok: true });
   }
   return res.status(405).end();
