@@ -50,7 +50,7 @@ function cols(list) {
 const PG_ARRAY_COLS = new Set([
   'days_of_week', 'dish_ids', 'category_ids', 'enabled_languages'
 ]);
-function toPgArrayLiteral(arr) {
+export function toPgArrayLiteral(arr) {
   // Empty array → {}
   if (!arr.length) return '{}';
   // Escape each element for PG array syntax. Numbers pass through; strings wrapped in "..."
@@ -63,7 +63,7 @@ function toPgArrayLiteral(arr) {
   });
   return '{' + parts.join(',') + '}';
 }
-function encodeVal(colName, v) {
+export function encodeVal(colName, v) {
   if (v == null) return v;
   if (v instanceof Date) return v;
   // Postgres native array column?

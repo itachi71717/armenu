@@ -5,7 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vercel dev",
-    "deploy": "vercel --prod"
+    "deploy": "vercel --prod",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.8"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.699.0",

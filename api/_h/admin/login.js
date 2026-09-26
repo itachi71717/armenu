@@ -33,7 +33,7 @@ export function readAdminCookie(req) {
     if (sig.length !== expected.length) return null;
     let diff = 0;
     for (let i = 0; i < sig.length; i++) diff |= sig.charCodeAt(i) ^ expected.charCodeAt(i);
-    return diff === 0;
+    return diff === 0 ? true : null;
   } catch { return null; }
 }
 
