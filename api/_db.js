@@ -43,6 +43,36 @@ function cols(list) {
   return String(list).split(',').map(s => s.trim()).map(c => c === '*' ? '*' : ident(c)).join(', ');
 }
 
+// Column-name suffix tells us the Postgres type.  _ids/days_of_week/enabled_languages
+// are Postgres native arrays (text[]/int[]/uuid[]) — pg wants the '{a,b,c}' literal.
+// modifiers/translations/keys are jsonb — pg accepts JSON strings.
+// Everything else stringifies via the default driver.
+const PG_ARRAY_COLS = new Set([
+  'days_of_week', 'dish_ids', 'category_ids', 'enabled_languages'
+]);
+function toPgArrayLiteral(arr) {
+  // Empty array → {}
+  if (!arr.length) return '{}';
+  // Escape each element for PG array syntax. Numbers pass through; strings wrapped in "..."
+  const parts = arr.map(v => {
+    if (v === null || v === undefined) return 'NULL';
+    if (typeof v === 'number') return String(v);
+    // Strings and UUIDs — wrap in double quotes, escape internal quotes/backslashes.
+    const s = String(v).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    return `"${s}"`;
+  });
+  return '{' + parts.join(',') + '}';
+}
+function encodeVal(colName, v) {
+  if (v == null) return v;
+  if (v instanceof Date) return v;
+  // Postgres native array column?
+  if (PG_ARRAY_COLS.has(colName) && Array.isArray(v)) return toPgArrayLiteral(v);
+  // jsonb / object / anything object-like
+  if (typeof v === 'object') return JSON.stringify(v);
+  return v;
+}
+
 class Query {
   constructor(table) {
     this._table = table;
@@ -104,11 +134,12 @@ class Query {
   single()      { this._single = 1; return this; }
   maybeSingle() { this._single = 2; return this; }
 
-  // Thenable — allows `await query`
+  // Thenable — allows `await query` AND `.then(...).then(...)` chains
   then(resolve, reject) {
-    this._exec().then(resolve, reject);
+    return this._exec().then(resolve, reject);
   }
   catch(reject) { return this.then(undefined, reject); }
+  finally(fn) { return this.then().finally(fn); }
 
   async _exec() {
     try {
@@ -175,18 +206,23 @@ class Query {
         const parts = keys.map(k => {
           const v = row[k];
           if (v === undefined) return 'DEFAULT';
-          // JSON-encode objects/arrays destined for jsonb columns
-          params.push(v && typeof v === 'object' && !(v instanceof Date) ? JSON.stringify(v) : v);
+          params.push(encodeVal(k, v));
           return `$${i++}`;
         });
         return '(' + parts.join(',') + ')';
       }).join(',');
       let conflict = '';
       if (this._op === 'upsert') {
-        const target = this._onConflict ? `(${this._onConflict.split(',').map(s => ident(s.trim())).join(',')})` : '';
-        const updates = keys.filter(k => !(this._onConflict || '').split(',').map(s => s.trim()).includes(k))
-          .map(k => `${ident(k)} = EXCLUDED.${ident(k)}`).join(', ');
-        conflict = updates ? ` ON CONFLICT ${target} DO UPDATE SET ${updates}` : ` ON CONFLICT ${target} DO NOTHING`;
+        const conflictCols = String(this._onConflict || '').split(',').map(s => s.trim()).filter(Boolean);
+        if (!conflictCols.length) {
+          // No conflict target = ON CONFLICT DO NOTHING (whole row)
+          conflict = ' ON CONFLICT DO NOTHING';
+        } else {
+          const target = `(${conflictCols.map(ident).join(',')})`;
+          const updates = keys.filter(k => !conflictCols.includes(k))
+            .map(k => `${ident(k)} = EXCLUDED.${ident(k)}`).join(', ');
+          conflict = updates ? ` ON CONFLICT ${target} DO UPDATE SET ${updates}` : ` ON CONFLICT ${target} DO NOTHING`;
+        }
       }
       const ret = this._returning || this._single ? ' RETURNING *' : '';
       return {
@@ -200,7 +236,7 @@ class Query {
       const params = []; let i = 1;
       const set = keys.map(k => {
         const v = this._data[k];
-        params.push(v && typeof v === 'object' && !(v instanceof Date) ? JSON.stringify(v) : v);
+        params.push(encodeVal(k, v));
         return `${ident(k)} = $${i++}`;
       }).join(', ');
       const w = this._whereClause(i);

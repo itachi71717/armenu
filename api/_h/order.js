@@ -132,13 +132,21 @@ export default async function handler(req, res) {
     modifiers: it.modifiers || [],
     note: it.note
   }));
-  await supabase.from('order_items').insert(rows);
+  const itemsRes = await supabase.from('order_items').insert(rows);
+  if (itemsRes.error) {
+    // Roll back the parent order — otherwise the kitchen sees an empty ghost order
+    console.error('order_items insert failed:', itemsRes.error);
+    await supabase.from('orders').delete().eq('id', order.id);
+    return res.status(500).json({ error: 'Could not save order items — please try again' });
+  }
 
-  // Decrement stock for tracked dishes (fire-and-forget — best-effort)
+  // Decrement stock for tracked dishes (best-effort — but LOG when it fails so
+  // we notice stock-drift rather than silently leaving stock at yesterday's number).
   for (const it of resolved) {
     if (it.stock_count != null) {
       const next = Math.max(0, it.stock_count - it.qty);
-      supabase.from('dishes').update({ stock_count: next, stock_updated_at: new Date().toISOString() }).eq('id', it.dish_id).catch(() => {});
+      const upd = await supabase.from('dishes').update({ stock_count: next, stock_updated_at: new Date().toISOString() }).eq('id', it.dish_id);
+      if (upd.error) console.warn('stock decrement failed for', it.dish_name, upd.error.message);
     }
   }
 

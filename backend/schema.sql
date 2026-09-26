@@ -7,9 +7,12 @@ create table if not exists restaurants (
   id          uuid primary key default gen_random_uuid(),
   slug        text unique not null,
   name        text not null,
-  email       text unique not null,
+  email       text not null,     -- NOT unique — one manager email can own multiple restaurants
   created_at  timestamptz default now()
 );
+create index if not exists restaurants_email_idx on restaurants (lower(email));
+-- Drop the legacy unique constraint if it exists from an older migration
+alter table restaurants drop constraint if exists restaurants_email_key;
 
 create table if not exists dishes (
   id            uuid primary key default gen_random_uuid(),

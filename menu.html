@@ -401,9 +401,31 @@ function render() {
   document.title = `${restaurant.name} · Menu`;
   $('navVenue').textContent = restaurant.name;
 
-  if (langs.length > 1) {
-    $('langBtn').style.display = 'inline-block';
-    $('langBtn').textContent = state.lang.toUpperCase();
+  // Detect which languages actually have any translated dishes — even if the
+  // restaurant hasn't formally listed them in settings.locale.languages, expose
+  // the switcher so the manager's work isn't invisible.
+  const availableLangs = new Set(['en']);
+  for (const d of (dishes || [])) {
+    if (d.translations && typeof d.translations === 'object') {
+      for (const k of Object.keys(d.translations)) if (d.translations[k]?.name || d.translations[k]?.description) availableLangs.add(k);
+    }
+  }
+  for (const l of langs) availableLangs.add(l);
+  const langList = [...availableLangs];
+  if (langList.length > 1) {
+    const btn = $('langBtn');
+    btn.style.display = 'inline-block';
+    btn.textContent = state.lang.toUpperCase();
+    btn.onclick = () => {
+      const i = langList.indexOf(state.lang);
+      state.lang = langList[(i + 1) % langList.length];
+      btn.textContent = state.lang.toUpperCase();
+      try { localStorage.setItem('armenu_lang_' + r, state.lang); } catch {}
+      render();
+    };
+    // Load saved language preference
+    try { const saved = localStorage.getItem('armenu_lang_' + r); if (saved && langList.includes(saved)) state.lang = saved; } catch {}
+    btn.textContent = state.lang.toUpperCase();
   }
   // Currency toggle — only shown if the restaurant charges in ZAR (so tourists get a peek)
   const baseCcy = settings.locale.currency || 'ZAR';
