@@ -125,22 +125,37 @@
   <a class="back" href="/admin/">← All restaurants</a>
 </header>
 
-<nav class="tabs">
-  <button class="tab on" data-tab="settings">Settings & Features</button>
-  <button class="tab" data-tab="branding">Branding</button>
-  <button class="tab" data-tab="categories">Categories</button>
-  <button class="tab" data-tab="tables">Tables & QR</button>
-  <button class="tab" data-tab="staff">Staff</button>
-  <button class="tab" data-tab="orders">Live orders</button>
-  <button class="tab" data-tab="calls">Waiter calls</button>
-  <button class="tab" data-tab="reviews">Reviews</button>
-  <button class="tab" data-tab="offers">Happy hour</button>
-  <button class="tab" data-tab="analytics">Analytics</button>
-  <button class="tab" data-tab="ai-reader">AI Menu Reader</button>
-  <button class="tab" data-tab="ai-generate">AR Studio</button>
-  <button class="tab" data-tab="dishes">Dishes</button>
-  <button class="tab" data-tab="billing">Billing</button>
+<nav class="tabs" id="tabs">
+  <!-- Setup -->
+  <button class="tab on" data-tab="settings" data-group="setup">Settings</button>
+  <button class="tab" data-tab="branding" data-group="setup">Branding</button>
+  <!-- Menu -->
+  <button class="tab" data-tab="categories" data-group="menu">Categories</button>
+  <button class="tab" data-tab="dishes" data-group="menu">Dishes</button>
+  <button class="tab" data-tab="ai-generate" data-group="menu" data-requires="meshy">AR Studio</button>
+  <button class="tab" data-tab="ai-reader" data-group="menu" data-requires="anthropic">AI Menu Reader</button>
+  <!-- Floor -->
+  <button class="tab" data-tab="tables" data-group="floor">Tables &amp; QR</button>
+  <button class="tab" data-tab="staff" data-group="floor">Staff</button>
+  <!-- Live -->
+  <button class="tab" data-tab="orders" data-group="live">Live orders</button>
+  <button class="tab" data-tab="calls" data-group="live">Waiter calls</button>
+  <button class="tab" data-tab="reviews" data-group="live">Reviews</button>
+  <!-- Offers -->
+  <button class="tab" data-tab="offers" data-group="offers">Happy hour</button>
+  <!-- Analytics + Billing -->
+  <button class="tab" data-tab="analytics" data-group="analytics">Analytics</button>
+  <button class="tab" data-tab="billing" data-group="billing" data-requires="paddle">Billing</button>
 </nav>
+
+<script>
+  // Hide tabs whose upstream integration isn't configured — no dead-ends.
+  fetch('/api/features').then(r => r.json()).then(f => {
+    for (const k of ['meshy','anthropic','paddle']) {
+      if (!f[k]) document.querySelectorAll(`[data-requires="${k}"]`).forEach(el => el.style.display = 'none');
+    }
+  }).catch(() => {});
+</script>
 
 <button class="preview-toggle" id="previewToggle" title="Live preview of the guest menu">👁 Live preview</button>
 <aside class="preview-pane" id="previewPane" aria-hidden="true">

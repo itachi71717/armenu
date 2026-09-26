@@ -16,6 +16,7 @@ const ROUTES = {
   'push/vapid-key': 'push/vapid-key',
   'sentry-dsn':     'sentry-dsn',
   'health':         'health',
+  'features':       'features',
 
   'admin/settings':      'admin/settings',
   'admin/categories':    'admin/categories',

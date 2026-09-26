@@ -460,27 +460,64 @@
       <td>${c.dishes}</td>
       <td>${c.scans_30d.toLocaleString()}</td>
       <td><span class="status">live</span></td>
+      <td><button class="row-del" data-del-slug="${c.slug}" data-del-name="${c.name.replace(/"/g,'&quot;')}" title="Delete restaurant" style="background:rgba(248,113,113,.1);color:#f87171;border:1px solid rgba(248,113,113,.25);padding:4px 8px;border-radius:6px;font-size:11px;cursor:pointer">🗑</button></td>
     </tr>`;
   }
   function tableShell(rows) {
-    return `<table><thead><tr><th>Restaurant</th><th>Dishes</th><th>Scans (30d)</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>`;
+    return `<table><thead><tr>
+        <th data-sort="name">Restaurant ↕</th>
+        <th data-sort="dishes">Dishes ↕</th>
+        <th data-sort="scans_30d">Scans (30d) ↕</th>
+        <th>Status</th>
+        <th></th>
+      </tr></thead><tbody>${rows}</tbody></table>`;
   }
   function emptyClients() {
     return `<div class="empty-state"><h3>No restaurants yet.</h3><p>Add your first restaurant to start. The manager will be able to log into the portal with the email you set.</p><button class="btn" data-go="add-client">+ Add restaurant</button></div>`;
   }
 
   // ===== DASHBOARD / CLIENTS =====
+  let _sortKey = 'name', _sortAsc = true;
   async function loadOverview() {
     try {
       const o = await api('/api/admin/overview');
       $('t-restaurants').textContent = o.totals.restaurants;
       $('t-dishes').textContent = o.totals.dishes_live;
       $('t-scans').textContent = o.totals.scans_30d.toLocaleString();
-      const html = o.clients.length ? tableShell(o.clients.map(clientRow)) : emptyClients();
-      $('dashClientsWrap').innerHTML = html;
-      $('clientsWrap').innerHTML = html;
-      document.querySelectorAll('tr[data-slug]').forEach(tr => tr.addEventListener('click', () => openClient(tr.dataset.slug)));
+      window.__lastClients = o.clients || [];
+      renderClients();
     } catch (e) { if (e.message !== 'unauth') toast(e.message, 'err'); }
+  }
+  function renderClients() {
+    const arr = (window.__lastClients || []).slice().sort((a, b) => {
+      const va = a[_sortKey], vb = b[_sortKey];
+      if (typeof va === 'string') return _sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+      return _sortAsc ? (va - vb) : (vb - va);
+    });
+    const html = arr.length ? tableShell(arr.map(clientRow)) : emptyClients();
+    $('dashClientsWrap').innerHTML = html;
+    $('clientsWrap').innerHTML = html;
+    document.querySelectorAll('tr[data-slug]').forEach(tr => tr.addEventListener('click', (e) => {
+      if (e.target.closest('.row-del')) return;
+      openClient(tr.dataset.slug);
+    }));
+    // Sort header clicks
+    document.querySelectorAll('th[data-sort]').forEach(th => th.addEventListener('click', () => {
+      const key = th.dataset.sort;
+      if (_sortKey === key) _sortAsc = !_sortAsc; else { _sortKey = key; _sortAsc = true; }
+      renderClients();
+    }));
+    // Delete restaurant with confirm
+    document.querySelectorAll('[data-del-slug]').forEach(btn => btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const slug = btn.dataset.delSlug, name = btn.dataset.delName;
+      if (!confirm(`Delete restaurant "${name}"?\n\nThis removes the restaurant record, all dishes, staff PINs, tables, orders, offers, reviews.\n\nCannot be undone.`)) return;
+      try {
+        const res = await api('/api/admin/client?slug=' + encodeURIComponent(slug), { method: 'DELETE' });
+        toast('Deleted', 'ok');
+        loadOverview();
+      } catch (err) { toast(err.message, 'err'); }
+    }));
   }
 
   // ===== DISH QR CODES =====
