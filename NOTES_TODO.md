@@ -325,3 +325,11 @@ Pick the top item, do it, commit, push, tick it off here.
 - If a fix is bigger than expected, note it here and move to the next item.
 - Don't ask Ian questions — pick the reasonable choice and ship.
 - Update the checklist above as you go so the next session picks up cleanly.
+
+### Also shipped 2026-09-26 (Round-3 focused sweep — 12 verified bugs)
+**Critical (3, regression I introduced)** — faq.html, how.html, why.html had `getElementById('nav')` crash after marketing-chrome migration (helper hydrates `#mkNav` → `<nav class="ar-nav">`, no `id="nav"` any more). TypeError halted the inline script → IntersectionObserver never fired → all `.reveal` elements stuck at opacity:0. Fixed with `querySelector('header.ar-hdr, .ar-nav')` + null guard.
+**High (8)** — portal/index.html dish tile innerHTML + edit-modal inputs + 6 translation inputs unescaped (stored XSS reaching every teammate now that team invites are live); index.html wordmark div → h1 (no h1 broke SEO); contact.html + legal.html missing meta description; contact.html form submitting empty name because `window.name` shadowed the id-based binding.
+**Medium (1)** — admin/restaurant.html dish thumb URL injected straight into inline style="background:url()" — now goes through escaped data-bg + JS hydration.
+
+### Also shipped (polish)
+- portal dashboard tiles: shimmer skeleton while loading, `.dash-tile.loading` cleared after fetch (or shown as em-dash on failure)
