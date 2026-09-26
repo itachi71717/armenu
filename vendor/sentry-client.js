@@ -4,6 +4,12 @@
 //   <script src="/vendor/sentry-client.js" defer></script>
 (function () {
   if (typeof window === 'undefined') return;
+  // Honour cookie consent — Sentry captures URL + browser info which count as
+  // non-essential. If user chose "essential only", skip loading altogether.
+  try {
+    var choice = JSON.parse(localStorage.getItem('armenu_cookie_consent_v1') || 'null');
+    if (choice && choice.choice === 'essential') return;
+  } catch (e) {}
   fetch('/api/sentry-dsn').then(function (r) { return r.json(); }).then(function (cfg) {
     if (!cfg || !cfg.dsn) return;
     var s = document.createElement('script');
