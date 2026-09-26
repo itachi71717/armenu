@@ -44,6 +44,7 @@ const ROUTES = {
   'admin/audit':              'admin/audit',
   'admin/push-test':          'admin/push-test',
   'admin/walkins':            'admin/walkins',
+  'admin/login':              'admin/login',
 
   'staff/login':  'staff/login',
   'staff/orders': 'staff/orders',
@@ -110,7 +111,14 @@ export default async function handler(req, res) {
   // Master admin (x-admin-secret == ADMIN_SECRET) bypasses this check.
   // ============================================================
   if (key.startsWith('admin/')) {
-    const isMasterAdmin = req.headers['x-admin-secret'] === process.env.ADMIN_SECRET;
+    // Master-admin can arrive via signed cookie (new) OR the legacy header.
+    let isMasterAdmin = req.headers['x-admin-secret'] === process.env.ADMIN_SECRET;
+    if (!isMasterAdmin) {
+      try {
+        const { readAdminCookie } = await import('./_h/admin/login.js');
+        if (readAdminCookie(req)) isMasterAdmin = true;
+      } catch {}
+    }
     if (!isMasterAdmin) {
       const portalTok = req.headers['x-portal-token'] || req.query?.portal_token;
       if (portalTok) {

@@ -7,10 +7,15 @@
 
 import { createClerkClient, verifyToken } from '@clerk/backend';
 import { verifyManagerToken } from './_h/portal/manager-token.js';
+import { readAdminCookie } from './_h/admin/login.js';
 
 const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
 
 export function requireAdmin(req) {
+  // New path: signed httpOnly cookie (issued by /api/admin/login)
+  if (readAdminCookie(req)) return true;
+  // Legacy path: raw password in x-admin-secret header (to be deprecated
+  // once every admin page is migrated to cookie sessions).
   if (req.headers['x-admin-secret'] === process.env.ADMIN_SECRET) return true;
   // Accept a portal_token issued via /api/portal/manager-token — it grants
   // admin rights SCOPED to the manager's own restaurant. Callers that mutate
@@ -21,7 +26,9 @@ export function requireAdmin(req) {
 }
 
 export function getScopedRestaurantId(req) {
-  // If the caller authenticated with the master ADMIN_SECRET, no scope.
+  // If the caller authenticated with the master ADMIN_SECRET (cookie or
+  // legacy header), no scope enforced.
+  if (readAdminCookie(req)) return null;
   if (req.headers['x-admin-secret'] === process.env.ADMIN_SECRET) return null;
   const tok = req.headers['x-portal-token'] || req.query?.portal_token;
   if (!tok) return null;

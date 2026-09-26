@@ -56,9 +56,9 @@
 const params = new URLSearchParams(location.search);
 const slug = params.get('r');
 const type = params.get('type') || 'tables';  // tables | dishes | menu
-const SECRET_KEY = 'armenu_admin_secret';
-const SECRET = sessionStorage.getItem(SECRET_KEY) || prompt('Admin password:') || '';
-if (SECRET && !sessionStorage.getItem(SECRET_KEY)) sessionStorage.setItem(SECRET_KEY, SECRET);
+// Admin auth is cookie-based. If the cookie isn't already set, prompt once
+// and call /api/admin/login to set it. Password is never stashed client-side.
+try { sessionStorage.removeItem('armenu_admin_secret'); } catch {}
 
 let layout = 'four';
 document.querySelectorAll('[data-layout]').forEach(b => b.onclick = () => {
@@ -68,8 +68,20 @@ document.querySelectorAll('[data-layout]').forEach(b => b.onclick = () => {
   render(cachedItems);
 });
 
+async function ensureAuth() {
+  const chk = await fetch('/api/admin/login', { credentials: 'same-origin' }).then(r => r.json()).catch(() => ({}));
+  if (chk?.authenticated) return;
+  const pw = prompt('Admin password:');
+  if (!pw) return;
+  await fetch('/api/admin/login', {
+    method: 'POST', credentials: 'same-origin',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ password: pw })
+  });
+}
+
 async function api(path) {
-  const r = await fetch(path, { headers: { 'x-admin-secret': SECRET } });
+  const r = await fetch(path, { credentials: 'same-origin' });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
@@ -142,7 +154,7 @@ function render(items) {
 }
 
 function escapeHTML(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-load();
+ensureAuth().then(load);
 </script>
 </body>
 </html>

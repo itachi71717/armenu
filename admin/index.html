@@ -332,8 +332,12 @@
 <div class="toast" id="toast"></div>
 
 <script>
-  const SECRET_KEY = 'armenu_admin_secret';
-  let SECRET = sessionStorage.getItem(SECRET_KEY);
+  // Cookie-based admin session (httpOnly, HMAC-signed) issued by
+  // /api/admin/login. The password never leaves the login submit — it isn't
+  // stashed in sessionStorage where XSS could read it.
+  // A stray legacy sessionStorage entry from before the migration is purged
+  // on load so it can't be replayed.
+  try { sessionStorage.removeItem('armenu_admin_secret'); } catch {}
 
   const $ = id => document.getElementById(id);
   const toast = (msg, kind='ok') => {
@@ -344,16 +348,14 @@
 
   async function api(path, opts = {}) {
     const res = await fetch(path, {
+      credentials: 'same-origin',
       ...opts,
       headers: {
         'content-type': 'application/json',
-        'x-admin-secret': SECRET || '',
         ...(opts.headers || {})
       }
     });
     if (res.status === 401) {
-      sessionStorage.removeItem(SECRET_KEY);
-      SECRET = null;
       $('login').style.display = 'grid';
       throw new Error('unauth');
     }
@@ -366,26 +368,37 @@
   async function attemptLogin() {
     const pw = $('loginPass').value.trim();
     if (!pw) return;
-    SECRET = pw;
-    sessionStorage.setItem(SECRET_KEY, pw);
     $('loginErr').textContent = '';
     try {
-      await api('/api/admin/overview');
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ password: pw })
+      });
+      if (!res.ok) throw new Error('unauth');
+      $('loginPass').value = '';
       $('login').style.display = 'none';
       boot();
     } catch (e) {
-      sessionStorage.removeItem(SECRET_KEY);
-      SECRET = null;
       $('loginErr').textContent = 'Wrong password.';
     }
   }
   $('loginBtn').addEventListener('click', attemptLogin);
   $('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') attemptLogin(); });
-  $('signOut').addEventListener('click', () => {
-    sessionStorage.removeItem(SECRET_KEY);
-    SECRET = null;
+  $('signOut').addEventListener('click', async () => {
+    try { await fetch('/api/admin/login', { method: 'DELETE', credentials: 'same-origin' }); } catch {}
     location.reload();
   });
+
+  // On page load, ask the server whether the cookie is still valid.
+  // If yes → boot; if no → keep showing the login screen.
+  (async () => {
+    try {
+      const r = await fetch('/api/admin/login', { credentials: 'same-origin' }).then(r => r.json());
+      if (r?.authenticated) { $('login').style.display = 'none'; boot(); }
+    } catch {}
+  })();
 
   // ===== VIEW SWITCHING =====
   function go(v) {
@@ -889,16 +902,7 @@
     loadPending();
   }
 
-  // Try silent auth on page load if password already in sessionStorage
-  (async () => {
-    if (SECRET) {
-      try {
-        await api('/api/admin/overview');
-        $('login').style.display = 'none';
-        boot();
-      } catch { /* login stays visible */ }
-    }
-  })();
+  // (Silent auth is now handled by the /api/admin/login GET check above.)
 </script>
 </body>
 </html>

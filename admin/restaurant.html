@@ -484,8 +484,9 @@ const params = new URLSearchParams(location.search);
 const slug = params.get('slug');
 if (!slug) { document.body.innerHTML = '<p style="padding:60px;text-align:center;font-family:sans-serif">Missing ?slug= in URL</p>'; }
 
-const SECRET_KEY = 'armenu_admin_secret';
-let SECRET = sessionStorage.getItem(SECRET_KEY);
+// Admin auth is now cookie-based (httpOnly, HMAC-signed via /api/admin/login).
+// Purge any legacy sessionStorage password so an XSS can't replay it.
+try { sessionStorage.removeItem('armenu_admin_secret'); } catch {}
 
 const _origToast = (m, k='ok') => { const t = $('toast'); t.textContent = m; t.className = 'toast show ' + k; setTimeout(() => t.classList.remove('show'), 2600); };
 // Wrap toast so every 'ok' save auto-refreshes the live preview iframe
@@ -542,8 +543,7 @@ let PORTAL_TOKEN = sessionStorage.getItem(PORTAL_TOKEN_KEY);
 async function api(path, opts = {}) {
   const headers = { 'content-type': 'application/json', ...(opts.headers || {}) };
   if (PORTAL_TOKEN) headers['x-portal-token'] = PORTAL_TOKEN;
-  else if (SECRET) headers['x-admin-secret'] = SECRET;
-  const res = await fetch(path, { ...opts, headers });
+  const res = await fetch(path, { credentials: 'same-origin', ...opts, headers });
   if (res.status === 401) {
     // Portal token expired → bounce back to portal for a fresh token rather than
     // stranding the manager on the admin-password screen (they don't have one).
@@ -553,7 +553,6 @@ async function api(path, opts = {}) {
       location.href = '/portal/';
       throw new Error('unauth');
     }
-    sessionStorage.removeItem(SECRET_KEY); SECRET = null;
     $('login').style.display = 'grid';
     throw new Error('unauth');
   }
@@ -570,10 +569,33 @@ async function api(path, opts = {}) {
 
 $('loginBtn').onclick = async () => {
   const pw = $('loginPass').value.trim(); if (!pw) return;
-  SECRET = pw; sessionStorage.setItem(SECRET_KEY, pw); $('loginErr').textContent = '';
-  try { await api('/api/admin/settings?slug=' + slug); $('login').style.display = 'none'; boot(); }
-  catch { SECRET = null; sessionStorage.removeItem(SECRET_KEY); $('loginErr').textContent = 'Wrong password'; }
+  $('loginErr').textContent = '';
+  try {
+    const r = await fetch('/api/admin/login', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ password: pw })
+    });
+    if (!r.ok) throw new Error('unauth');
+    $('loginPass').value = '';
+    await api('/api/admin/settings?slug=' + slug);
+    $('login').style.display = 'none';
+    boot();
+  } catch { $('loginErr').textContent = 'Wrong password'; }
 };
+
+// On page load, silently boot if the admin cookie is already valid
+(async () => {
+  if (PORTAL_TOKEN) return; // portal flow handles itself below
+  try {
+    const r = await fetch('/api/admin/login', { credentials: 'same-origin' }).then(r => r.json());
+    if (r?.authenticated) {
+      await api('/api/admin/settings?slug=' + slug);
+      $('login').style.display = 'none';
+      if (typeof boot === 'function') boot();
+    }
+  } catch {}
+})();
 
 // If we came in with a valid portal token, skip the password screen entirely
 if (PORTAL_TOKEN) {
