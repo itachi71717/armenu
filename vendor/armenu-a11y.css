@@ -121,3 +121,140 @@
   vertical-align: -3px;
   margin-right: 8px;
 }
+
+/* ============================================================
+   POLISH LAYER — subtle site-wide feel improvements.
+   Everything below is additive: only applies where the classes
+   or elements already exist. No layout shifts on existing pages.
+   ============================================================ */
+
+/* Smoother font rendering across the board */
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+/* Selection color that matches the brand accent */
+::selection { background: rgba(232, 197, 138, 0.35); color: inherit; }
+
+/* Refined scrollbars on WebKit/Blink (Firefox uses scrollbar-color) */
+* { scrollbar-width: thin; scrollbar-color: rgba(232, 197, 138, 0.25) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(232, 197, 138, 0.2);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(232, 197, 138, 0.4); background-clip: padding-box; border: 2px solid transparent; }
+
+/* Every button/anchor-button gets a subtle hover lift and press feedback
+   unless the page opts out with .no-lift. Preserves whatever background
+   or gradient the button already has. */
+button:not(.no-lift):not(:disabled),
+.btn:not(.no-lift):not(:disabled),
+[role="button"]:not(.no-lift):not(:disabled) {
+  transition: transform 0.16s ease-out, box-shadow 0.16s ease-out, filter 0.16s ease-out, opacity 0.16s ease-out;
+}
+button:not(.no-lift):not(:disabled):hover,
+.btn:not(.no-lift):not(:disabled):hover,
+[role="button"]:not(.no-lift):not(:disabled):hover {
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+}
+button:not(.no-lift):not(:disabled):active,
+.btn:not(.no-lift):not(:disabled):active,
+[role="button"]:not(.no-lift):not(:disabled):active {
+  transform: translateY(0);
+  filter: brightness(0.95);
+}
+button:disabled, .btn:disabled { cursor: not-allowed; opacity: 0.55; }
+
+/* Inputs: soft focus glow */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+textarea, select {
+  transition: border-color 0.18s ease-out, box-shadow 0.18s ease-out, background 0.18s ease-out;
+}
+input:focus:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+textarea:focus, select:focus {
+  box-shadow: 0 0 0 3px rgba(232, 197, 138, 0.14);
+}
+
+/* Toast polish — the pattern is used on menu/portal/admin/staff/kitchen */
+.toast {
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+  border-radius: 12px;
+  letter-spacing: 0.01em;
+}
+@keyframes armenuToastIn {
+  0%   { opacity: 0; transform: translate(-50%, 12px) scale(0.98); }
+  100% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
+.toast.show { animation: armenuToastIn 0.22s cubic-bezier(0.2, 0.7, 0.3, 1) both; }
+
+/* Cards: any element carrying .card / .dish / .action / .tile that already
+   has a background gets a warm hover-lift. Purely additive. */
+.card, .dish, .action, .tile, .ticket {
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out, border-color 0.2s ease-out;
+}
+.card:hover, .action:hover, .tile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.24);
+}
+
+/* Modal / overlay entrance */
+@keyframes armenuOverlayIn { from { opacity: 0 } to { opacity: 1 } }
+@keyframes armenuSheetUp   { from { opacity: 0; transform: translateY(24px) scale(0.985) } to { opacity: 1; transform: translateY(0) scale(1) } }
+.wiz-overlay.on, .overlay.on, .sheet.on, [data-sheet].on {
+  animation: armenuOverlayIn 0.18s ease-out both;
+}
+.wiz-overlay.on > *, .overlay.on > .modal, .sheet.on > .sheet-body {
+  animation: armenuSheetUp 0.26s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+/* Details/summary: rotate a subtle marker when expanded */
+details > summary { cursor: pointer; user-select: none; }
+details > summary::-webkit-details-marker { display: none; }
+
+/* Chips — canonical utility for anything pill-shaped */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border: 1px solid rgba(245, 236, 216, 0.14);
+  background: rgba(245, 236, 216, 0.05);
+  color: inherit;
+  line-height: 1;
+  white-space: nowrap;
+}
+.chip.chip-ok   { background: rgba(125, 216, 125, 0.12); color: #7dd87d; border-color: rgba(125, 216, 125, 0.28); }
+.chip.chip-warn { background: rgba(240, 176, 96, 0.12); color: #f0b060; border-color: rgba(240, 176, 96, 0.28); }
+.chip.chip-err  { background: rgba(248, 113, 113, 0.12); color: #f87171; border-color: rgba(248, 113, 113, 0.28); }
+.chip.chip-brand{ background: rgba(232, 197, 138, 0.15); color: #e8c58a; border-color: rgba(232, 197, 138, 0.32); }
+
+/* Section labels: caps small-mono aesthetic used everywhere */
+.section-label, .kicker {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+/* Utility fade-in — respected only when reduced motion is off */
+@keyframes armenuFadeIn { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: translateY(0) } }
+.fade-in { animation: armenuFadeIn 0.35s ease-out both; }
+
+/* Better link default: no cyan-blue underline on the dark theme */
+a { color: inherit; }
+a[href]:not([class]) { text-decoration-thickness: 1px; text-underline-offset: 3px; }
+
+/* Print: hide overlays, chrome-only content */
+@media print {
+  .toast, .wiz-overlay, .overlay, [data-sheet], nav, header, footer { display: none !important; }
+  body { background: white !important; color: black !important; }
+}
