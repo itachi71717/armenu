@@ -190,7 +190,26 @@ function onIn() {
   } catch {}
 }
 
-function tick() { const d = new Date(); $('clock').textContent = d.toTimeString().slice(0, 5); }
+function tick() {
+  const d = new Date(); $('clock').textContent = d.toTimeString().slice(0, 5);
+  // Live-tick ticket ages between polls so a table waiting 14 minutes doesn't
+  // look like it's been 8 minutes for four seconds after the last refresh.
+  document.querySelectorAll('.ticket[data-created]').forEach(el => {
+    const created = parseInt(el.dataset.created, 10);
+    if (!created) return;
+    const ageMs = Date.now() - created;
+    const ageMin = Math.round(ageMs / 60000);
+    const ageSec = Math.round(ageMs / 1000);
+    const badge = el.querySelector('.t-age');
+    if (badge) {
+      badge.textContent = ageMin < 1 ? ageSec + 's' : ageMin + 'm';
+      badge.classList.toggle('hot',  ageMin >= 15);
+      badge.classList.toggle('warm', ageMin >= 8 && ageMin < 15);
+    }
+    el.classList.toggle('aged-hot',  ageMin >= 15);
+    el.classList.toggle('aged-warm', ageMin >= 8 && ageMin < 15);
+  });
+}
 
 async function refresh() {
   try {
@@ -215,7 +234,7 @@ function render(orders) {
     const ageDisplay = ageMin < 1 ? ageSec + 's' : ageMin + 'm';
     const ageClass = ageMin >= 15 ? 'hot' : ageMin >= 8 ? 'warm' : '';
     const ticketAgeClass = ageMin >= 15 ? 'aged-hot' : ageMin >= 8 ? 'aged-warm' : '';
-    return `<div class="ticket ${o.status} ${ticketAgeClass}">
+    return `<div class="ticket ${o.status} ${ticketAgeClass}" data-created="${new Date(o.created_at).getTime()}">
       <div class="t-top">
         <div class="t-table">${o.table_label ? `<b>${escapeHTML(o.table_label)}</b>` : 'Walk-up'}</div>
         <div class="t-age ${ageClass}">${ageDisplay}</div>

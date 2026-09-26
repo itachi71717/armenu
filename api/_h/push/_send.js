@@ -48,5 +48,20 @@ export async function sendPush(restaurant_id, payload = {}, opts = {}) {
   if (dead.length) {
     await supabaseAdmin.from('push_subscriptions').update({ active: false }).in('id', dead);
   }
-  return { sent: results.filter(r => r.status === 'fulfilled').length, dead: dead.length };
+  // Report unexpected failures (not just 404/410 dead-endpoint cleanups) to
+  // Sentry so silent push breakage doesn't hide in the logs.
+  const unexpected = results.filter(r =>
+    r.status === 'rejected' && r.reason && r.reason.err &&
+    ![404, 410].includes(r.reason.err.statusCode)
+  );
+  if (unexpected.length) {
+    try {
+      const { captureException } = await import('../../_sentry.js');
+      await captureException(unexpected[0].reason.err, {
+        route: 'push/_send', restaurant_id, failed_count: unexpected.length,
+        status_code: unexpected[0].reason.err.statusCode
+      });
+    } catch {}
+  }
+  return { sent: results.filter(r => r.status === 'fulfilled').length, dead: dead.length, failed: unexpected.length };
 }
