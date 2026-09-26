@@ -495,11 +495,16 @@
       addBtn.onclick = () => {
         try {
           const key = 'armenu_cart_' + r + (table ? '_' + table : '');
-          const cur = JSON.parse(localStorage.getItem(key) || '[]');
+          // Cart on menu.html is wrapped as { ts, items: [...] } with 24h expiry.
+          // Accept both bare-array (legacy) and wrapped shapes; write back the
+          // wrapped shape so menu.html's loadCart sees a fresh timestamp.
+          let raw;
+          try { raw = JSON.parse(localStorage.getItem(key) || 'null'); } catch { raw = null; }
+          const cur = Array.isArray(raw) ? raw : (raw && Array.isArray(raw.items) ? raw.items : []);
           const existing = cur.find(i => i.slug === d && !(i.modifiers && i.modifiers.length));
           if (existing) existing.qty++;
           else cur.push({ key: d + '::', slug: d, name: meal.dish || meal.name || d, qty: 1, price_cents: meal.price_cents || 0, modifiers: [] });
-          localStorage.setItem(key, JSON.stringify(cur));
+          localStorage.setItem(key, JSON.stringify({ ts: Date.now(), items: cur }));
           window.ArMenuSound?.play('pop');
           addBtn.textContent = '✓ Added';
           setTimeout(() => addBtn.textContent = '+ Add', 1200);

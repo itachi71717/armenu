@@ -26,6 +26,26 @@ export default async function handler(req, res) {
     if (t) { table_id = t.id; table_label = t.label; }
   }
 
+  // Anti-spam: dedup by (restaurant_id, table_label) within a 60s window,
+  // and cap total open calls per restaurant to 5 per minute. Without this,
+  // a guest hammering the button (or an attacker) can push-storm every
+  // staff device.
+  const oneMinAgo = new Date(Date.now() - 60_000).toISOString();
+  if (table_label) {
+    const { data: recent = [] } = await supabase.from('waiter_calls')
+      .select('id').eq('restaurant_id', restaurant.id).eq('table_label', table_label)
+      .gte('created_at', oneMinAgo).limit(1);
+    if (recent.length) {
+      return res.status(200).json({ ok: true, deduped: true, message: 'A waiter is already on their way to your table.' });
+    }
+  }
+  const { data: perRest = [] } = await supabase.from('waiter_calls')
+    .select('id').eq('restaurant_id', restaurant.id).gte('created_at', oneMinAgo);
+  if (perRest.length >= 5) {
+    res.setHeader('Retry-After', '60');
+    return res.status(429).json({ error: 'rate_limited', message: 'Too many calls right now. A waiter is on their way.' });
+  }
+
   await supabase.from('waiter_calls').insert({
     restaurant_id: restaurant.id,
     table_id, table_label,

@@ -726,7 +726,10 @@
               <a class="loc-btn" data-open="kitchen" data-slug="${l.slug}">Kitchen</a>
             </div>
           </div>`).join('')}</div>`;
-      // Insert before dishesWrap
+      // Remove any prior org-overview from a previous loadMe() BEFORE
+      // inserting the new one — otherwise the "Your locations · last 7 days"
+      // block stacks on every stock/dish mutation.
+      $('dishesWrap').parentNode.querySelectorAll('.org-overview').forEach(el => el.remove());
       $('dishesWrap').parentNode.insertBefore(orgBlock, $('dishesWrap'));
       // Wire per-location links — reuses the manager-token for all locations
       // (token is bound to the primary restaurant only; siblings must be owned
@@ -810,7 +813,12 @@
     // Wire the + New button
     $('addDishBtn').onclick = () => openDishEditor(null);
 
-    $('dishesWrap').addEventListener('click', e => {
+    // #dishesWrap persists across loadMe() re-renders. Wire the delegated
+    // handler ONCE — otherwise every stock refill / edit / delete stacked
+    // another listener, and a single tap on a dish tile fired N times.
+    if (!$('dishesWrap').dataset.wired) {
+      $('dishesWrap').dataset.wired = '1';
+      $('dishesWrap').addEventListener('click', e => {
       const btn = e.target.closest('[data-action]');
       if (!btn) return;
       if (btn.dataset.action === 'view-qr')   openQr(btn.dataset.slug, btn.dataset.name);
@@ -844,6 +852,7 @@
         });
       }
     }, { once: false });
+    }  // end of dataset.wired guard
 
     $('gate').style.display = 'none';
     $('app').classList.add('ready');
@@ -925,12 +934,14 @@
     $('wizActions').innerHTML = `<button class="wiz-secondary" id="qrPickClose">Close</button>`;
     $('wizOverlay').classList.add('on');
     $('wizClose').onclick = $('qrPickClose').onclick = () => $('wizOverlay').classList.remove('on');
-    $('wizBody').addEventListener('click', (e) => {
-      const b = e.target.closest('[data-qr]');
-      if (!b) return;
-      $('wizOverlay').classList.remove('on');
-      if (b.dataset.qr === 'master') openMasterQr();
-      if (b.dataset.qr === 'dishes') downloadAllQrs();
+    // Per-button binding (not delegated) so each openPrintQrModal() doesn't
+    // stack a new listener on the persistent #wizBody.
+    $('wizBody').querySelectorAll('[data-qr]').forEach(b => {
+      b.onclick = () => {
+        $('wizOverlay').classList.remove('on');
+        if (b.dataset.qr === 'master') openMasterQr();
+        if (b.dataset.qr === 'dishes') downloadAllQrs();
+      };
     });
   }
   document.addEventListener('click', (e) => { if (e.target.closest('#printQrAction')) openPrintQrModal(); });
@@ -1065,25 +1076,29 @@
       else toast(`Sent to ${data.sent || 0} device${(data.sent||0) === 1 ? '' : 's'}`, 'ok');
       $('pushTestBtn').disabled = false; $('pushTestBtn').textContent = '🔔 Send test';
     };
-    $('wizBody').addEventListener('click', async (e) => {
-      const btn = e.target.closest('[data-buy]');
-      if (!btn) return;
-      btn.disabled = true; btn.textContent = '…';
-      try {
-        const { ok, data } = await authFetch('/api/portal/credits', {
-          method: 'POST', body: JSON.stringify({ pack_id: btn.dataset.buy })
-        });
-        if (!ok) throw new Error(data.error || 'Failed');
-        if (data.checkout_url) {
-          window.open(data.checkout_url, '_blank');
-        } else if (data.whatsapp_url) {
-          if (confirm(data.message + '\n\nOpen WhatsApp now?')) window.open(data.whatsapp_url, '_blank');
+    // Wire the buy handler per-button, NOT via addEventListener on the
+    // persistent #wizBody — the previous delegated pattern stacked another
+    // listener on every openCreditsModal() call and one Buy tap could
+    // POST N checkout requests.
+    $('wizBody').querySelectorAll('[data-buy]').forEach(btn => {
+      btn.onclick = async () => {
+        btn.disabled = true; btn.textContent = '…';
+        try {
+          const { ok, data } = await authFetch('/api/portal/credits', {
+            method: 'POST', body: JSON.stringify({ pack_id: btn.dataset.buy })
+          });
+          if (!ok) throw new Error(data.error || 'Failed');
+          if (data.checkout_url) {
+            window.open(data.checkout_url, '_blank');
+          } else if (data.whatsapp_url) {
+            if (confirm(data.message + '\n\nOpen WhatsApp now?')) window.open(data.whatsapp_url, '_blank');
+          }
+        } catch (err) {
+          $('creditsErr').textContent = err.message;
+        } finally {
+          btn.disabled = false; btn.textContent = 'Buy';
         }
-      } catch (err) {
-        $('creditsErr').textContent = err.message;
-      } finally {
-        btn.disabled = false; btn.textContent = 'Buy';
-      }
+      };
     });
   }
 

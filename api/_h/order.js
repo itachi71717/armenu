@@ -78,18 +78,27 @@ export default async function handler(req, res) {
     // Re-derive modifier deltas from the AUTHORITATIVE dishes.modifiers on the
     // server row. The client's price_cents_delta is entirely discarded —
     // otherwise a guest could send -R500 on 12 mods and drop total to negative.
-    // Dish modifiers shape (from admin UI):
-    //   [{ id, group, name, price_cents_delta }, ...]
+    // Dish modifiers shape (from portal/index.html parseModifiersText, stored
+    // verbatim by admin/dishes.js and returned by dish.js) is a NESTED list of
+    // groups, each with options — NOT a flat list of options:
+    //   [{ label, required, multi, options: [{ name, price_cents_delta }, …] }]
+    // The client (menu.html:780) sends picks keyed as { id: 'gi-oi', group: g.label, ... }
+    // so we build the lookup by walking group index + option index in that order.
     const dishMods = Array.isArray(d.modifiers) ? d.modifiers : [];
     const modLookup = new Map();
-    for (const m of dishMods) {
-      const key = String(m.group || '') + '::' + String(m.id || '');
-      modLookup.set(key, {
-        id: String(m.id || '').slice(0, 40),
-        group: String(m.group || '').slice(0, 60),
-        name: String(m.name || '').slice(0, 60),
-        price_cents_delta: Math.max(-50000, Math.min(50000, parseInt(m.price_cents_delta) || 0))
-      });
+    for (let gi = 0; gi < dishMods.length; gi++) {
+      const g = dishMods[gi];
+      const opts = Array.isArray(g?.options) ? g.options : [];
+      for (let oi = 0; oi < opts.length; oi++) {
+        const o = opts[oi];
+        const key = String(g.label || '') + '::' + gi + '-' + oi;
+        modLookup.set(key, {
+          id: gi + '-' + oi,
+          group: String(g.label || '').slice(0, 60),
+          name: String(o?.name || '').slice(0, 60),
+          price_cents_delta: Math.max(-50000, Math.min(50000, parseInt(o?.price_cents_delta) || 0))
+        });
+      }
     }
     const rawPicks = Array.isArray(i.modifiers) ? i.modifiers.slice(0, 12) : [];
     const mods = [];

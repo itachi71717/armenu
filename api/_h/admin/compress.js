@@ -85,14 +85,58 @@ export default async function handler(req, res) {
   const glb_url = body.glb_url;
   if (!glb_url) return res.status(400).json({ error: 'glb_url required' });
 
+  // SSRF guard: this endpoint is authenticated (any scoped manager can call
+  // it) and its response body is uploaded to a PUBLIC bucket whose URL is
+  // returned in the JSON. Without this guard a manager could point glb_url
+  // at http://169.254.169.254/latest/meta-data/…, loopback, RFC1918,
+  // Vercel internals, etc. and read the response back publicly.
+  // Only allow http(s) URLs on the Supabase Storage host we just uploaded
+  // to — the only legitimate input for this endpoint is a URL the browser
+  // just got back from /api/admin/upload-url.
+  try {
+    const u = new URL(glb_url);
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') {
+      return res.status(400).json({ error: 'glb_url must be an http(s) URL' });
+    }
+    // Reject IP-literal hosts (they'd bypass DNS-based allowlisting)
+    if (/^\d+\.\d+\.\d+\.\d+$/.test(u.hostname) || u.hostname.includes(':')) {
+      return res.status(400).json({ error: 'glb_url host must be a domain, not an IP literal' });
+    }
+    // Reject any host that isn't Supabase Storage (which is where the
+    // browser upload landed) or our own CDN.
+    const ALLOWED = [/\.supabase\.co$/i, /\.supabase\.in$/i, /armenu\.co\.za$/i];
+    if (!ALLOWED.some(rx => rx.test(u.hostname))) {
+      return res.status(400).json({ error: 'glb_url host not in allowlist (Supabase Storage / armenu.co.za only)' });
+    }
+    if (u.port && u.port !== '80' && u.port !== '443') {
+      return res.status(400).json({ error: 'glb_url port must be default (80/443)' });
+    }
+  } catch (e) {
+    return res.status(400).json({ error: 'glb_url is not a valid URL' });
+  }
+
   try {
     // Always download and ground the model, even if it's already in our
     // bucket — grounding must run on every upload, not just external URLs.
-    const dlRes = await fetch(glb_url);
+    // 30s timeout + 100MB response cap so a malicious/pathological URL can't
+    // hang the function for its full maxDuration or blow memory.
+    const ac = new AbortController();
+    const to = setTimeout(() => ac.abort('download timeout'), 30_000);
+    let dlRes;
+    try { dlRes = await fetch(glb_url, { signal: ac.signal, redirect: 'error' }); }
+    finally { clearTimeout(to); }
     if (!dlRes.ok) {
       return res.status(400).json({ error: `Could not download .glb (HTTP ${dlRes.status})` });
     }
+    const cl = parseInt(dlRes.headers.get('content-length') || '0', 10);
+    const MAX_BYTES = 100 * 1024 * 1024;
+    if (cl > MAX_BYTES) {
+      return res.status(400).json({ error: 'glb too large (>100MB)' });
+    }
     const inputBytes = new Uint8Array(await dlRes.arrayBuffer());
+    if (inputBytes.length > MAX_BYTES) {
+      return res.status(400).json({ error: 'glb too large (>100MB)' });
+    }
     const originalSize = inputBytes.length;
 
     const { bytes: groundedBytes, grounded, dimensions, sizeWarning } = await groundModel(inputBytes);

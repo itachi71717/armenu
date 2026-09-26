@@ -278,3 +278,14 @@ begin
     alter table push_subscriptions add constraint push_subscriptions_endpoint_key unique (endpoint);
   end if;
 end $$;
+
+-- Staff PIN brute-force lockout tracking. A pruning job could delete rows
+-- older than 24h; audit history for that period is small and cheap.
+create table if not exists staff_login_attempts (
+  id             uuid primary key default gen_random_uuid(),
+  restaurant_id  uuid references restaurants(id) on delete cascade,
+  ip             text,
+  created_at     timestamptz default now()
+);
+create index if not exists staff_login_attempts_rest_ts on staff_login_attempts(restaurant_id, created_at desc);
+create index if not exists staff_login_attempts_rest_ip on staff_login_attempts(restaurant_id, ip, created_at desc);
