@@ -55,7 +55,10 @@
   .t-age.warm{background:rgba(255,176,102,.14);color:var(--warn);border-color:rgba(255,176,102,.3)}
   .t-age.hot{background:rgba(248,113,113,.14);color:var(--err);border-color:rgba(248,113,113,.3)}
   .t-items{list-style:none;padding:0;display:flex;flex-direction:column;gap:6px}
-  .t-items li{padding:10px 12px;border-radius:10px;background:rgba(255,239,220,.04);display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+  .t-items li{padding:10px 12px;border-radius:10px;background:rgba(255,239,220,.04);display:flex;justify-content:space-between;align-items:flex-start;gap:10px;cursor:pointer;transition:opacity .15s,background .15s}
+  .t-items li:hover{background:rgba(255,239,220,.07)}
+  .t-items li.done{opacity:.35;background:rgba(125,216,125,.06)}
+  .t-items li.done .name,.t-items li.done .qty{text-decoration:line-through}
   .t-items .qty{font-family:'JetBrains Mono',monospace;font-weight:800;color:var(--accent);font-size:18px;min-width:34px}
   .t-items .name{flex:1;font-size:16px;font-weight:600}
   .t-items .note{font-size:12px;color:var(--warn);margin-top:3px;font-style:italic}
@@ -240,7 +243,7 @@ function render(orders) {
         <div class="t-table">${o.table_label ? `<b>${escapeHTML(o.table_label)}</b>` : 'Walk-up'}</div>
         <div class="t-age ${ageClass}">${ageDisplay}</div>
       </div>
-      <ul class="t-items">${(o.order_items || []).map(it => `<li>
+      <ul class="t-items">${(o.order_items || []).map(it => `<li data-item="${o.id}:${it.id}" class="${itemDone(o.id, it.id) ? 'done' : ''}">
         <span class="qty">×${it.qty}</span>
         <div class="name">${escapeHTML(it.dish_name)}
           ${Array.isArray(it.modifiers) && it.modifiers.length ? '<ul class="mods" style="margin:4px 0 0 0;padding:0;list-style:none">' + it.modifiers.map(m => '<li style="font-size:12px;color:var(--warn);padding:2px 0">↳ ' + escapeHTML(m.name) + '</li>').join('') + '</ul>' : ''}
@@ -262,6 +265,32 @@ function render(orders) {
     try { await api('/api/staff/orders?id=' + id, { method: 'PATCH', body: JSON.stringify({ status }) }); refresh(); }
     catch (e) { toast(e.message); }
   });
+  // Tap a line-item to mark it done inside the ticket (client-side only —
+  // no schema change; kitchen-local ephemeral state).
+  document.querySelectorAll('.t-items li[data-item]').forEach(li => li.onclick = () => {
+    const [oid, iid] = li.dataset.item.split(':');
+    toggleItemDone(oid, iid);
+    li.classList.toggle('done');
+  });
+}
+
+// Per-order item strike-through, persisted in localStorage. Cleared when an
+// order transitions to 'ready' (no longer relevant) or is >6h old.
+function itemDoneKey() { return 'armenu_kitchen_item_done'; }
+function loadItemDone() {
+  try { return JSON.parse(localStorage.getItem(itemDoneKey()) || '{}'); } catch { return {}; }
+}
+function itemDone(orderId, itemId) {
+  const m = loadItemDone();
+  return !!(m[orderId] && m[orderId][itemId]);
+}
+function toggleItemDone(orderId, itemId) {
+  const m = loadItemDone();
+  if (!m[orderId]) m[orderId] = {};
+  m[orderId][itemId] = !m[orderId][itemId];
+  if (!m[orderId][itemId]) delete m[orderId][itemId];
+  if (Object.keys(m[orderId]).length === 0) delete m[orderId];
+  try { localStorage.setItem(itemDoneKey(), JSON.stringify(m)); } catch {}
 }
 
 // Reused AudioContext — some browsers throttle after too many one-off ctxs.

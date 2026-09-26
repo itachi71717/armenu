@@ -59,6 +59,7 @@ const ROUTES = {
   'portal/translate':      'portal/translate',
   'portal/dashboard':      'portal/dashboard',
   'portal/team':           'portal/team',
+  'portal/transfer':       'portal/transfer',
 
   'paddle/webhook': 'paddle/webhook'
 };

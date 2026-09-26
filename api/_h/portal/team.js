@@ -42,7 +42,7 @@ export default async function handler(req, res) {
   if (req.method === 'POST') {
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
     const email = String(body.email || '').trim().toLowerCase();
-    const role = ['manager', 'viewer'].includes(body.role) ? body.role : 'manager';
+    const role = ['manager', 'viewer', 'owner'].includes(body.role) ? body.role : 'manager';
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return res.status(400).json({ error: 'Invalid email address' });
     }

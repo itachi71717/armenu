@@ -118,6 +118,9 @@
   .dish .price-new{color:var(--accent-2);font-size:15px;font-weight:800}
   .dish .offer-tag{margin-top:6px;display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:linear-gradient(135deg,rgba(232,197,138,.18),rgba(212,165,116,.08));border:1px solid rgba(232,197,138,.35);font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-2);align-self:flex-start;font-weight:700}
   .dish .desc{font-size:12px;color:var(--ink-dim);line-height:1.35;min-height:1.2em}
+  .diet-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
+  .diet-pos{font-size:10.5px;padding:3px 8px;border-radius:999px;background:rgba(125,216,125,.12);color:#7dd87d;border:1px solid rgba(125,216,125,.28);letter-spacing:.02em}
+  .diet-warn{font-size:10.5px;padding:3px 8px;border-radius:999px;background:rgba(255,176,102,.1);color:#f0b060;border:1px solid rgba(255,176,102,.28);letter-spacing:.02em}
   .dish .row{display:flex;gap:6px;margin-top:8px}
   .dish .row button{flex:1;padding:9px 10px;border-radius:10px;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
   .dish .btn-ar{background:linear-gradient(135deg,var(--accent),#c93d00);color:#fff;box-shadow:0 4px 12px rgba(255,87,34,.3)}
@@ -554,6 +557,34 @@ function wireCategoryStuck() {
   check();
 }
 
+// Render small "contains" chips for common allergens (nuts, dairy, gluten,
+// egg, shellfish, soy, sesame). Positive-diet tags (vegan/vegetarian/halal)
+// are shown separately in green.
+const ALLERGEN_ICONS = {
+  nuts: '🥜', peanut: '🥜', tree_nut: '🥜', 'tree nut': '🥜',
+  dairy: '🥛', milk: '🥛', cheese: '🥛', lactose: '🥛',
+  gluten: '🌾', wheat: '🌾',
+  egg: '🥚',
+  fish: '🐟', shellfish: '🦐', prawn: '🦐', shrimp: '🦐',
+  soy: '🫘', sesame: '🌰', alcohol: '🍷', pork: '🥓'
+};
+const POSITIVE_TAGS = { vegan: '🌱 Vegan', vegetarian: '🥬 Vegetarian', halal: '🕌 Halal', kosher: '✡ Kosher', 'gluten-free': '🌾 Gluten-free', 'dairy-free': '🥛 Dairy-free' };
+function renderAllergenChips(raw) {
+  if (!raw) return '';
+  const tags = String(raw).toLowerCase().split(/[,;]+/).map(s => s.trim()).filter(Boolean);
+  if (!tags.length) return '';
+  const contains = [];
+  const positive = [];
+  for (const t of tags) {
+    if (POSITIVE_TAGS[t]) positive.push(POSITIVE_TAGS[t]);
+    else if (ALLERGEN_ICONS[t]) contains.push(ALLERGEN_ICONS[t] + ' ' + t);
+  }
+  const parts = [];
+  if (positive.length) parts.push(`<span class="diet-pos">${positive.map(escapeHTML).join(' · ')}</span>`);
+  if (contains.length) parts.push(`<span class="diet-warn" title="Ingredients">Contains ${contains.map(escapeHTML).join(' · ')}</span>`);
+  return parts.length ? `<div class="diet-chips">${parts.join('')}</div>` : '';
+}
+
 function renderDish(d) {
   const sym = state.settings.locale.currency_symbol || 'R';
   const price = d.price_cents ? fmtPrice(d.price_cents, sym) : (d.price || '');
@@ -583,6 +614,7 @@ function renderDish(d) {
         </div>
         ${d.discount_pct ? `<div class="offer-tag">🎉 ${escapeHTML(d.offer_name || 'Happy hour')} · -${d.discount_pct}%</div>` : ''}
         ${descTr ? `<div class="desc">${escapeHTML(descTr)}</div>` : ''}
+        ${renderAllergenChips(d.allergens)}
         <div class="row">
           <a class="btn-ar" href="/view.html?r=${encodeURIComponent(r)}&d=${encodeURIComponent(d.slug)}${table ? '&t=' + encodeURIComponent(table) : ''}" style="display:flex;align-items:center;justify-content:center;text-decoration:none">See in AR →</a>
           ${showOrder && !soldOut ? `<button class="btn-add" data-add="${escapeHTML(d.slug)}">+ Add</button>` : ''}

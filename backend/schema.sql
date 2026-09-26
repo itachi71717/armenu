@@ -251,3 +251,8 @@ create table if not exists manager_users (
 );
 create index if not exists manager_users_email on manager_users (lower(email));
 create index if not exists manager_users_rest on manager_users (restaurant_id);
+
+-- Cancellation tracking on orders (refund/return audit)
+alter table orders add column if not exists cancelled_at  timestamptz;
+alter table orders add column if not exists cancel_reason text;
+create index if not exists orders_cancelled on orders(restaurant_id, cancelled_at) where cancelled_at is not null;

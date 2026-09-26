@@ -309,8 +309,18 @@ function renderOrders(orders) {
     </div>`).join('')}</div>`;
   document.querySelectorAll('[data-mark]').forEach(b => b.onclick = async () => {
     const [id, status] = b.dataset.mark.split(':');
-    try { await api('/api/staff/orders?id=' + id, { method: 'PATCH', body: JSON.stringify({ status }) }); refresh(); }
-    catch (e) { toast(e.message, 'err'); }
+    let reason = null;
+    if (status === 'cancelled') {
+      reason = prompt('Cancel this order — reason? (e.g. guest left, out of stock, staff error)');
+      if (reason === null) return; // aborted
+    }
+    try {
+      await api('/api/staff/orders?id=' + id, {
+        method: 'PATCH',
+        body: JSON.stringify(reason !== null ? { status, reason } : { status })
+      });
+      refresh();
+    } catch (e) { toast(e.message, 'err'); }
   });
   document.querySelectorAll('[data-split]').forEach(b => b.onclick = () => {
     const [, cents] = b.dataset.split.split(':');

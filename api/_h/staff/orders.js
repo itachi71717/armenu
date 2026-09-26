@@ -4,6 +4,7 @@
 // Auth: Authorization: Bearer <staff-token>
 import { supabase, supabaseAdmin } from '../../_db.js';
 import { verifyToken } from './login.js';
+import { auditLog } from '../_audit.js';
 
 const VALID = ['new','prep','ready','served','cancelled'];
 
@@ -83,9 +84,27 @@ export default async function handler(req, res) {
     try { body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body; } catch {}
     if (!VALID.includes(body.status)) return res.status(400).json({ error: 'bad status' });
     // Confirm order belongs to this staff's restaurant
-    const { data: order } = await supabase.from('orders').select('restaurant_id').eq('id', id).single();
+    const { data: order } = await supabase.from('orders').select('restaurant_id, total_cents, tip_cents, status').eq('id', id).single();
     if (!order || order.restaurant_id !== session.restaurant_id) return res.status(404).json({ error: 'not found' });
-    await supabaseAdmin.from('orders').update({ status: body.status, updated_at: new Date().toISOString() }).eq('id', id);
+    const patch = { status: body.status, updated_at: new Date().toISOString() };
+    if (body.status === 'cancelled') {
+      patch.cancelled_at = new Date().toISOString();
+      patch.cancel_reason = String(body.reason || '').slice(0, 500) || null;
+    }
+    await supabaseAdmin.from('orders').update(patch).eq('id', id);
+    // Refund tracking: audit-log the amount the restaurant loses on a
+    // cancellation so it shows up in analytics + master-admin audit view.
+    if (body.status === 'cancelled' && order.status !== 'cancelled') {
+      auditLog(req, session.restaurant_id, 'order.cancelled', {
+        target: id,
+        metadata: {
+          total_cents: order.total_cents || 0,
+          tip_cents:   order.tip_cents   || 0,
+          prior_status: order.status,
+          reason: patch.cancel_reason
+        }
+      }).catch(() => {});
+    }
     return res.status(200).json({ ok: true });
   }
 
