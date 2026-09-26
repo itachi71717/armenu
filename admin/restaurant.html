@@ -668,7 +668,7 @@ async function load(tab) {
       const { categories } = await api('/api/admin/categories?slug=' + slug);
       $('cat_list').innerHTML = categories.length
         ? `<table><thead><tr><th>Name</th><th>Order</th><th>Status</th><th></th></tr></thead><tbody>${categories.map(c => `<tr><td>${escapeHTML(c.name)}</td><td>${c.sort_order}</td><td><span class="status-pill ${c.active ? 'ready' : ''}">${c.active ? 'active' : 'hidden'}</span></td><td style="text-align:right"><button class="btn-ghost btn" data-toggle-cat="${c.id}:${!c.active}">${c.active ? 'Hide' : 'Show'}</button> <button class="btn-err btn" data-del-cat="${c.id}">✕</button></td></tr>`).join('')}</tbody></table>`
-        : `<div class="empty"><h3>No categories yet</h3><p>Add "Starters", "Mains", "Desserts", etc.</p></div>`;
+        : `<div class="empty-state" data-icon="📁"><h3>No categories yet</h3><p>Add "Starters", "Mains", "Desserts", etc.</p></div>`;
       wireList('[data-toggle-cat]', async v => { const [id, active] = v.split(':'); await api('/api/admin/categories?id=' + id, { method: 'PATCH', body: JSON.stringify({ active: active === 'true' }) }); load('categories'); });
       wireList('[data-del-cat]', async id => { if (confirm('Delete category?')) { await api('/api/admin/categories?id=' + id, { method: 'DELETE' }); load('categories'); } });
     }
@@ -678,14 +678,14 @@ async function load(tab) {
       const { tables } = await api('/api/admin/tables?slug=' + slug);
       $('tbl_list').innerHTML = tables.length
         ? `<table><thead><tr><th>Label</th><th>Seats</th><th>Status</th><th>QR link</th><th></th></tr></thead><tbody>${tables.map(t => `<tr><td><strong>${escapeHTML(t.label)}</strong></td><td>${t.seats}</td><td><span class="status-pill">${t.status}</span></td><td style="font-family:var(--mono);font-size:11px"><a href="/menu.html?r=${slug}&t=${encodeURIComponent(t.label)}" target="_blank">/menu?r=${slug}&t=${escapeHTML(t.label)}</a></td><td style="text-align:right"><button class="btn-err btn" data-del-tbl="${t.id}">✕</button></td></tr>`).join('')}</tbody></table>`
-        : `<div class="empty"><h3>No tables yet</h3></div>`;
+        : `<div class="empty-state" data-icon="🪑"><h3>No tables yet</h3></div>`;
       wireList('[data-del-tbl]', async id => { if (confirm('Delete table?')) { await api('/api/admin/tables?id=' + id, { method: 'DELETE' }); load('tables'); } });
     }
     if (tab === 'staff') {
       const { staff } = await api('/api/admin/staff?slug=' + slug);
       $('st_list').innerHTML = staff.length
         ? `<table><thead><tr><th>Name</th><th>Role</th><th>Last sign-in</th><th>Status</th><th></th></tr></thead><tbody>${staff.map(s => `<tr><td>${escapeHTML(s.name)}</td><td>${s.role}</td><td style="font-size:12px;color:var(--ink-dim)">${s.last_login_at ? new Date(s.last_login_at).toLocaleString() : '—'}</td><td><span class="status-pill ${s.active ? 'ready' : ''}">${s.active ? 'active' : 'disabled'}</span></td><td style="text-align:right"><button class="btn-ghost btn" data-reset-pin="${s.id}">Reset PIN</button> <button class="btn-err btn" data-del-staff="${s.id}">✕</button></td></tr>`).join('')}</tbody></table>`
-        : `<div class="empty"><h3>No staff yet</h3></div>`;
+        : `<div class="empty-state" data-icon="👥"><h3>No staff yet</h3></div>`;
       wireList('[data-del-staff]', async id => { if (confirm('Delete this staff member?')) { await api('/api/admin/staff?id=' + id, { method: 'DELETE' }); load('staff'); } });
       wireList('[data-reset-pin]', async id => { const pin = prompt('New 4–6 digit PIN:'); if (pin && /^\d{4,6}$/.test(pin)) { await api('/api/admin/staff?id=' + id, { method: 'PATCH', body: JSON.stringify({ pin }) }); toast('PIN reset', 'ok'); } });
     }
@@ -693,19 +693,19 @@ async function load(tab) {
       const { orders } = await api('/api/admin/orders?slug=' + slug);
       $('orders_list').innerHTML = orders.length
         ? `<table><thead><tr><th>Time</th><th>Table</th><th>Items</th><th>Total</th><th>Status</th></tr></thead><tbody>${orders.map(o => `<tr><td style="font-size:12px;color:var(--ink-dim)">${new Date(o.created_at).toLocaleString()}</td><td>${escapeHTML(o.table_label || '—')}</td><td>${(o.order_items || []).map(i => `${i.qty}× ${escapeHTML(i.dish_name)}`).join(', ')}</td><td>R${(o.total_cents / 100).toFixed(2)}</td><td><span class="status-pill ${o.status}">${o.status}</span></td></tr>`).join('')}</tbody></table>`
-        : `<div class="empty"><h3>No orders yet</h3></div>`;
+        : `<div class="empty-state" data-icon="📋"><h3>No orders yet</h3></div>`;
     }
     if (tab === 'calls') {
       const { calls } = await api('/api/admin/waiter-calls?slug=' + slug);
       $('calls_list').innerHTML = calls.length
         ? `<table><thead><tr><th>Time</th><th>Table</th><th>Reason</th><th>Status</th></tr></thead><tbody>${calls.map(c => `<tr><td style="font-size:12px;color:var(--ink-dim)">${new Date(c.created_at).toLocaleString()}</td><td>${escapeHTML(c.table_label || '—')}</td><td>${escapeHTML(c.reason)}</td><td><span class="status-pill ${c.status === 'open' ? 'new' : ''}">${c.status}</span></td></tr>`).join('')}</tbody></table>`
-        : `<div class="empty"><h3>No calls yet</h3></div>`;
+        : `<div class="empty-state" data-icon="🛎"><h3>No calls yet</h3></div>`;
     }
     if (tab === 'reviews') {
       const { reviews } = await api('/api/admin/reviews?slug=' + slug);
       $('rev_list').innerHTML = reviews.length
         ? `<table><thead><tr><th>Date</th><th>Rating</th><th>Comment</th><th>Google?</th></tr></thead><tbody>${reviews.map(r => `<tr><td style="font-size:12px;color:var(--ink-dim)">${new Date(r.created_at).toLocaleDateString()}</td><td style="color:var(--accent-2);font-size:16px">${'★'.repeat(r.stars)}${'☆'.repeat(5 - r.stars)}</td><td>${escapeHTML(r.comment || '—')}</td><td>${r.routed_to_google ? '✓' : ''}</td></tr>`).join('')}</tbody></table>`
-        : `<div class="empty"><h3>No reviews yet</h3></div>`;
+        : `<div class="empty-state" data-icon="⭐"><h3>No reviews yet</h3></div>`;
     }
     if (tab === 'analytics') await loadAnalytics();
     if (tab === 'ai-reader') { /* passive */ }
@@ -716,7 +716,7 @@ async function load(tab) {
       const { offers } = await api('/api/admin/offers?slug=' + slug);
       $('of_list').innerHTML = offers.length
         ? `<table><thead><tr><th>Name</th><th>Discount</th><th>Window</th><th>Days</th><th></th></tr></thead><tbody>${offers.map(o => `<tr><td>${escapeHTML(o.name)}</td><td>${o.discount_pct}%</td><td>${o.starts_at} → ${o.ends_at}</td><td>${(o.days_of_week || []).join(',')}</td><td style="text-align:right"><button class="btn-err btn" data-del-offer="${o.id}">✕</button></td></tr>`).join('')}</tbody></table>`
-        : `<div class="empty"><h3>No offers yet</h3></div>`;
+        : `<div class="empty-state" data-icon="🎁"><h3>No offers yet</h3></div>`;
       wireList('[data-del-offer]', async id => { if (confirm('Delete offer?')) { await api('/api/admin/offers?id=' + id, { method: 'DELETE' }); load('offers'); } });
     }
   } catch (e) { if (e.message !== 'unauth') toast(e.message, 'err'); }
@@ -891,8 +891,8 @@ async function loadAnalytics() {
   }).join('');
 
   $('an_top').innerHTML = `
-    <div><div style="font-family:var(--mono);font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.14em;margin-bottom:8px">Top scanned</div>${(d.top_scanned || []).map(x => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px"><span>${escapeHTML(x.dish)}</span><span style="color:var(--accent-2);font-family:monospace">${x.count}</span></div>`).join('') || '<div class="empty" style="padding:20px">Nothing yet</div>'}</div>
-    <div><div style="font-family:var(--mono);font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.14em;margin-bottom:8px">Top ordered</div>${(d.top_ordered || []).map(x => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px"><span>${escapeHTML(x.dish)}</span><span style="color:var(--accent-2);font-family:monospace">×${x.qty}</span></div>`).join('') || '<div class="empty" style="padding:20px">Nothing yet</div>'}</div>`;
+    <div><div style="font-family:var(--mono);font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.14em;margin-bottom:8px">Top scanned</div>${(d.top_scanned || []).map(x => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px"><span>${escapeHTML(x.dish)}</span><span style="color:var(--accent-2);font-family:monospace">${x.count}</span></div>`).join('') || '<div class="empty-state" data-icon="·" style="padding:20px 12px"><p>Nothing yet</p></div>'}</div>
+    <div><div style="font-family:var(--mono);font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.14em;margin-bottom:8px">Top ordered</div>${(d.top_ordered || []).map(x => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px"><span>${escapeHTML(x.dish)}</span><span style="color:var(--accent-2);font-family:monospace">×${x.qty}</span></div>`).join('') || '<div class="empty-state" data-icon="·" style="padding:20px 12px"><p>Nothing yet</p></div>'}</div>`;
 }
 $('an_days').addEventListener('change', () => loadAnalytics());
 
@@ -1161,7 +1161,7 @@ async function loadDishes() {
   $('dish_print').href = '/qr-print.html?r=' + slug + '&type=dishes';
   const c = await api('/api/admin/client?slug=' + slug);
   const dishes = c.dishes || [];
-  if (!dishes.length) return $('dish_list').innerHTML = '<div class="empty"><h3>No dishes yet</h3><p>Use AR Studio to create your first dish.</p></div>';
+  if (!dishes.length) return $('dish_list').innerHTML = '<div class="empty-state" data-icon="🍽"><h3>No dishes yet</h3><p>Use AR Studio to create your first dish.</p></div>';
   $('dish_list').innerHTML = dishes.map(d => `
     <div class="card" style="margin-bottom:10px;padding:14px 16px;display:grid;grid-template-columns:60px 1fr auto;gap:14px;align-items:center">
       <div style="width:60px;height:60px;border-radius:10px;background:${d.thumb_url ? `url('${d.thumb_url}') center/cover` : '#1a1410'};display:grid;place-items:center;color:var(--ink-faint);font-family:var(--serif);font-style:italic;font-size:22px">${d.thumb_url ? '' : (d.name[0] || '?')}</div>
