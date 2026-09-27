@@ -1,4 +1,8 @@
-// GET /api/admin/audit?slug=<r>&limit=100  → recent audit events for one restaurant
+// GET /api/admin/audit?slug=<r>&limit=100&before=<iso>&action=<x>&actor=<x>&q=<text>
+//   → paginated audit events for one restaurant (or platform-wide for master).
+// Cursor pagination: pass `before=<created_at ISO>` from the previous page's
+// last row to fetch older events. Filters (action / actor / q) apply
+// server-side so pagination isn't broken by the client re-filtering a slice.
 // Master admin (or scoped manager token via the dispatcher's scope guard) only.
 import { supabase } from '../../_db.js';
 import { requireAdmin, getScopedRestaurantId } from '../../_auth.js';
@@ -7,21 +11,49 @@ export default async function handler(req, res) {
   if (!requireAdmin(req)) return res.status(401).json({ error: 'unauthorized' });
   if (req.method !== 'GET') return res.status(405).end();
 
-  const limit = Math.min(500, parseInt(req.query.limit) || 100);
+  const limit = Math.min(500, Math.max(1, parseInt(req.query.limit) || 100));
+  const before = req.query.before;                     // ISO timestamp cursor
+  const actionF = String(req.query.action || '').trim();
+  const actorF  = String(req.query.actor  || '').trim();
+  const q       = String(req.query.q      || '').trim();
+
   const scopeRid = getScopedRestaurantId(req);
   let rid = scopeRid;
   if (!rid) {
     const slug = req.query.slug;
-    if (!slug) {
-      // Master admin, no slug → platform-wide feed
-      const { data = [] } = await supabase.from('audit_log').select('*').order('created_at', { ascending: false }).limit(limit);
-      return res.status(200).json({ events: data });
+    if (slug) {
+      const { data: r } = await supabase.from('restaurants').select('id').eq('slug', slug).maybeSingle();
+      if (!r) return res.status(404).json({ error: 'restaurant not found' });
+      rid = r.id;
     }
-    const { data: r } = await supabase.from('restaurants').select('id').eq('slug', slug).maybeSingle();
-    if (!r) return res.status(404).json({ error: 'restaurant not found' });
-    rid = r.id;
+    // else: master admin with no slug → platform-wide feed
   }
-  const { data = [] } = await supabase.from('audit_log')
-    .select('*').eq('restaurant_id', rid).order('created_at', { ascending: false }).limit(limit);
-  return res.status(200).json({ events: data });
+
+  let query = supabase.from('audit_log').select('*');
+  if (rid) query = query.eq('restaurant_id', rid);
+  if (actionF) query = query.eq('action', actionF);
+  if (actorF) query = query.eq('actor', actorF);
+  if (before) query = query.lt('created_at', before);
+  query = query.order('created_at', { ascending: false }).limit(limit + 1);
+
+  const { data = [] } = await query;
+
+  // Cheap free-text filter on target/metadata after the page fetch (server-
+  // side full-text would need a tsvector column). Applied inside the fetched
+  // window only — hitting the DB again for a wider net is a future item.
+  let events = data;
+  if (q) {
+    const needle = q.toLowerCase();
+    events = events.filter(e =>
+      String(e.target || '').toLowerCase().includes(needle) ||
+      JSON.stringify(e.metadata || {}).toLowerCase().includes(needle)
+    );
+  }
+
+  // has_more flag + next-cursor when there's another page
+  const has_more = events.length > limit;
+  if (has_more) events = events.slice(0, limit);
+  const next_before = has_more && events.length ? events[events.length - 1].created_at : null;
+
+  return res.status(200).json({ events, has_more, next_before });
 }
