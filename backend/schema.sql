@@ -301,3 +301,10 @@ update pending_signups set email = lower(email) where email is not null and emai
 -- push notifications, and any user-visible time formatting. Falls back
 -- to Africa/Johannesburg when null. Managers can set this from settings.
 alter table restaurant_settings add column if not exists timezone text;
+
+-- Client-supplied idempotency key on orders. When a guest's checkout
+-- request times out on the response leg (spotty mobile) the same key is
+-- retried and the server short-circuits to return the existing order id
+-- instead of creating a duplicate.
+alter table orders add column if not exists client_order_id text;
+create index if not exists orders_client_key on orders(restaurant_id, client_order_id, created_at desc) where client_order_id is not null;

@@ -215,7 +215,7 @@
 <div id="menuFilters" style="display:none;position:sticky;top:52px;z-index:14;background:rgba(10,8,6,.92);backdrop-filter:blur(12px);padding:10px 14px;border-bottom:1px solid var(--line)">
   <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
     <input type="search" id="menuSearch" placeholder="🔍 Search dishes…" style="flex:1;padding:9px 12px;border-radius:9px;background:rgba(255,239,220,.05);border:1px solid var(--line);color:var(--ink);font-size:14px;font-family:inherit" />
-    <button id="menuSearchClear" style="display:none;background:none;border:none;color:var(--ink-faint);font-size:14px;cursor:pointer;padding:6px 8px">✕</button>
+    <button type="button" id="menuSearchClear" aria-label="Clear search" style="display:none;background:none;border:none;color:var(--ink-faint);font-size:14px;cursor:pointer;padding:6px 8px;min-width:44px;min-height:44px">✕</button>
   </div>
   <div id="dietChips" style="display:flex;gap:6px;flex-wrap:wrap;overflow-x:auto"></div>
 </div>
@@ -900,11 +900,15 @@ async function submitOrder() {
   const tbl = table || $('orderTable')?.value.trim() || undefined;
   const subtotal = state.cart.reduce((s, i) => s + i.price_cents * i.qty, 0);
   const tip_cents = Math.round(subtotal * (_tipPct / 100));
+  // Client-side idempotency key — a network retry (spotty mobile signal
+  // dropping the response leg after the DB write) sends the same key so
+  // the server can short-circuit and return the same order_id.
+  const client_order_id = (crypto.randomUUID && crypto.randomUUID()) || (Date.now() + '-' + Math.random().toString(36).slice(2));
   try {
     const res = await fetch('/api/order', {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        r, table: tbl, note, tip_cents,
+        r, table: tbl, note, tip_cents, client_order_id,
         items: state.cart.map(i => ({ dish_slug: i.slug, qty: i.qty, modifiers: i.modifiers || [] }))
       })
     });

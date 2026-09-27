@@ -21,7 +21,7 @@
 <style>
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
   :root{
-    --bg:#0a0806;--ink:#f5efe6;--ink-dim:#9a9388;--ink-faint:#564f45;
+    --bg:#0a0806;--ink:#f5efe6;--ink-dim:#a89d84;--ink-faint:#7a7266;
     --accent:#ff5722;--accent-2:#ffb066;--line:rgba(255,239,220,.08);
     --serif:'Instrument Serif',serif;--mono:'JetBrains Mono',monospace;
   }
@@ -104,7 +104,7 @@
   .request-card h3{font-size:20px;font-weight:600;margin-bottom:6px;letter-spacing:-.015em}
   .request-card p{color:var(--ink-dim);font-size:14px;margin-bottom:20px}
   .req-row{display:flex;gap:12px;flex-wrap:wrap}
-  .req-row input{flex:1;min-width:240px;padding:13px 16px;border-radius:10px;background:rgba(10,8,6,.5);border:1px solid var(--line);color:var(--ink);font-family:inherit;font-size:14px}
+  .req-row input{flex:1;min-width:0;padding:13px 16px;border-radius:10px;background:rgba(10,8,6,.5);border:1px solid var(--line);color:var(--ink);font-family:inherit;font-size:14px}
   .req-row input:focus{outline:none;border-color:rgba(255,87,34,.5)}
 
   /* Multi-location org overview */
@@ -144,7 +144,7 @@
   .wiz-actions button, .wiz-actions a{flex:1;min-width:120px;padding:12px;border-radius:10px;font-weight:700;font-size:13.5px;cursor:pointer;border:none;text-align:center;text-decoration:none}
   .wiz-actions .wiz-primary{background:linear-gradient(135deg,#e8c58a,#d4a574);color:#0a0806;box-shadow:0 10px 24px rgba(212,165,116,.28)}
   .wiz-actions .wiz-secondary{background:rgba(245,236,216,.06);color:var(--ink-dim);border:1px solid var(--line)}
-  .wiz-close{position:absolute;top:16px;right:20px;color:var(--ink-faint);background:none;border:none;font-size:22px;cursor:pointer}
+  .wiz-close{position:absolute;top:8px;right:12px;color:var(--ink-faint);background:none;border:none;font-size:22px;cursor:pointer;min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px}
 
   .empty-state{padding:60px 24px;text-align:center;color:var(--ink-dim);border-radius:18px;border:1px dashed var(--line)}
   .empty-state h3{font-family:var(--serif);font-style:italic;font-size:22px;color:var(--ink);margin-bottom:8px;font-weight:400}
@@ -212,7 +212,7 @@
   .welcome-banner.show{display:flex;opacity:1;transform:translateX(-50%) translateY(0)}
   .welcome-banner .wb-txt{font-size:14px;color:var(--ink);font-weight:500}
   .welcome-banner .wb-txt b{color:var(--accent-2);font-weight:700}
-  .welcome-banner .wb-close{background:transparent;border:none;color:var(--ink-dim);cursor:pointer;font-size:18px;padding:0 4px;line-height:1;transition:color .15s}
+  .welcome-banner .wb-close{background:transparent;border:none;color:var(--ink-dim);cursor:pointer;font-size:18px;padding:0;line-height:1;transition:color .15s;min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px}
   .welcome-banner .wb-close:hover{color:var(--ink)}
 
   /* Copy URL button */

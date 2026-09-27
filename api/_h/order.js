@@ -11,12 +11,25 @@ export default async function handler(req, res) {
 
   let body = {};
   try { body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body; } catch {}
-  const { r, table, items, note, tip_cents } = body || {};
+  const { r, table, items, note, tip_cents, client_order_id } = body || {};
   if (!r) return res.status(400).json({ error: 'Missing r' });
   if (!Array.isArray(items) || !items.length) return res.status(400).json({ error: 'No items' });
 
   const { data: restaurant } = await supabase.from('restaurants').select('id').eq('slug', r).single();
   if (!restaurant) return res.status(404).json({ error: 'Restaurant not found' });
+
+  // Idempotency — if the guest's client sent the same client_order_id in the
+  // last 15 min (network drop → retry pattern) return the existing order id
+  // rather than creating a duplicate. Bounded window so an old id can be
+  // reused for a legitimate new order later in the day.
+  if (client_order_id && typeof client_order_id === 'string') {
+    const cutoff = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+    const { data: dup } = await supabase.from('orders')
+      .select('id').eq('restaurant_id', restaurant.id)
+      .eq('client_order_id', String(client_order_id).slice(0, 60))
+      .gte('created_at', cutoff).maybeSingle();
+    if (dup) return res.status(200).json({ ok: true, order_id: dup.id, duplicate: true });
+  }
 
   // Default to orders-enabled when the settings row hasn't been created yet
   // (brand-new restaurant). Managers can still disable via the portal.
@@ -151,7 +164,8 @@ export default async function handler(req, res) {
     tip_cents: tipC,
     total_cents: totalC,
     currency,
-    guest_note: String(note || '').slice(0, 500) || null
+    guest_note: String(note || '').slice(0, 500) || null,
+    client_order_id: client_order_id ? String(client_order_id).slice(0, 60) : null
   }).select().single();
   if (oerr) return res.status(500).json({ error: 'Could not save order' });
 

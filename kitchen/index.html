@@ -268,7 +268,7 @@ function render(orders) {
         ${o.status === 'new' ? `<button class="btn-prep" data-mark="${o.id}:prep">Start prep</button>` : ''}
         ${o.status === 'prep' ? `<button class="btn-ready" data-mark="${o.id}:ready">Ready</button>` : ''}
         ${o.status === 'ready' ? `<button class="btn-served" data-mark="${o.id}:served">Served</button>` : ''}
-        ${o.status === 'served' || o.status === 'ready' ? `<button class="btn-undo" data-mark="${o.id}:${o.status === 'served' ? 'ready' : 'prep'}" style="background:rgba(245,239,220,.06);color:var(--ink-dim);border:1px solid var(--line);padding:6px 10px;border-radius:8px;font-size:11px;cursor:pointer">↶ Undo</button>` : ''}
+        ${o.status === 'served' || o.status === 'ready' ? `<button class="btn-undo" data-mark="${o.id}:${o.status === 'served' ? 'ready' : 'prep'}" style="background:rgba(245,239,220,.06);color:var(--ink-dim);border:1px solid var(--line);padding:10px 14px;border-radius:8px;font-size:13px;min-height:44px;cursor:pointer">↶ Undo</button>` : ''}
       </div>
     </div>`;
   }).join('');
