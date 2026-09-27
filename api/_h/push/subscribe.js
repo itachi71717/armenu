@@ -13,9 +13,14 @@ async function callerContext(req) {
   if (tok) {
     const s = verifyStaffToken(tok);
     if (s) {
-      // Resolve the AUTHORITATIVE role from the staff row — the token only
-      // carries staff_id + restaurant_id. Prevents role self-elevation via
-      // the request body.
+      // Manager hand-off (staff/login.js) issues a synthetic staff id of
+      // form 'manager-<restaurant_uuid>' with no matching staff row — trust
+      // the id prefix here so the manager kiosk keeps its 'manager' role.
+      if (typeof s.staff_id === 'string' && s.staff_id.startsWith('manager-')) {
+        return { restaurant_id: s.restaurant_id, role: 'manager' };
+      }
+      // Real staff: resolve the AUTHORITATIVE role from the staff row —
+      // client body is ignored so a waiter can't self-elevate to manager.
       const { data: st } = await supabase.from('staff')
         .select('role').eq('id', s.staff_id).maybeSingle();
       const role = ['manager', 'waiter', 'kitchen'].includes(st?.role) ? st.role : 'waiter';
