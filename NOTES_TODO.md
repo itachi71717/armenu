@@ -339,3 +339,8 @@ Pick the top item, do it, commit, push, tick it off here.
 **High (5)** — staff PIN brute-force lockout (per-ip + per-restaurant); waiter-call dedup by (restaurant,table) + 5/min cap; view.html add-to-cart failed after menu.html wrapped cart in {ts, items}; portal delegated click listener stacked on every loadMe (one tap → N handlers); credits + print-QR modals stacked click listeners → N checkout POSTs per Buy tap.
 **Medium (4)** — reservation status whitelist; restaurant DELETE audit before cascade; email-lowercase data migration; menu.html sendCall + revSend double-submit guards; org-overview siblings pruned on re-render.
 **Low (1)** — push subscribe role derived from authoritative staff.role (client body ignored) + refuse cross-restaurant endpoint hijack.
+
+### 2026-09-27 Round-5 regression check
+- Manual self-audit on my round-4 fixes (Workflow died at session limit).
+- Found + fixed 1 regression: push/subscribe treated the synthetic `manager-<rid>` staff id (from staff/login.js portal hand-off) as a real DB row → lookup returned null → role fell back to 'waiter', so manager kiosks would never receive manager-scoped push. Fixed by trusting the 'manager-' prefix.
+- Verified rest of round-4: compress SSRF allowlist matches Supabase URLs; staff PIN lockout gracefully handles missing table (shim returns `{data:[], error}` not a throw); menu.html `_callInFlight` flag resets on timer + button flags don't stick if sheet closes; modifier walker doesn't need flat-shape legacy compat (only ever nested).
