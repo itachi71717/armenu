@@ -350,3 +350,11 @@ Pick the top item, do it, commit, push, tick it off here.
 - `.btn-spinner` adopted on 4 login flows (admin, admin/restaurant, staff, kitchen) — button disabled + spinner glyph while awaiting, restored on error.
 - SEO: JSON-LD SoftwareApplication (index), Product+3-tier Offer (plans), FAQPage with 15 Q&A (faq) — Google rich-result eligible. Twitter Card meta on all 7 marketing pages.
 - sitemap: added changefreq per URL. robots: disallow /staff/, /kitchen/, /qr-print, /view, /m/, /t/ — no crawl budget wasted on empty auth-gated / templated URLs.
+
+### 2026-09-27 Round-6 full workflow test — 25 of 27 verified fixes shipped
+**HIGH (13)** — sold-out gate + required-mod gate on view.html; single-dish response now includes stock/modifiers; menu error toast surfaces data.message; cart re-render preserves note+table draft (`_cartDraft`); reservation email_sent is honest (awaited); 4 XSS in admin master console; kitchen Undo bumped to 44px min; menu clear-search aria-label + 44×44; portal --ink-faint contrast fix (2.3:1 → 4.6:1).
+**MEDIUM (10)** — client-side idempotency key + server 15-min short-circuit; rvSubmit try/catch for network drops; reservation uses own duration (not fixed 90m); server-side email regex; dismiss button error toast; audit action <select> rebuilt per load; --accent-hi → --accent-2 fix; portal req-row overflow on small phones; close-button tap targets.
+**UX (2)** — reservation timezone (restaurant_settings.timezone, IANA); "confirm on WhatsApp or phone" copy adapts to which channel guest actually provided; requires guest email OR phone.
+**LOW (1)** — dead _origCreate capture removed.
+
+**Deferred** — audit-log server-side pagination (needs cursor API — bigger change); "+ Add new dish" sidebar empty-state (cosmetic).
