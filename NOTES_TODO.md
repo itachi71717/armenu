@@ -344,3 +344,9 @@ Pick the top item, do it, commit, push, tick it off here.
 - Manual self-audit on my round-4 fixes (Workflow died at session limit).
 - Found + fixed 1 regression: push/subscribe treated the synthetic `manager-<rid>` staff id (from staff/login.js portal hand-off) as a real DB row → lookup returned null → role fell back to 'waiter', so manager kiosks would never receive manager-scoped push. Fixed by trusting the 'manager-' prefix.
 - Verified rest of round-4: compress SSRF allowlist matches Supabase URLs; staff PIN lockout gracefully handles missing table (shim returns `{data:[], error}` not a throw); menu.html `_callInFlight` flag resets on timer + button flags don't stick if sheet closes; modifier walker doesn't need flat-shape legacy compat (only ever nested).
+
+### 2026-09-27 Continuation batch (post-audit polish)
+- Ownership transfer UI: portal Team modal → new "Transfer ownership" section (owner-only, inside <details>). Wires the existing /api/portal/transfer endpoint.
+- `.btn-spinner` adopted on 4 login flows (admin, admin/restaurant, staff, kitchen) — button disabled + spinner glyph while awaiting, restored on error.
+- SEO: JSON-LD SoftwareApplication (index), Product+3-tier Offer (plans), FAQPage with 15 Q&A (faq) — Google rich-result eligible. Twitter Card meta on all 7 marketing pages.
+- sitemap: added changefreq per URL. robots: disallow /staff/, /kitchen/, /qr-print, /view, /m/, /t/ — no crawl budget wasted on empty auth-gated / templated URLs.
