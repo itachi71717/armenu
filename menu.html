@@ -708,19 +708,30 @@ function openReserve() {
     const notes = $('rvNotes').value.trim();
     if (!name || !when) return toast('Name and date/time required', 'err');
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return toast('That email doesn\'t look valid', 'err');
+    // Require at least one contact channel — otherwise the guest has no
+    // way to be reached with the restaurant's confirmation/decline.
+    if (!email && !phone) return toast('Add an email or phone so the restaurant can confirm', 'err');
     $('rvSubmit').disabled = true; $('rvSubmit').textContent = 'Sending…';
-    const res = await fetch('/api/reservation', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ r, guest_name: name, guest_phone: phone, guest_email: email, party_size: size, reserved_at: new Date(when).toISOString(), notes })
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) { $('rvSubmit').disabled = false; $('rvSubmit').textContent = 'Request booking →'; return toast(data.error || 'Failed', 'err'); }
-    // Show a booking-confirmation card with Add-to-calendar (and note that a
-    // confirmation email was sent, if we did send one).
+    let res, data;
+    try {
+      res = await fetch('/api/reservation', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ r, guest_name: name, guest_phone: phone, guest_email: email, party_size: size, reserved_at: new Date(when).toISOString(), notes })
+      });
+      data = await res.json().catch(() => ({}));
+    } catch (netErr) {
+      $('rvSubmit').disabled = false; $('rvSubmit').textContent = 'Request booking →';
+      return toast('No connection — please try again in a moment', 'err');
+    }
+    if (!res.ok) { $('rvSubmit').disabled = false; $('rvSubmit').textContent = 'Request booking →'; return toast(data.message || data.error || 'Failed', 'err'); }
+    // Confirmation card — three cases: email actually delivered, they only
+    // left a phone, or they left neither (blocked above but safe default).
     const emailNote = data.email_sent
-      ? `A confirmation was sent to <b>${email}</b>.`
-      : `The restaurant will confirm on WhatsApp or phone.`;
+      ? `A confirmation was sent to <b>${escapeHTML(email)}</b>.`
+      : (phone
+        ? 'The restaurant will confirm by phone or WhatsApp.'
+        : 'The restaurant has received your request. Please check back or contact them directly.');
     $('sheet').innerHTML = `
       <div style="padding:28px 24px;text-align:center">
         <div style="font-size:52px;margin-bottom:8px">✓</div>

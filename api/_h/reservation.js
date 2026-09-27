@@ -22,6 +22,15 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'reserved_at must be a valid future ISO datetime' });
   }
   const size = Math.max(1, Math.min(50, parseInt(party_size) || 2));
+  // Own duration for this booking (default 90 min). Used for both the
+  // overlap window search and the .ics event length.
+  const newDurMin = Math.max(30, Math.min(240, parseInt(body.duration_minutes) || 90));
+  const newDurMs = newDurMin * 60 * 1000;
+  // Server-side email validation — the frontend regex is optional and
+  // can be bypassed. If invalid we drop it entirely (store null, omit
+  // replyTo) so Resend never sees a malformed To/replyTo header.
+  const rawEmail = guest_email ? String(guest_email).trim().toLowerCase() : null;
+  const validEmail = rawEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail) ? rawEmail : null;
 
   const { data: rest } = await supabase.from('restaurants').select('id, name, email, slug').eq('slug', r).single();
   if (!rest) return res.status(404).json({ error: 'restaurant not found' });
@@ -38,21 +47,23 @@ export default async function handler(req, res) {
         .select('id, reserved_at, duration_minutes, status')
         .eq('restaurant_id', rest.id)
         .in('status', ['pending', 'confirmed'])
-        .gte('reserved_at', new Date(when.getTime() - 90 * 60 * 1000).toISOString())
-        .lte('reserved_at', new Date(when.getTime() + 90 * 60 * 1000).toISOString())
+        .gte('reserved_at', new Date(when.getTime() - Math.max(newDurMs, 90 * 60 * 1000)).toISOString())
+        .lte('reserved_at', new Date(when.getTime() + Math.max(newDurMs, 90 * 60 * 1000)).toISOString())
     ]);
     const capacity = Math.max(1, tbls.length || 20);
-    // Count reservations whose window overlaps the requested slot
-    const targetT = when.getTime();
+    // Count reservations whose window overlaps THIS booking's actual window
+    // (not a hard-coded 90 min — a tasting-menu booking may run 120+).
+    const targetStart = when.getTime();
+    const targetEnd = targetStart + newDurMs;
     const overlapping = nearby.filter(x => {
       const s = new Date(x.reserved_at).getTime();
       const durMs = (x.duration_minutes || 90) * 60 * 1000;
-      return targetT < s + durMs && targetT + 90 * 60 * 1000 > s;
+      return targetStart < s + durMs && targetEnd > s;
     });
     if (overlapping.length >= capacity) {
       return res.status(409).json({
         error: 'slot_full',
-        message: `Sorry — ${rest.name} is fully booked around ${when.toLocaleString('en-ZA', { dateStyle: 'medium', timeStyle: 'short' })}. Try a different time.`
+        message: `Sorry — ${rest.name} is fully booked around ${when.toLocaleString('en-ZA', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Africa/Johannesburg' })}. Try a different time.`
       });
     }
   } catch {}
@@ -61,16 +72,23 @@ export default async function handler(req, res) {
     restaurant_id: rest.id,
     guest_name,
     guest_phone: guest_phone || null,
-    guest_email: guest_email ? String(guest_email).trim().toLowerCase() : null,
+    guest_email: validEmail,
     party_size: size,
     reserved_at: when.toISOString(),
+    duration_minutes: newDurMin,
     notes: notes || null,
     status: 'pending'
   }).select().single();
   if (error) return res.status(500).json({ error: error.message });
 
-  // Fire-and-forget push to the manager
-  const local = when.toLocaleString('en-ZA', { dateStyle: 'medium', timeStyle: 'short' });
+  // Format times in the RESTAURANT's local timezone (not the Vercel node
+  // process's UTC) so a 7pm CPT booking shows as "7:00 PM" in the push and
+  // email, not "5:00 PM". Falls back to Africa/Johannesburg — restaurants
+  // can set restaurant_settings.timezone (IANA) to override.
+  const { data: settings } = await supabase.from('restaurant_settings')
+    .select('timezone').eq('restaurant_id', rest.id).maybeSingle();
+  const tz = settings?.timezone || 'Africa/Johannesburg';
+  const local = when.toLocaleString('en-ZA', { dateStyle: 'medium', timeStyle: 'short', timeZone: tz });
   sendPush(rest.id, {
     title: 'New reservation',
     body: `${guest_name} · party of ${size} · ${local}`,
@@ -88,7 +106,7 @@ export default async function handler(req, res) {
     description: `Party of ${size} in the name of ${guest_name}. Booking status: pending — the restaurant will confirm shortly.`,
     location: rest.name,
     startISO: created.reserved_at,
-    durationMinutes: 90
+    durationMinutes: newDurMin
   });
   const icsDataUrl = 'data:text/calendar;charset=utf-8;base64,' + Buffer.from(ics, 'utf8').toString('base64');
 
@@ -100,6 +118,9 @@ export default async function handler(req, res) {
   const proto = (req.headers['x-forwarded-proto'] || 'https').split(',')[0];
   const host  = req.headers['x-forwarded-host'] || req.headers.host || (process.env.VERCEL_URL || 'armenu.co.za');
   const portalUrl = `${proto}://${host}/portal/`;
+  // Track the guest send result so we can be honest about email_sent
+  // in the response. Manager send stays fire-and-forget.
+  let guestSendResult = null;
   const emailPromises = [];
   if (created.guest_email) {
     const guestHtml = `<!doctype html><html><body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#1a1a1a">
@@ -115,12 +136,13 @@ export default async function handler(req, res) {
       <p style="margin-top:24px"><a href="${icsDataUrl}" download="reservation-${created.id}.ics" style="display:inline-block;padding:12px 20px;background:#e8c58a;color:#0a0806;border-radius:8px;text-decoration:none;font-weight:700">Add to calendar</a></p>
       <p style="color:#888;font-size:12px;margin-top:32px;border-top:1px solid #eee;padding-top:16px">Sent by ARMenu on behalf of ${escapeHtml(rest.name)}. Reply to this email to reach them directly.</p>
     </body></html>`;
-    emailPromises.push(sendMail({
+    // Await this one — we need the truthful outcome for email_sent.
+    guestSendResult = await sendMail({
       to: created.guest_email,
       subject: `Booking received — ${rest.name}, ${local}`,
       html: guestHtml,
       replyTo: safeHeader(rest.email)
-    }));
+    });
   }
   if (rest.email) {
     const mgrHtml = `<!doctype html><html><body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#1a1a1a">
@@ -151,7 +173,8 @@ export default async function handler(req, res) {
     ok: true,
     reservation_id: created.id,
     ics_data_url: icsDataUrl,
-    email_sent: !!created.guest_email && !!process.env.RESEND_API_KEY
+    // Honest — reflects actual Resend outcome, not just "we tried".
+    email_sent: !!(guestSendResult && guestSendResult.ok)
   });
 }
 

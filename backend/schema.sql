@@ -296,3 +296,8 @@ create index if not exists staff_login_attempts_rest_ip on staff_login_attempts(
 update restaurants     set email = lower(email) where email is not null and email <> lower(email);
 update manager_users   set email = lower(email) where email is not null and email <> lower(email);
 update pending_signups set email = lower(email) where email is not null and email <> lower(email);
+
+-- Restaurant local timezone (IANA name) — used for reservation emails,
+-- push notifications, and any user-visible time formatting. Falls back
+-- to Africa/Johannesburg when null. Managers can set this from settings.
+alter table restaurant_settings add column if not exists timezone text;
