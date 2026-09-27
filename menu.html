@@ -813,7 +813,7 @@ function loadCart() {
     }
   } catch {}
 }
-function clearCart() { state.cart = []; try { localStorage.removeItem(CART_KEY); } catch {} }
+function clearCart() { state.cart = []; _cartDraft = { note: '', tableInput: '' }; try { localStorage.removeItem(CART_KEY); } catch {} }
 loadCart();
 
 // ============ SHEETS ============
@@ -831,8 +831,14 @@ $('overlay').addEventListener('click', closeSheet);
 // Session-scoped tip choice (0 = no tip, 10 / 15 / 20 = percent). Default 10%.
 let _tipPct = 10;
 
+// Preserve user-typed values across cart re-renders (tip toggle / qty +/-)
+// so a guest who typed "no peanuts, allergy" then adjusted qty doesn't lose it.
+let _cartDraft = { note: '', tableInput: '' };
 function openCart() {
   if (!state.cart.length) return toast('Your cart is empty', 'err');
+  // Snapshot the current form values BEFORE we re-render (openSheet wipes them)
+  const prevNote = $('orderNote')?.value; if (prevNote != null) _cartDraft.note = prevNote;
+  const prevTbl  = $('orderTable')?.value; if (prevTbl != null) _cartDraft.tableInput = prevTbl;
   const sym = state.settings.locale.currency_symbol || 'R';
   const subtotal = state.cart.reduce((s, i) => s + i.price_cents * i.qty, 0);
   const tipCents = Math.round(subtotal * (_tipPct / 100));
@@ -861,8 +867,8 @@ function openCart() {
     </div>
     ${tipCents > 0 ? `<div class="cart-total" style="padding-top:6px;font-weight:500;color:var(--ink-dim)"><span>Tip (${_tipPct}%)</span><span>${fmtPrice(tipCents, sym)}</span></div>` : ''}
     <div class="cart-total" style="border-top:1px solid var(--line);padding-top:12px;font-size:18px"><span>Total</span><span style="color:var(--accent)">${fmtPrice(total, sym)}</span></div>
-    <div class="field"><label>Note for the kitchen (optional)</label><textarea id="orderNote" rows="2" placeholder="Allergies, spice level, etc."></textarea></div>
-    ${!table ? '<div class="field"><label>Your table number (optional)</label><input id="orderTable" placeholder="e.g. 12" /></div>' : ''}
+    <div class="field"><label>Note for the kitchen (optional)</label><textarea id="orderNote" rows="2" placeholder="Allergies, spice level, etc.">${escapeHTML(_cartDraft.note)}</textarea></div>
+    ${!table ? `<div class="field"><label>Your table number (optional)</label><input id="orderTable" placeholder="e.g. 12" value="${escapeHTML(_cartDraft.tableInput)}" /></div>` : ''}
     <button class="submit" id="orderSend">Send to kitchen →</button>
   `);
   document.querySelectorAll('[data-tip]').forEach(b => b.onclick = () => { _tipPct = +b.dataset.tip; openCart(); });
@@ -892,7 +898,7 @@ async function submitOrder() {
       })
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Could not send');
+    if (!res.ok) throw new Error(data.message || data.error || 'Could not send');
     clearCart(); updateActionbar(); closeSheet();
     window.ArMenuSound?.play('chime');
     toast('Order sent. kitchen has it ✓', 'ok');

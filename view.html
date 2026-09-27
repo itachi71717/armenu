@@ -491,25 +491,41 @@
     const table = params.get('t');
     const addBtn = document.getElementById('addToCartBtn');
     if (addBtn) {
+      const soldOut = meal.sold_out === true;
+      const dishMods = Array.isArray(meal.modifiers) ? meal.modifiers : [];
+      const hasRequiredMods = dishMods.some(g => g && g.required);
       addBtn.style.display = 'inline-flex';
-      addBtn.onclick = () => {
-        try {
-          const key = 'armenu_cart_' + r + (table ? '_' + table : '');
-          // Cart on menu.html is wrapped as { ts, items: [...] } with 24h expiry.
-          // Accept both bare-array (legacy) and wrapped shapes; write back the
-          // wrapped shape so menu.html's loadCart sees a fresh timestamp.
-          let raw;
-          try { raw = JSON.parse(localStorage.getItem(key) || 'null'); } catch { raw = null; }
-          const cur = Array.isArray(raw) ? raw : (raw && Array.isArray(raw.items) ? raw.items : []);
-          const existing = cur.find(i => i.slug === d && !(i.modifiers && i.modifiers.length));
-          if (existing) existing.qty++;
-          else cur.push({ key: d + '::', slug: d, name: meal.dish || meal.name || d, qty: 1, price_cents: meal.price_cents || 0, modifiers: [] });
-          localStorage.setItem(key, JSON.stringify({ ts: Date.now(), items: cur }));
-          window.ArMenuSound?.play('pop');
-          addBtn.textContent = '✓ Added';
-          setTimeout(() => addBtn.textContent = '+ Add', 1200);
-        } catch (e) { console.warn(e); }
-      };
+      if (soldOut) {
+        addBtn.textContent = 'Sold out';
+        addBtn.disabled = true;
+        addBtn.style.opacity = '0.5';
+        addBtn.style.cursor = 'not-allowed';
+      } else if (hasRequiredMods) {
+        // Required modifier groups exist — bounce the guest back to the menu
+        // so they can use the modifier picker sheet. Adding blind here would
+        // send a broken order the kitchen can't fulfil.
+        addBtn.textContent = 'Choose options →';
+        addBtn.onclick = () => {
+          const url = '/m/' + encodeURIComponent(r) + (table ? '?t=' + encodeURIComponent(table) : '') + '#dish-' + encodeURIComponent(d);
+          location.href = url;
+        };
+      } else {
+        addBtn.onclick = () => {
+          try {
+            const key = 'armenu_cart_' + r + (table ? '_' + table : '');
+            let raw;
+            try { raw = JSON.parse(localStorage.getItem(key) || 'null'); } catch { raw = null; }
+            const cur = Array.isArray(raw) ? raw : (raw && Array.isArray(raw.items) ? raw.items : []);
+            const existing = cur.find(i => i.slug === d && !(i.modifiers && i.modifiers.length));
+            if (existing) existing.qty++;
+            else cur.push({ key: d + '::', slug: d, name: meal.dish || meal.name || d, qty: 1, price_cents: meal.price_cents || 0, modifiers: [] });
+            localStorage.setItem(key, JSON.stringify({ ts: Date.now(), items: cur }));
+            window.ArMenuSound?.play('pop');
+            addBtn.textContent = '✓ Added';
+            setTimeout(() => addBtn.textContent = '+ Add', 1200);
+          } catch (e) { console.warn(e); }
+        };
+      }
     }
 
     // Prev/Next dish nav — fetches sibling dishes from /api/dish

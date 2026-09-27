@@ -16,7 +16,7 @@ export default async function handler(req, res) {
   // Column sets — try new (v2/v3) first, fall back to old if columns missing
   const NEW_LIST = 'slug, name, price, price_cents, description, thumb_url, glb_url, category_id, translations, allergens, sort_order, stock_count, modifiers';
   const OLD_LIST = 'slug, name, price, thumb_url, glb_url';
-  const NEW_SINGLE = 'name, price, price_cents, description, glb_url, usdz_url, camera_orbit, translations, allergens, scale';
+  const NEW_SINGLE = 'name, price, price_cents, description, glb_url, usdz_url, camera_orbit, translations, allergens, scale, stock_count, modifiers, thumb_url, slug, id';
   const OLD_SINGLE = 'name, price, glb_url, usdz_url, camera_orbit';
   const missing = e => /column .* does not exist/i.test(String(e?.message || '')) || e?.code === '42703';
 
@@ -38,7 +38,13 @@ export default async function handler(req, res) {
       translations: x.translations || {},
       allergens: x.allergens,
       glb: x.glb_url, usdz: x.usdz_url, orbit: x.camera_orbit,
-      scale: x.scale || 1
+      scale: x.scale || 1,
+      // Extra fields so view.html can gate the +Add button correctly
+      // (sold-out check + required-modifier group check).
+      slug: x.slug, id: x.id, thumb_url: x.thumb_url,
+      stock_count: x.stock_count,
+      sold_out: typeof x.stock_count === 'number' && x.stock_count <= 0,
+      modifiers: Array.isArray(x.modifiers) ? x.modifiers : []
     });
   }
 
