@@ -440,12 +440,17 @@
           }
         } catch {}
       }
-      if ($('audFilterAction').options.length <= 1) {
+      // Rebuild the action <select> on every loadAudit so a restaurant-
+      // filter change surfaces actions present in the new slice. Preserve
+      // the current selection if the option still exists.
+      (() => {
+        const sel = $('audFilterAction');
+        const prev = sel.value;
         const actions = [...new Set(events.map(e => e.action))].sort();
-        for (const a of actions) {
-          const o = document.createElement('option'); o.value = a; o.textContent = a; $('audFilterAction').appendChild(o);
-        }
-      }
+        sel.innerHTML = '<option value="">All actions</option>' +
+          actions.map(a => `<option value="${escapeHTML(a)}">${escapeHTML(a)}</option>`).join('');
+        if (prev && actions.includes(prev)) sel.value = prev;
+      })();
       if (!filtered.length) { $('audRows').innerHTML = '<div style="padding:40px;text-align:center;color:var(--ink-faint)">No events.</div>'; return; }
       $('audRows').innerHTML = filtered.map(e => {
         const when = new Date(e.created_at).toLocaleString('en-ZA', { dateStyle: 'medium', timeStyle: 'short' });
@@ -453,7 +458,7 @@
         return `<div style="display:grid;grid-template-columns:150px 130px 220px 1fr 80px;gap:12px;padding:10px 16px;border-bottom:1px solid var(--line);font-size:13px;align-items:center">
           <div style="color:var(--ink-faint);font-family:var(--mono);font-size:11px">${when}</div>
           <div style="color:${actorColor};font-family:var(--mono);font-size:11px;font-weight:700">${escapeHTML(e.actor || 'system')}</div>
-          <div style="color:var(--accent-hi);font-family:var(--mono);font-size:12px">${escapeHTML(e.action)}</div>
+          <div style="color:var(--accent-2);font-family:var(--mono);font-size:12px">${escapeHTML(e.action)}</div>
           <div style="color:var(--ink);font-size:13px">${e.target ? '<b>' + escapeHTML(e.target) + '</b>' : ''} ${e.metadata && Object.keys(e.metadata).length ? '<span style="color:var(--ink-faint);font-size:11px">' + escapeHTML(JSON.stringify(e.metadata)) + '</span>' : ''}</div>
           <div style="color:var(--ink-faint);font-family:var(--mono);font-size:10px">${e.ip || ''}</div>
         </div>`;
@@ -477,13 +482,13 @@
     return (name || '?').split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
   }
   function clientRow(c) {
-    return `<tr data-slug="${c.slug}">
-      <td><div class="client-cell"><div class="avatar">${avatarFor(c.name)}</div>
-        <div><div class="client-name">${c.name}</div><div class="client-slug">/r/${c.slug}</div></div></div></td>
+    return `<tr data-slug="${escapeHTML(c.slug)}">
+      <td><div class="client-cell"><div class="avatar">${escapeHTML(avatarFor(c.name))}</div>
+        <div><div class="client-name">${escapeHTML(c.name)}</div><div class="client-slug">/r/${escapeHTML(c.slug)}</div></div></div></td>
       <td>${c.dishes}</td>
       <td>${c.scans_30d.toLocaleString()}</td>
       <td><span class="status">live</span></td>
-      <td><button class="row-del" data-del-slug="${c.slug}" data-del-name="${c.name.replace(/"/g,'&quot;')}" title="Delete restaurant" style="background:rgba(248,113,113,.1);color:#f87171;border:1px solid rgba(248,113,113,.25);padding:4px 8px;border-radius:6px;font-size:11px;cursor:pointer">🗑</button></td>
+      <td><button class="row-del" data-del-slug="${escapeHTML(c.slug)}" data-del-name="${escapeHTML(c.name)}" title="Delete restaurant" style="background:rgba(248,113,113,.1);color:#f87171;border:1px solid rgba(248,113,113,.25);padding:4px 8px;border-radius:6px;font-size:11px;cursor:pointer">🗑</button></td>
     </tr>`;
   }
   function tableShell(rows) {
@@ -604,32 +609,41 @@
       const pending = c.requests.filter(req => req.status === 'pending').length;
       $('ms-requests').textContent = pending;
 
+      // Every d.* / req.* below is manager-controlled data landing in the
+      // master-admin console — escape unconditionally. thumb_url doesn't
+      // reach an inline style at all; it hydrates via data-bg + style.backgroundImage.
       $('clientDishesWrap').innerHTML = c.dishes.length
         ? `<div class="dishes-grid">${c.dishes.map(d => `
             <div class="dish-tile">
-              <div class="thumb" ${d.thumb_url ? `style="background-image:url('${d.thumb_url}')"` : ''}>
-                ${d.thumb_url ? '' : '<span class="thumb-fallback">' + d.name[0] + '</span>'}
+              <div class="thumb" data-bg="${escapeHTML(d.thumb_url || '')}">
+                ${d.thumb_url ? '' : '<span class="thumb-fallback">' + escapeHTML((d.name && d.name[0]) || '?') + '</span>'}
                 <span class="scans">${d.scans_30d} scans</span>
               </div>
               <div class="info">
-                <div class="name">${d.name}</div>
-                <div class="lbl">${d.price || '—'} · ${d.active ? 'live' : 'inactive'}</div>
+                <div class="name">${escapeHTML(d.name)}</div>
+                <div class="lbl">${escapeHTML(d.price || '—')} · ${d.active ? 'live' : 'inactive'}</div>
               </div>
               <div class="qr-row">
-                <div class="qr-box"><canvas data-qr-url="https://armenu.co.za/view.html?r=${r.slug}&d=${d.slug}"></canvas></div>
+                <div class="qr-box"><canvas data-qr-url="https://armenu.co.za/view.html?r=${encodeURIComponent(r.slug)}&d=${encodeURIComponent(d.slug)}"></canvas></div>
                 <div class="qr-links">
-                  <a href="/view.html?r=${r.slug}&d=${d.slug}" target="_blank">Open AR page →</a>
-                  <a data-qr-download="${d.slug}" href="#">Download QR ↓</a>
+                  <a href="/view.html?r=${encodeURIComponent(r.slug)}&d=${encodeURIComponent(d.slug)}" target="_blank">Open AR page →</a>
+                  <a data-qr-download="${escapeHTML(d.slug)}" href="#">Download QR ↓</a>
                 </div>
               </div>
             </div>`).join('')}</div>`
         : `<div class="empty-state"><h3>No dishes yet.</h3><p>Add this restaurant's first dish to publish its AR page.</p><button class="btn" data-go="add-dish">+ Add dish</button></div>`;
 
+      // Hydrate thumb backgrounds from the escaped data-bg attributes
+      $('clientDishesWrap').querySelectorAll('[data-bg]').forEach(el => {
+        const url = el.getAttribute('data-bg');
+        if (url && /^https?:\/\//i.test(url)) el.style.backgroundImage = `url("${url.replace(/"/g, '%22')}")`;
+      });
+
       renderDishQRCodes();
 
       $('clientRequestsWrap').innerHTML = c.requests.length
         ? `<table><thead><tr><th>Date</th><th>Message</th><th>Status</th></tr></thead><tbody>${
-            c.requests.map(req => `<tr><td style="font-family:var(--mono);font-size:12px;color:var(--ink-dim)">${new Date(req.created_at).toLocaleDateString()}</td><td>${req.message}</td><td><span class="status">${req.status}</span></td></tr>`).join('')
+            c.requests.map(req => `<tr><td style="font-family:var(--mono);font-size:12px;color:var(--ink-dim)">${new Date(req.created_at).toLocaleDateString()}</td><td>${escapeHTML(req.message)}</td><td><span class="status">${escapeHTML(req.status)}</span></td></tr>`).join('')
           }</tbody></table>`
         : `<div class="empty-state"><p style="margin:0">No requests yet.</p></div>`;
 
@@ -873,18 +887,19 @@
         wrap.innerHTML = `<div class="empty-state"><h3>Nothing pending.</h3><p>When someone signs up at /portal/ with an email that doesn't match any restaurant, they'll show here.</p></div>`;
         return;
       }
+      // All p.* fields come from unauthenticated public signup — escape.
       wrap.innerHTML = `<table>
         <thead><tr><th>Date</th><th>Restaurant</th><th>Email</th><th>Phone</th><th>Message</th><th></th></tr></thead>
         <tbody>${list.map(p => `
           <tr>
             <td style="font-family:var(--mono);font-size:12px;color:var(--ink-dim)">${new Date(p.created_at).toLocaleDateString()}</td>
-            <td><strong>${p.restaurant_name || '—'}</strong></td>
-            <td style="font-family:var(--mono);font-size:12px">${p.email}</td>
-            <td>${p.phone || '—'}</td>
-            <td style="max-width:240px;color:var(--ink-dim);font-size:13px">${p.message || '—'}</td>
+            <td><strong>${escapeHTML(p.restaurant_name || '—')}</strong></td>
+            <td style="font-family:var(--mono);font-size:12px">${escapeHTML(p.email)}</td>
+            <td>${escapeHTML(p.phone || '—')}</td>
+            <td style="max-width:240px;color:var(--ink-dim);font-size:13px">${escapeHTML(p.message || '—')}</td>
             <td style="text-align:right;display:flex;gap:6px;justify-content:flex-end">
-              <button class="btn-ghost btn" data-action="link" data-email="${p.email}" data-name="${(p.restaurant_name || '').replace(/"/g,'&quot;')}">+ Create restaurant</button>
-              <button class="btn-ghost btn" data-action="dismiss" data-id="${p.id}">Dismiss</button>
+              <button class="btn-ghost btn" data-action="link" data-email="${escapeHTML(p.email)}" data-name="${escapeHTML(p.restaurant_name || '')}">+ Create restaurant</button>
+              <button class="btn-ghost btn" data-action="dismiss" data-id="${escapeHTML(p.id)}">Dismiss</button>
             </td>
           </tr>`).join('')}</tbody></table>`;
 
@@ -893,8 +908,15 @@
         const action = b.dataset.action;
         if (action === 'dismiss') {
           if (!confirm('Dismiss this sign-up?')) return;
-          await api('/api/admin/pending?id=' + b.dataset.id, { method: 'DELETE' });
-          loadPending();
+          b.disabled = true;
+          try {
+            await api('/api/admin/pending?id=' + encodeURIComponent(b.dataset.id), { method: 'DELETE' });
+            toast('Dismissed', 'ok');
+            loadPending();
+          } catch (err) {
+            b.disabled = false;
+            toast('Could not dismiss: ' + (err.message || 'server error'), 'err');
+          }
         }
         if (action === 'link') {
           // Pre-fill the Add Restaurant form with their email + name
@@ -907,9 +929,10 @@
       }));
     } catch (e) { if (e.message !== 'unauth') toast(e.message, 'err'); }
   }
-
-  // After successful "Create restaurant", auto-dismiss matching pending sign-up
-  const _origCreate = $('ncSubmit').onclick;
+  // (Dead-code hook removed. The "auto-dismiss matching pending on create"
+  // behaviour was never wired — the onclick capture always resolved to null
+  // because ncSubmit is bound via addEventListener. Left as a TODO for a
+  // future session to properly hook the post-create success path.)
 
   // ===== BOOT =====
   function boot() {
