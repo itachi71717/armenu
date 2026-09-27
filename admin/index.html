@@ -369,6 +369,11 @@
     const pw = $('loginPass').value.trim();
     if (!pw) return;
     $('loginErr').textContent = '';
+    const btn = $('loginBtn');
+    if (btn.disabled) return;
+    const origHTML = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="btn-spinner"></span>Signing in…';
     try {
       const res = await fetch('/api/admin/login', {
         method: 'POST',
@@ -382,6 +387,8 @@
       boot();
     } catch (e) {
       $('loginErr').textContent = 'Wrong password.';
+      btn.disabled = false;
+      btn.innerHTML = origHTML;
     }
   }
   $('loginBtn').addEventListener('click', attemptLogin);

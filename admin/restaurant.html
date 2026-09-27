@@ -570,6 +570,9 @@ async function api(path, opts = {}) {
 $('loginBtn').onclick = async () => {
   const pw = $('loginPass').value.trim(); if (!pw) return;
   $('loginErr').textContent = '';
+  const btn = $('loginBtn'); if (btn.disabled) return;
+  const orig = btn.innerHTML;
+  btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span>Signing in…';
   try {
     const r = await fetch('/api/admin/login', {
       method: 'POST', credentials: 'same-origin',
@@ -581,7 +584,10 @@ $('loginBtn').onclick = async () => {
     await api('/api/admin/settings?slug=' + slug);
     $('login').style.display = 'none';
     boot();
-  } catch { $('loginErr').textContent = 'Wrong password'; }
+  } catch {
+    $('loginErr').textContent = 'Wrong password';
+    btn.disabled = false; btn.innerHTML = orig;
+  }
 };
 
 // On page load, silently boot if the admin cookie is already valid

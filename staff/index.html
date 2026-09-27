@@ -190,6 +190,9 @@ $('loginBtn').onclick = async () => {
   const pin = $('loginPin').value.trim();
   if (!r || !pin) return $('loginErr').textContent = 'Both fields required';
   $('loginErr').textContent = '';
+  const btn = $('loginBtn'); if (btn.disabled) return;
+  const orig = btn.innerHTML;
+  btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span>Signing in…';
   try {
     const res = await fetch('/api/staff/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ r, pin }) });
     const data = await res.json();
@@ -197,7 +200,10 @@ $('loginBtn').onclick = async () => {
     session = data;
     localStorage.setItem('armenu_staff_session', JSON.stringify(session));
     onLoggedIn();
-  } catch (e) { $('loginErr').textContent = e.message; }
+  } catch (e) {
+    $('loginErr').textContent = e.message;
+    btn.disabled = false; btn.innerHTML = orig;
+  }
 };
 $('loginPin').addEventListener('keydown', e => { if (e.key === 'Enter') $('loginBtn').click(); });
 

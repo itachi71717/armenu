@@ -2,6 +2,12 @@ User-agent: *
 Allow: /
 Disallow: /admin/
 Disallow: /portal/
+Disallow: /staff/
+Disallow: /kitchen/
 Disallow: /api/
+Disallow: /qr-print.html
+Disallow: /view.html
+Disallow: /m/
+Disallow: /t/
 
 Sitemap: https://armenu.co.za/sitemap.xml
