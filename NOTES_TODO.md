@@ -3,7 +3,7 @@
 Maintained by Claude across sessions. What's done, what's next, what's blocked.
 Update after every completed item.
 
-## ✅ 2026-09-28 — UI overhaul (commit f5ce8de, pushed; NOT yet deployed with `vercel --prod`)
+## ✅ 2026-09-28 — UI overhaul (commit f5ce8de — deployed to prod, smoke 33/33)
 - New `vendor/armenu-fx.{js,css}` (data-fx="spotlight|shiny|reveal|countup|magnetic|tilt", ArmenuFX.scan/toast) and `vendor/armenu-cmdk.js` (Ctrl+K palette, wired on portal + admin).
 - Guest menu/view: brand accent vars end to end, 44px tap targets, skeletons, retry on error. Marketing: lazy images + effects. Operator: Esc closes modals, typed-confirm delete.
 - Backend: admin cookie accepted by admin/clients, audit actor from cookie, waiter-calls PATCH scope guard, staff order insert error handling. 47 tests pass.
