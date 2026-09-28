@@ -3,6 +3,26 @@
 Maintained by Claude across sessions. What's done, what's next, what's blocked.
 Update after every completed item.
 
+## ✅ 2026-09-28 — Ops batch (commit 2473499 — deployed to prod, smoke 33/33)
+**Kitchen/staff resilience:**
+- Offline banner when SSE/poll stalls >15s (heartbeat every 5s)
+- audioContext.state=='suspended' recovery on every chime attempt
+- Browser Notification fallback (permission asked on PIN entry)
+- Tab title unread count + red-dot favicon pulse when tab unfocused
+**Menu perf:**
+- <link rel=preconnect> to R2 CDN in menu+view heads
+- First 4 dish thumbs eager+high fetchpriority; rest lazy+low
+- view.html model-viewer reveal=manual — .glb only fetched when AR tapped (huge 3G win)
+**Guest flow:**
+- Persistent last-order banner on menu (2h expiry) → full order sheet
+- Post-order confirmation panel: order number + Save-to-phone canvas PNG
+- Order history in profile sheet (recent_orders added to GET /customer/me)
+**Portal:**
+- Onboarding wizard (#onboardWiz, distinct from #wizOverlay) — 3 steps: add first dish → print QR → test — only fires when restaurant has 0 dishes and 'armenu_portal_onboarded' flag missing
+**POPI:**
+- legal.html §2 clarified: ARMenu is controller of manager/staff/billing; restaurants are controllers of diner data per §5 DPA
+- 'Delete my data' link at bottom of profile sheet → DELETE /customer/me + regen token
+
 ## ✅ 2026-09-28 — Customer profiles v1 (commit 78eb527 — deployed to prod, smoke 33/33)
 - New tables: `customers` (token, name, phone, email, allergies[], dietary_prefs[], merged_into), `customer_favourites` (unique customer_id+dish_id)
 - `orders.customer_id` FK — silently attached when guest sends `customer_token` in /api/order body (backward compat, no token = null)
