@@ -3,6 +3,18 @@
 Maintained by Claude across sessions. What's done, what's next, what's blocked.
 Update after every completed item.
 
+## ✅ 2026-09-28 — Customer profiles v1 (commit 78eb527 — deployed to prod, smoke 33/33)
+- New tables: `customers` (token, name, phone, email, allergies[], dietary_prefs[], merged_into), `customer_favourites` (unique customer_id+dish_id)
+- `orders.customer_id` FK — silently attached when guest sends `customer_token` in /api/order body (backward compat, no token = null)
+- 4 new API routes: POST /customer/hello (upsert by token), GET+PATCH+DELETE /customer/me (with phone-collision merge), POST /customer/favourite (toggle)
+- Cross-restaurant: the browser token works at every ARMenu restaurant — favourites, allergies, dietary prefs follow the guest
+- Merge on phone match: favourites re-pointed, orders re-pointed, old row tombstoned via merged_into (bounded 5-hop resolver so no infinite loops)
+- menu.html: ♥ heart button on every dish (top-left, avoids AR tag), 👤 profile button in header → bottom sheet (name/phone/email/allergy chip input/dietary toggles/favourites list). Allergy nudge on add-to-cart via ArmenuFX.toast.
+- view.html: heart button next to AR/add-to-cart, same optimistic toggle
+- Contract doc: docs/customer-profiles.md
+- 19 new tests (customer-hello, customer-favourite, customer-merge) → 82 total
+- ⚠️ Requires DB migration: `curl -X POST -H "x-admin-secret: <yours>" https://armenu.co.za/api/admin/migrate` — until then /customer/hello returns "Could not create customer"
+
 ## ✅ 2026-09-28 — Batch 2 (commits 2faa68b + 5829f86 — deployed to prod, smoke 33/33)
 - Skeleton loaders (.sk-line/.sk-card/.btn-spinner) on portal/admin/staff/kitchen
 - .empty-state adopted on kitchen board (matches other surfaces)
