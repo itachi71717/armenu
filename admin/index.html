@@ -210,6 +210,7 @@
     <button type="button" class="nav-item" data-view="add-client"><span class="ico">+</span> Add restaurant</button>
     <button type="button" class="nav-item" data-view="add-dish" id="navAddDish"><span class="ico">↑</span> Add new dish</button>
     <button type="button" class="nav-item" data-view="audit"><span class="ico">◈</span> Audit log</button>
+    <button type="button" class="nav-item" data-view="migrate"><span class="ico">⚙</span> Run migration</button>
     <div class="nav-section">Account</div>
     <button type="button" class="nav-item" id="signOut"><span class="ico">↗</span> Sign out</button>
   </aside>
@@ -356,10 +357,98 @@
       </div>
     </div>
 
+    <!-- MIGRATION -->
+    <div class="view" id="view-migrate">
+      <div class="topbar">
+        <div>
+          <h1>Run <b>migration</b></h1>
+          <div class="sub">Apply <code>backend/schema.sql</code> to the live database. Idempotent — safe to run any time.</div>
+        </div>
+      </div>
+      <div class="card" style="padding:24px;max-width:820px">
+        <div id="migStatus" style="margin-bottom:20px">
+          <div class="sk-line" style="width:70%"></div>
+          <div class="sk-line" style="width:55%"></div>
+        </div>
+        <button id="migRun" style="padding:14px 22px;border-radius:10px;background:linear-gradient(135deg,#e8c58a,#d4a574);color:#0a0806;font-weight:800;font-size:15px;border:none;cursor:pointer;letter-spacing:.02em" disabled>Apply schema.sql →</button>
+        <div id="migResult" style="margin-top:20px;font-family:var(--mono);font-size:12px;line-height:1.5;color:var(--ink-dim);white-space:pre-wrap;max-height:60vh;overflow-y:auto"></div>
+      </div>
+    </div>
+
   </main>
 </div>
 
 <div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  // Bind after DOM ready — the existing view-switch delegator will show/hide us.
+  document.addEventListener('DOMContentLoaded', function () {
+    var statusEl = document.getElementById('migStatus');
+    var btn = document.getElementById('migRun');
+    var out = document.getElementById('migResult');
+    if (!statusEl || !btn || !out) return;
+
+    async function fetchDiff() {
+      statusEl.innerHTML = '<div class="sk-line" style="width:70%"></div><div class="sk-line" style="width:55%"></div>';
+      btn.disabled = true;
+      try {
+        var r = await fetch('/api/admin/migrate', { credentials: 'include' });
+        var j = await r.json();
+        if (!r.ok) {
+          statusEl.innerHTML = '<div style="color:#f87171;font-weight:600">Cannot check migration status: ' + (j.error || r.status) + '</div>';
+          return;
+        }
+        if (j.ok) {
+          statusEl.innerHTML = '<div style="color:#7dd87d;font-weight:600;font-size:16px">✓ Database is up to date — nothing to migrate.</div><div style="color:var(--ink-dim);font-size:13px;margin-top:6px">Every required table + column is present. Running again is still safe (idempotent).</div>';
+          btn.textContent = 'Run again anyway';
+        } else {
+          statusEl.innerHTML = '<div style="color:#f0b060;font-weight:600;font-size:16px">⚠ ' + j.missing.length + ' item(s) missing on the live DB:</div>' +
+            '<ul style="margin-top:10px;padding-left:24px;color:var(--ink-dim);font-family:var(--mono);font-size:12px;line-height:1.6">' +
+            j.missing.map(function(m){return '<li>' + m + '</li>';}).join('') + '</ul>';
+          btn.textContent = 'Apply schema.sql →';
+        }
+        btn.disabled = false;
+      } catch (e) {
+        statusEl.innerHTML = '<div style="color:#f87171">Network error: ' + (e.message || e) + '</div>';
+      }
+    }
+
+    async function runMigration() {
+      if (!confirm('Apply schema.sql to the LIVE database now? Safe (idempotent) but goes to production.')) return;
+      btn.disabled = true;
+      btn.textContent = 'Applying…';
+      out.textContent = '';
+      try {
+        var r = await fetch('/api/admin/migrate', { method: 'POST', credentials: 'include' });
+        var j = await r.json();
+        out.textContent = JSON.stringify(j, null, 2);
+        if (j.ok) {
+          out.textContent = '✓ Migration complete.\n\n' +
+            'Statements applied: ' + j.applied + '\n' +
+            'Failures: ' + (j.failures ? j.failures.length : 0) + '\n' +
+            'Missing before: ' + (j.missing_before ? j.missing_before.length : 0) + '\n' +
+            'Missing after: ' + (j.missing_after ? j.missing_after.length : 0) + '\n\n' +
+            '---\n' + out.textContent;
+        }
+        fetchDiff();
+      } catch (e) {
+        out.textContent = 'Error: ' + (e.message || e);
+        btn.disabled = false;
+      }
+    }
+
+    btn.addEventListener('click', runMigration);
+
+    // Fetch diff whenever the migrate view is shown
+    var checked = false;
+    document.addEventListener('click', function (e) {
+      var t = e.target && e.target.closest('[data-view="migrate"]');
+      if (t && !checked) { checked = true; fetchDiff(); }
+    });
+  });
+})();
+</script>
 
 <script>
   // Cookie-based admin session (httpOnly, HMAC-signed) issued by
