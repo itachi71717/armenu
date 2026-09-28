@@ -369,3 +369,41 @@ alter table order_items add column if not exists plated_at timestamptz;
 alter table order_items add column if not exists paid_by text;
 alter table order_items add column if not exists paid_at timestamptz;
 alter table orders add column if not exists paid_cents integer default 0;
+
+-- =====================================================================
+-- Customer profiles (cross-restaurant guest identity).
+-- See docs/customer-profiles.md for the full contract. One browser gets
+-- one `token` (client-generated UUID v4, localStorage), which maps to one
+-- `customers` row. Favourites and identity span every restaurant on the
+-- platform. `phone` is the stronger identity signal — when a PATCH sets a
+-- phone that already belongs to another row, the two are merged: the
+-- phone-owner row wins and the loser is soft-tombstoned via `merged_into`
+-- (never hard-deleted by a merge — only DELETE /api/customer/me hard-deletes).
+-- =====================================================================
+create table if not exists customers (
+  id             uuid primary key default gen_random_uuid(),
+  token          text unique not null,
+  name           text,
+  phone          text,
+  email          text,
+  allergies      text[] default '{}',
+  dietary_prefs  text[] default '{}',
+  merged_into    uuid references customers(id) on delete set null,
+  created_at     timestamptz default now(),
+  last_seen_at   timestamptz default now()
+);
+create index if not exists customers_phone_idx on customers (phone) where phone is not null and merged_into is null;
+create index if not exists customers_merged_into_idx on customers (merged_into) where merged_into is not null;
+
+create table if not exists customer_favourites (
+  id             uuid primary key default gen_random_uuid(),
+  customer_id    uuid references customers(id) on delete cascade,
+  dish_id        uuid references dishes(id) on delete cascade,
+  restaurant_id  uuid references restaurants(id) on delete cascade,
+  created_at     timestamptz default now(),
+  unique(customer_id, dish_id)
+);
+create index if not exists customer_favourites_customer_idx on customer_favourites (customer_id);
+
+alter table orders add column if not exists customer_id uuid references customers(id) on delete set null;
+create index if not exists orders_customer_idx on orders (customer_id) where customer_id is not null;

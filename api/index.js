@@ -12,6 +12,10 @@ const ROUTES = {
   'events':       'events',
   'reservation':  'reservation',
 
+  'customer/hello':     'customer/hello',
+  'customer/me':        'customer/me',
+  'customer/favourite': 'customer/favourite',
+
   'push/subscribe': 'push/subscribe',
   'push/vapid-key': 'push/vapid-key',
   'sentry-dsn':     'sentry-dsn',

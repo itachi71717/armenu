@@ -48,7 +48,8 @@ function cols(list) {
 // modifiers/translations/keys are jsonb — pg accepts JSON strings.
 // Everything else stringifies via the default driver.
 const PG_ARRAY_COLS = new Set([
-  'days_of_week', 'dish_ids', 'category_ids', 'enabled_languages'
+  'days_of_week', 'dish_ids', 'category_ids', 'enabled_languages',
+  'allergies', 'dietary_prefs'
 ]);
 export function toPgArrayLiteral(arr) {
   // Empty array → {}

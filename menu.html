@@ -112,6 +112,9 @@
   .dish .stock-tag.sold{background:#1a1410;color:#fff;border:1.5px solid rgba(245,239,220,.4)}
   .dish .stock-tag.low{background:linear-gradient(135deg,#f0b060,#e05252);color:#fff;border:1.5px solid rgba(255,255,255,.2);text-shadow:0 1px 2px rgba(0,0,0,.35)}
   .dish.sold-out{opacity:.62;filter:grayscale(.5)}
+  .heart-btn{position:absolute;top:12px;left:12px;z-index:2;width:32px;height:32px;min-width:32px;min-height:32px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:rgba(10,8,6,.55);border:1px solid rgba(255,239,220,.2);backdrop-filter:blur(6px);color:#f5efe6;font-size:15px;line-height:1;box-shadow:0 4px 12px rgba(0,0,0,.35);transition:transform .15s ease,color .15s ease}
+  .heart-btn:active{transform:scale(.88)}
+  .heart-btn.on{color:#ff5d7a;border-color:rgba(255,93,122,.45)}
   .dish.sold-out .thumb::after{content:"";position:absolute;inset:0;background:rgba(0,0,0,.35)}
   .dish .info{padding:14px 16px 12px;display:flex;flex-direction:column;gap:6px;flex:1}
   .dish .top-row{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
@@ -177,6 +180,19 @@
   .sheet .stars button{font-size:36px;color:#3a342d;background:none;border:none;transition:color .15s}
   .sheet .stars button.on{color:var(--accent-2)}
 
+  /* Profile sheet: chip-tag input + dietary toggles + favourites list */
+  .chip-input{display:flex;flex-wrap:wrap;gap:6px;padding:8px;border-radius:10px;background:rgba(255,239,220,.03);border:1px solid var(--line)}
+  .chip-input input{flex:1;min-width:80px;border:none;background:none;padding:6px 4px;font-size:13px;color:var(--ink)}
+  .chip-tag{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;background:rgba(var(--accent-rgb),.14);color:var(--accent-2);font-size:12px;font-weight:600}
+  .chip-tag button{color:var(--ink-faint);font-size:13px;line-height:1}
+  .diet-toggle-row{display:flex;flex-wrap:wrap;gap:8px}
+  .diet-toggle{padding:8px 12px;border-radius:999px;font-size:12px;font-weight:600;background:rgba(255,239,220,.04);border:1px solid var(--line);color:var(--ink-dim)}
+  .diet-toggle.on{background:rgba(var(--accent-rgb),.16);color:var(--accent);border-color:rgba(var(--accent-rgb),.35)}
+  .fav-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px}
+  .fav-row a{color:var(--ink);font-weight:600}
+  .fav-row .fav-r{color:var(--ink-faint);font-size:11px;display:block;margin-top:2px}
+  .profile-delete{display:block;text-align:center;margin-top:18px;font-size:12px;color:var(--ink-faint);text-decoration:underline}
+
   .state{padding:80px 24px;text-align:center;color:var(--ink-dim)}
   .state h2{font-family:var(--serif);font-style:italic;font-size:28px;color:var(--ink);margin-bottom:8px;font-weight:400}
   .state p{font-size:14px;max-width:340px;margin:0 auto}
@@ -207,6 +223,7 @@
   <div class="header-right">
     <button class="lang-btn" id="langBtn" style="display:none">EN</button>
     <button class="lang-btn" id="currencyBtn" title="Convert prices" style="display:none">ZAR</button>
+    <button class="lang-btn" id="profileBtn" title="Your profile" aria-label="Your profile">👤</button>
     <div class="venue-pill" id="navVenue">Loading…</div>
   </div>
 </header>
@@ -271,6 +288,84 @@ function toast(msg, kind='ok') {
 
 function escapeHTML(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ============ CUSTOMER PROFILE (identity, favourites, allergy nudges) ============
+let customerToken = null;
+let customer = null;              // { id, name, phone, email, allergies, dietary_prefs }
+let customerFavourites = [];      // [{ dish_id, restaurant_id, restaurant_slug, dish_slug, dish_name }]
+let customerFavKeys = new Set();  // "restaurant_slug::dish_slug"
+
+function getCustomerToken() {
+  try {
+    let t = localStorage.getItem('armenu_customer_token');
+    if (!t) { t = crypto.randomUUID(); localStorage.setItem('armenu_customer_token', t); }
+    return t;
+  } catch { return null; }
+}
+customerToken = getCustomerToken();
+
+async function refreshCustomer() {
+  if (!customerToken) return;
+  try {
+    await fetch('/api/customer/hello', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ token: customerToken })
+    }).then(res => res.ok ? res.json() : null).then(d => { if (d && d.customer) customer = d.customer; });
+  } catch {}
+  try {
+    const res = await fetch('/api/customer/me?token=' + encodeURIComponent(customerToken));
+    if (res.ok) {
+      const d = await res.json();
+      if (d.customer) customer = d.customer;
+      customerFavourites = Array.isArray(d.favourites) ? d.favourites : [];
+      customerFavKeys = new Set(customerFavourites.map(f => f.restaurant_slug + '::' + f.dish_slug));
+    }
+  } catch {}
+  syncHeartButtons();
+}
+refreshCustomer();
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refreshCustomer(); });
+
+function syncHeartButtons() {
+  document.querySelectorAll('.heart-btn[data-heart]').forEach(btn => {
+    const on = customerFavKeys.has(r + '::' + btn.dataset.heart);
+    btn.classList.toggle('on', on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+}
+
+async function toggleFavourite(slug, btn) {
+  const wasOn = btn.classList.contains('on');
+  btn.classList.toggle('on', !wasOn);
+  btn.setAttribute('aria-pressed', (!wasOn) ? 'true' : 'false');
+  try {
+    const res = await fetch('/api/customer/favourite', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ token: customerToken, restaurant_slug: r, dish_slug: slug })
+    });
+    if (!res.ok) throw new Error('failed');
+    const d = await res.json();
+    const key = r + '::' + slug;
+    if (d.favourited) customerFavKeys.add(key); else customerFavKeys.delete(key);
+    btn.classList.toggle('on', !!d.favourited);
+    btn.setAttribute('aria-pressed', d.favourited ? 'true' : 'false');
+  } catch {
+    btn.classList.toggle('on', wasOn);
+    btn.setAttribute('aria-pressed', wasOn ? 'true' : 'false');
+  }
+}
+
+// Allergy nudge — warns (never blocks) when an added dish's allergens overlap
+// the guest's saved allergy list. Case-insensitive substring match.
+function checkAllergyNudge(dish) {
+  try {
+    if (!customer || !Array.isArray(customer.allergies) || !customer.allergies.length) return;
+    const dishAllergens = String(dish?.allergens || '').toLowerCase();
+    if (!dishAllergens) return;
+    const matched = customer.allergies.find(a => a && dishAllergens.includes(String(a).toLowerCase()));
+    if (matched) window.ArmenuFX?.toast(`Heads up: contains ${matched}`, { type: 'warn' });
+  } catch {}
 }
 
 // Static ZAR conversion rates. Refreshed manually per quarter — good enough
@@ -580,6 +675,12 @@ function render() {
 
   // Wire dish buttons
   document.querySelectorAll('[data-add]').forEach(el => el.addEventListener('click', () => addToCart(el.dataset.add)));
+  // Wire heart buttons — never navigates the enclosing thumb link
+  document.querySelectorAll('[data-heart]').forEach(el => el.addEventListener('click', (e) => {
+    e.preventDefault(); e.stopPropagation();
+    toggleFavourite(el.dataset.heart, el);
+  }));
+  syncHeartButtons();
 
   updateActionbar();
   wireCategoryStuck();
@@ -663,8 +764,10 @@ function renderDish(d) {
   const lowStock = !soldOut && typeof d.stock === 'number' && d.stock > 0 && d.stock <= 3;
   const stockStatus = soldOut ? 'sold out' : (lowStock ? `only ${d.stock} left` : 'view in AR');
   const thumbAriaLabel = `${nameTr}, ${stockStatus}`;
+  const isFav = customerFavKeys.has(r + '::' + d.slug);
   return `
-    <div class="dish${soldOut ? ' sold-out' : ''}" data-fx="reveal">
+    <div class="dish${soldOut ? ' sold-out' : ''}" data-fx="reveal" id="dish-${escapeHTML(d.slug)}">
+      <button type="button" class="heart-btn${isFav ? ' on' : ''}" data-heart="${escapeHTML(d.slug)}" aria-pressed="${isFav ? 'true' : 'false'}" aria-label="Favourite ${escapeHTML(nameTr)}">♥</button>
       <a href="/view.html?r=${encodeURIComponent(r)}&d=${encodeURIComponent(d.slug)}${table ? '&t=' + encodeURIComponent(table) : ''}" class="thumb-link" aria-label="${escapeHTML(thumbAriaLabel)}">
         <div class="thumb" data-fx="spotlight" ${d.thumb ? `data-bg="${d.thumb}"` : ''}>
           ${d.thumb ? '' : `<span class="thumb-fallback" aria-hidden="true">${escapeHTML(nameTr[0] || '?')}</span>`}
@@ -831,6 +934,7 @@ function addToCart(slug, mods) {
   updateActionbar();
   window.ArMenuSound?.play('pop');
   toast(`Added ${dish.name}`, 'ok');
+  checkAllergyNudge(dish);
 }
 
 // Modifier picker sheet — one section per modifier group (radio for single, checkboxes for multi)
@@ -979,7 +1083,7 @@ async function submitOrder() {
     const res = await fetch('/api/order', {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        r, table: tbl, note, tip_cents, client_order_id,
+        r, table: tbl, note, tip_cents, client_order_id, customer_token: customerToken,
         items: state.cart.map(i => ({ dish_slug: i.slug, qty: i.qty, modifiers: i.modifiers || [] }))
       })
     });
@@ -989,6 +1093,142 @@ async function submitOrder() {
     window.ArMenuSound?.play('chime');
     toast('Order sent. kitchen has it ✓', 'ok');
   } catch (e) { toast(e.message, 'err'); btn.disabled = false; btn.textContent = 'Send to kitchen →'; }
+}
+
+// ============ CUSTOMER PROFILE SHEET ============
+function openProfile() {
+  const c = customer || {};
+  const allergies = Array.isArray(c.allergies) ? c.allergies.slice() : [];
+  const dietaryOptions = ['Vegan', 'Vegetarian', 'Halal', 'Kosher', 'Gluten-free', 'Dairy-free', 'Nut-free'];
+  const dietSelected = new Set((Array.isArray(c.dietary_prefs) ? c.dietary_prefs : []).map(x => String(x).toLowerCase()));
+
+  const favHtml = customerFavourites.length
+    ? customerFavourites.map(f => `
+        <div class="fav-row">
+          <a href="/m/${encodeURIComponent(f.restaurant_slug)}#dish-${encodeURIComponent(f.dish_slug)}">
+            ${escapeHTML(f.dish_name || f.dish_slug)}
+            <span class="fav-r">${escapeHTML(f.restaurant_slug)}</span>
+          </a>
+        </div>`).join('')
+    : `<div class="sh-sub">No favourites yet — tap the ♥ on any dish.</div>`;
+
+  openSheet(`
+    <h3>Your profile</h3>
+    <div class="sh-sub">Saved on this device — works across every ARMenu restaurant.</div>
+    <div class="field"><label>Name</label><input id="pfName" type="text" value="${escapeHTML(c.name || '')}" placeholder="Your name" /></div>
+    <div class="field"><label>Phone</label><input id="pfPhone" type="tel" value="${escapeHTML(c.phone || '')}" placeholder="071 234 5678" /></div>
+    <div class="field"><label>Email</label><input id="pfEmail" type="email" value="${escapeHTML(c.email || '')}" placeholder="you@email.com" /></div>
+    <div class="field">
+      <label>Allergies</label>
+      <div class="chip-input" id="pfAllergyBox">
+        <input id="pfAllergyInput" type="text" placeholder="Type and press Enter…" />
+      </div>
+    </div>
+    <div class="field">
+      <label>Dietary preferences</label>
+      <div class="diet-toggle-row" id="pfDietRow">
+        ${dietaryOptions.map(o => `<button type="button" class="diet-toggle${dietSelected.has(o.toLowerCase()) ? ' on' : ''}" data-diet-opt="${escapeHTML(o.toLowerCase())}">${escapeHTML(o)}</button>`).join('')}
+      </div>
+    </div>
+    <button class="submit" id="pfSave">Save →</button>
+    <div class="section-label" style="margin:24px 6px 12px">Your favourites</div>
+    <div id="pfFavList">${favHtml}</div>
+    <a href="#" class="profile-delete" id="pfDelete">Delete my profile</a>
+  `);
+
+  let allergyState = allergies.slice();
+  const box = $('pfAllergyBox');
+  const input = $('pfAllergyInput');
+  function renderAllergyChips() {
+    box.querySelectorAll('.chip-tag').forEach(el => el.remove());
+    allergyState.forEach((a, i) => {
+      const span = document.createElement('span');
+      span.className = 'chip-tag';
+      const label = document.createTextNode(a);
+      const rm = document.createElement('button');
+      rm.type = 'button';
+      rm.textContent = '✕';
+      rm.dataset.rmAllergy = String(i);
+      span.appendChild(label);
+      span.appendChild(rm);
+      box.insertBefore(span, input);
+    });
+    box.querySelectorAll('[data-rm-allergy]').forEach(b => b.onclick = () => {
+      allergyState.splice(+b.dataset.rmAllergy, 1);
+      renderAllergyChips();
+    });
+  }
+  renderAllergyChips();
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const v = input.value.trim();
+      if (v && !allergyState.some(a => a.toLowerCase() === v.toLowerCase())) allergyState.push(v);
+      input.value = '';
+      renderAllergyChips();
+    }
+  });
+
+  const dietState = new Set(dietSelected);
+  document.querySelectorAll('[data-diet-opt]').forEach(b => b.onclick = () => {
+    const k = b.dataset.dietOpt;
+    if (dietState.has(k)) { dietState.delete(k); b.classList.remove('on'); }
+    else { dietState.add(k); b.classList.add('on'); }
+  });
+
+  $('pfSave').onclick = async () => {
+    const btn = $('pfSave'); btn.disabled = true; const orig = btn.textContent; btn.textContent = 'Saving…';
+    try {
+      const res = await fetch('/api/customer/me', {
+        method: 'PATCH', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          token: customerToken,
+          name: $('pfName').value.trim() || undefined,
+          phone: $('pfPhone').value.trim() || undefined,
+          email: $('pfEmail').value.trim() || undefined,
+          allergies: allergyState,
+          dietary_prefs: [...dietState]
+        })
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.message || d.error || 'Could not save');
+      customer = d.customer || customer;
+      window.ArmenuFX?.toast('Saved', { type: 'success' });
+      if (d.merged) await refreshCustomer();
+      closeSheet();
+    } catch (e) {
+      window.ArmenuFX?.toast(e.message || 'Could not save', { type: 'error' });
+      btn.disabled = false; btn.textContent = orig;
+    }
+  };
+
+  $('pfDelete').onclick = (e) => { e.preventDefault(); openDeleteConfirm(); };
+}
+
+function openDeleteConfirm() {
+  openSheet(`
+    <h3>Delete your profile?</h3>
+    <div class="sh-sub">This removes your saved details and favourites from every ARMenu restaurant. This can't be undone.</div>
+    <button class="submit" id="pfDeleteConfirm" style="background:linear-gradient(135deg,#e05252,#c93d00)">Delete permanently</button>
+    <button class="submit" id="pfDeleteCancel" style="background:rgba(255,239,220,.06);color:var(--ink);margin-top:8px">Cancel</button>
+  `);
+  $('pfDeleteCancel').onclick = openProfile;
+  $('pfDeleteConfirm').onclick = async () => {
+    const btn = $('pfDeleteConfirm'); btn.disabled = true; btn.textContent = 'Deleting…';
+    try {
+      const res = await fetch('/api/customer/me?token=' + encodeURIComponent(customerToken), { method: 'DELETE' });
+      if (!res.ok) throw new Error('failed');
+      try { localStorage.removeItem('armenu_customer_token'); } catch {}
+      customer = null; customerFavourites = []; customerFavKeys = new Set();
+      customerToken = getCustomerToken();
+      syncHeartButtons();
+      window.ArmenuFX?.toast('Profile deleted', { type: 'success' });
+      closeSheet();
+    } catch (e) {
+      window.ArmenuFX?.toast('Could not delete — try again', { type: 'error' });
+      btn.disabled = false; btn.textContent = 'Delete permanently';
+    }
+  };
 }
 
 function openWaiter() {
@@ -1087,6 +1327,7 @@ function wireActions() {
   $('waiterBtn').onclick = openWaiter;
   $('reviewBtn').onclick = openReview;
   $('reserveBtn').onclick = openReserve;
+  $('profileBtn').onclick = openProfile;
 
   const langs = state.settings.locale.languages || ['en'];
   $('langBtn').onclick = () => {

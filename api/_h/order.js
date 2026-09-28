@@ -11,9 +11,28 @@ export default async function handler(req, res) {
 
   let body = {};
   try { body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body; } catch {}
-  const { r, table, items, note, tip_cents, client_order_id } = body || {};
+  const { r, table, items, note, tip_cents, client_order_id, customer_token } = body || {};
   if (!r) return res.status(400).json({ error: 'Missing r' });
   if (!Array.isArray(items) || !items.length) return res.status(400).json({ error: 'No items' });
+
+  // Optional customer_token → customer_id. Resolves through any merge chain
+  // (see docs/customer-profiles.md). Unresolvable/omitted token is silent —
+  // orders.customer_id just stays null, no error, no behavior change.
+  let customer_id = null;
+  const TOKEN_RE = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i;
+  if (typeof customer_token === 'string' && TOKEN_RE.test(customer_token)) {
+    try {
+      let { data: crow } = await supabase.from('customers').select('id, merged_into').eq('token', customer_token).maybeSingle();
+      let hops = 0;
+      while (crow?.merged_into && hops < 5) {
+        const { data: next } = await supabase.from('customers').select('id, merged_into').eq('id', crow.merged_into).maybeSingle();
+        if (!next) break;
+        crow = next;
+        hops++;
+      }
+      if (crow) customer_id = crow.id;
+    } catch {}
+  }
 
   const { data: restaurant } = await supabase.from('restaurants').select('id').eq('slug', r).single();
   if (!restaurant) return res.status(404).json({ error: 'Restaurant not found' });
@@ -165,7 +184,8 @@ export default async function handler(req, res) {
     total_cents: totalC,
     currency,
     guest_note: String(note || '').slice(0, 500) || null,
-    client_order_id: client_order_id ? String(client_order_id).slice(0, 60) : null
+    client_order_id: client_order_id ? String(client_order_id).slice(0, 60) : null,
+    customer_id
   }).select().single();
   if (oerr) return res.status(500).json({ error: 'Could not save order' });
 

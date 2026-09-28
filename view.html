@@ -110,6 +110,14 @@
     transition:transform .2s;
   }
   .ar-button:active{transform:scale(.98)}
+  .heart-btn{
+    width:52px;min-width:52px;height:52px;border-radius:14px;
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+    background:rgba(255,239,220,.07);border:1.5px solid rgba(255,239,220,.14);
+    color:#f5efe6;font-size:20px;cursor:pointer;transition:transform .15s,color .15s;
+  }
+  .heart-btn:active{transform:scale(.9)}
+  .heart-btn.on{color:#ff5d7a;border-color:rgba(255,93,122,.45);background:rgba(255,93,122,.1)}
   .ar-button svg{width:22px;height:22px;flex-shrink:0}
   .ar-button::after{
     content:"";position:absolute;inset:-4px;border-radius:22px;
@@ -391,6 +399,7 @@
         See it life-size on your table →
       </button>
       <button id="addToCartBtn" style="display:none;padding:14px 18px;border-radius:14px;background:rgba(232,197,138,.12);border:1.5px solid rgba(232,197,138,.35);color:#e8c58a;font-family:inherit;font-size:14px;font-weight:800;cursor:pointer">+ Add</button>
+      <button id="heartBtn" class="heart-btn" type="button" aria-pressed="false" aria-label="Favourite this dish">♥</button>
     </div>
     <div class="hint">Tap AR, then point at the table. <em>Your meal appears at real size.</em></div>
     <!-- Swipe-navigation hint dots (populated in JS if we know prev/next dishes) -->
@@ -405,6 +414,68 @@
   const params = new URLSearchParams(location.search);
   const r = params.get('r') || 'demo';
   const d = params.get('d') || 'avocado';
+
+  // ============ CUSTOMER PROFILE (identity + favourite heart) ============
+  let customerToken = null;
+  let customer = null;
+  function getCustomerToken() {
+    try {
+      let t = localStorage.getItem('armenu_customer_token');
+      if (!t) { t = crypto.randomUUID(); localStorage.setItem('armenu_customer_token', t); }
+      return t;
+    } catch { return null; }
+  }
+  customerToken = getCustomerToken();
+  async function refreshCustomer() {
+    if (!customerToken) return;
+    try {
+      await fetch('/api/customer/hello', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ token: customerToken })
+      }).then(res => res.ok ? res.json() : null).then(d2 => { if (d2 && d2.customer) customer = d2.customer; });
+    } catch {}
+    try {
+      const res = await fetch('/api/customer/me?token=' + encodeURIComponent(customerToken));
+      if (res.ok) {
+        const data = await res.json();
+        if (data.customer) customer = data.customer;
+        const favs = Array.isArray(data.favourites) ? data.favourites : [];
+        _isFavourited = favs.some(f => f.restaurant_slug === r && f.dish_slug === d);
+      }
+    } catch {}
+    syncHeartBtn();
+  }
+  let _isFavourited = false;
+  function syncHeartBtn() {
+    const btn = document.getElementById('heartBtn');
+    if (!btn) return;
+    btn.classList.toggle('on', _isFavourited);
+    btn.setAttribute('aria-pressed', _isFavourited ? 'true' : 'false');
+  }
+  async function toggleFavourite() {
+    const btn = document.getElementById('heartBtn');
+    if (!btn) return;
+    const was = _isFavourited;
+    _isFavourited = !was;
+    syncHeartBtn();
+    try {
+      const res = await fetch('/api/customer/favourite', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ token: customerToken, restaurant_slug: r, dish_slug: d })
+      });
+      if (!res.ok) throw new Error('failed');
+      const data = await res.json();
+      _isFavourited = !!data.favourited;
+      syncHeartBtn();
+    } catch {
+      _isFavourited = was;
+      syncHeartBtn();
+    }
+  }
+  refreshCustomer();
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refreshCustomer(); });
+  const heartBtn = document.getElementById('heartBtn');
+  if (heartBtn) heartBtn.addEventListener('click', toggleFavourite);
 
   // Lightweight client-side registry. production reads from /api/dish/:r/:d
   const REGISTRY = {
