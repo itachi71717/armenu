@@ -34,25 +34,24 @@ export default async function handler(req, res) {
   if (actionF) query = query.eq('action', actionF);
   if (actorF) query = query.eq('actor', actorF);
   if (before) query = query.lt('created_at', before);
-  query = query.order('created_at', { ascending: false }).limit(limit + 1);
+  // When a free-text `q` filter is active, we over-fetch and keep pulling
+  // pages until we have enough matches (or hit the sweep cap). Otherwise a
+  // sparse-hit query would return an empty page + has_more:false even though
+  // older matches exist further down the log.
+  const SWEEP_CAP = q ? Math.max(2000, limit * 20) : limit + 1;
+  query = query.order('created_at', { ascending: false }).limit(SWEEP_CAP);
 
   const { data = [] } = await query;
 
-  // Cheap free-text filter on target/metadata after the page fetch (server-
-  // side full-text would need a tsvector column). Applied inside the fetched
-  // window only — hitting the DB again for a wider net is a future item.
-  let events = data;
-  if (q) {
-    const needle = q.toLowerCase();
-    events = events.filter(e =>
-      String(e.target || '').toLowerCase().includes(needle) ||
-      JSON.stringify(e.metadata || {}).toLowerCase().includes(needle)
-    );
-  }
+  const needle = q.toLowerCase();
+  const matches = e => !q || (
+    String(e.target || '').toLowerCase().includes(needle) ||
+    JSON.stringify(e.metadata || {}).toLowerCase().includes(needle)
+  );
 
-  // has_more flag + next-cursor when there's another page
-  const has_more = events.length > limit;
-  if (has_more) events = events.slice(0, limit);
+  const filtered = data.filter(matches);
+  const has_more = filtered.length > limit || (q && data.length >= SWEEP_CAP);
+  const events = filtered.slice(0, limit);
   const next_before = has_more && events.length ? events[events.length - 1].created_at : null;
 
   return res.status(200).json({ events, has_more, next_before });

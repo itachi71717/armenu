@@ -20,5 +20,7 @@ jobs:
         run: node --experimental-vm-modules scripts/syntax-check.js
       - name: Inline HTML script check
         run: node --experimental-vm-modules scripts/html-script-check.js
+      - name: Lint
+        run: npm run lint --if-present
       - name: Test
         run: npm test
