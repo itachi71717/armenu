@@ -59,7 +59,14 @@
   function setMuted(v) { try { localStorage.setItem(MUTE_KEY, v ? '1' : '0'); } catch {} }
 
   window.ArMenuSound = {
-    play(name) { if (isMuted()) return; const fn = cues[name]; if (fn) fn(); },
+    play(name) {
+      if (isMuted()) return;
+      try {
+        // Inactive tabs suspend the AudioContext — check and resume on every attempt.
+        if (ctx && ctx.state === 'suspended') ctx.resume();
+        const fn = cues[name]; if (fn) fn();
+      } catch {}
+    },
     mute() { setMuted(true); },
     unmute() { setMuted(false); },
     muted: isMuted,

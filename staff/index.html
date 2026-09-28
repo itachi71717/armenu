@@ -98,6 +98,10 @@
   .modal textarea{width:100%;min-height:80px;padding:12px;border-radius:10px;background:rgba(255,239,220,.03);border:1px solid var(--line);color:var(--ink);font-family:inherit;font-size:14px;resize:vertical;margin-bottom:12px}
   .modal .row{display:flex;gap:8px}
   .modal .row button{flex:1;padding:12px;border-radius:10px;font-size:13px;font-weight:700;min-height:44px}
+
+  /* Connectivity heartbeat banner — hidden unless the last poll/SSE tick is stale */
+  #offlineBanner{display:none;padding:10px 16px;text-align:center;background:rgba(248,113,113,.14);border-bottom:1px solid var(--err);color:var(--err);font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+  #offlineBanner.show{display:block}
 </style>
 <script src="/vendor/armenu-errorbar.js" defer></script>
 <script src="/vendor/armenu-sounds.js" defer></script>
@@ -107,6 +111,8 @@
 <script src="/vendor/push-optin.js" defer></script>
 </head>
 <body>
+
+<div id="offlineBanner">⚠ Offline — orders may not appear</div>
 
 <div class="login-cover" id="login">
   <div class="login-card">
@@ -167,6 +173,73 @@ try { session = JSON.parse(localStorage.getItem('armenu_staff_session') || 'null
 })();
 let poll = null;
 
+// ---- Heartbeat / offline detection ----
+// lastTickAt is bumped on every successful poll or SSE event. If 15s pass
+// without one, we assume the network dropped and warn the operator.
+let hbTimer = null;
+let lastTickAt = Date.now();
+function markTick() { lastTickAt = Date.now(); hideOfflineBanner(); }
+function showOfflineBanner() { $('offlineBanner')?.classList.add('show'); }
+function hideOfflineBanner() { $('offlineBanner')?.classList.remove('show'); }
+function checkHeartbeat() {
+  if (!session) return;
+  if (Date.now() - lastTickAt > 15000) showOfflineBanner();
+}
+
+// ---- Notification fallback ----
+// Browser Notification API as a visual fallback for when sound fails
+// (suspended tab, muted device). No-op wherever unsupported.
+function ensureNotifyPermission() {
+  try {
+    if (window.Notification && Notification.permission === 'default') Notification.requestPermission().catch(() => {});
+  } catch {}
+}
+function fireStaffNotification(title, body) {
+  try {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    new Notification(title, { body, tag: 'armenu-staff-alert' });
+  } catch {}
+}
+
+// ---- Tab title / favicon pulse fallback ----
+// Last-resort visual signal when sound + notification both fail: flash the
+// tab title with an unread count and swap the favicon to a red-dot version.
+// Resets as soon as the operator focuses the tab back.
+const STAFF_TITLE = 'Staff';
+let unreadStaff = 0;
+let _faviconLink = null, _faviconOrigHref = null;
+function ensureFaviconLink() {
+  if (_faviconLink) return _faviconLink;
+  _faviconLink = document.querySelector('link[rel="icon"]') || document.querySelector('link[rel="shortcut icon"]');
+  if (!_faviconLink) { _faviconLink = document.createElement('link'); _faviconLink.rel = 'icon'; document.head.appendChild(_faviconLink); }
+  _faviconOrigHref = _faviconLink.getAttribute('href') || '/favicon.svg';
+  return _faviconLink;
+}
+function pulseFavicon(on) {
+  try {
+    const link = ensureFaviconLink();
+    if (!on) { link.href = _faviconOrigHref; return; }
+    const canvas = document.createElement('canvas'); canvas.width = 32; canvas.height = 32;
+    const ctx = canvas.getContext('2d'); if (!ctx) return;
+    ctx.fillStyle = '#0a0806'; ctx.beginPath(); ctx.arc(16, 16, 15, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#f87171'; ctx.beginPath(); ctx.arc(16, 16, 10, 0, Math.PI * 2); ctx.fill();
+    link.href = canvas.toDataURL('image/png');
+  } catch {}
+}
+function bumpUnreadStaff(n) {
+  if (!document.hidden) return; // operator is already looking at the console
+  unreadStaff += n;
+  document.title = `(${unreadStaff}) ${STAFF_TITLE}`;
+  pulseFavicon(true);
+}
+function resetUnreadStaff() {
+  unreadStaff = 0;
+  document.title = STAFF_TITLE + ' · ARMenu';
+  pulseFavicon(false);
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) resetUnreadStaff(); });
+window.addEventListener('focus', resetUnreadStaff);
+
 async function api(path, opts = {}) {
   const res = await fetch(path, {
     ...opts,
@@ -191,6 +264,7 @@ $('loginBtn').onclick = async () => {
   const btn = $('loginBtn'); if (btn.disabled) return;
   const orig = btn.innerHTML;
   btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span>Signing in…';
+  ensureNotifyPermission(); // first user interaction — safe point to ask
   try {
     const res = await fetch('/api/staff/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ r, pin }) });
     const data = await res.json();
@@ -209,7 +283,10 @@ function signOut() {
   localStorage.removeItem('armenu_staff_session');
   session = null;
   if (poll) clearInterval(poll);
+  if (hbTimer) { clearInterval(hbTimer); hbTimer = null; }
   try { es?.close(); } catch {}
+  hideOfflineBanner();
+  resetUnreadStaff();
   $('login').style.display = 'grid';
 }
 $('signout').onclick = signOut;
@@ -235,8 +312,12 @@ function onLoggedIn() {
   // Idempotent: clear any prior poll from an earlier session (rare, but
   // prevents timer leaks if this ever runs twice).
   if (poll) { clearInterval(poll); poll = null; }
+  if (hbTimer) { clearInterval(hbTimer); hbTimer = null; }
+  lastTickAt = Date.now();
+  hideOfflineBanner();
   refresh();
   poll = setInterval(refresh, 15000);   // fallback poll — SSE handles instant updates
+  hbTimer = setInterval(checkHeartbeat, 5000);
   startSSE();
   registerCmdK();
 }
@@ -262,8 +343,9 @@ let es = null;
 function startSSE() {
   try { es?.close(); } catch {}
   es = new EventSource('/api/events?token=' + encodeURIComponent(session.token));
-  es.addEventListener('orders', () => refresh());
-  es.addEventListener('calls', () => refresh());
+  es.onopen = () => markTick();
+  es.addEventListener('orders', () => { markTick(); refresh(); });
+  es.addEventListener('calls', () => { markTick(); refresh(); });
   es.onerror = () => { try { es.close(); } catch {} setTimeout(startSSE, 4000); };
 }
 
@@ -285,13 +367,18 @@ async function refresh() {
       api('/api/staff/orders'),
       api('/api/staff/calls').catch(() => ({ calls: [] }))
     ]);
+    markTick();
     const activeOrders = (oResp.orders || []).filter(o => o.status !== 'served');
     const openCalls = (cResp.calls || []).filter(c => c.status !== 'closed');
     // Play sounds on NEW items only (compare against previous snapshots)
     const oIds = new Set(activeOrders.map(o => o.id));
     const cIds = new Set(openCalls.map(c => c.id));
-    for (const id of oIds) if (!(window.__prevOids || new Set()).has(id) && window.__prevOids) window.ArMenuSound?.play('order');
-    for (const id of cIds) if (!(window.__prevCids || new Set()).has(id) && window.__prevCids) window.ArMenuSound?.play('call');
+    let newOrders = 0, newCalls = 0;
+    for (const id of oIds) if (!(window.__prevOids || new Set()).has(id) && window.__prevOids) { window.ArMenuSound?.play('order'); newOrders++; }
+    for (const id of cIds) if (!(window.__prevCids || new Set()).has(id) && window.__prevCids) { window.ArMenuSound?.play('call'); newCalls++; }
+    if (newOrders > 0) fireStaffNotification(newOrders > 1 ? `${newOrders} new orders` : 'New order', 'New order in the queue');
+    if (newCalls > 0) fireStaffNotification(newCalls > 1 ? `${newCalls} waiter calls` : 'Waiter call', 'A guest needs assistance');
+    if (newOrders > 0 || newCalls > 0) bumpUnreadStaff(newOrders + newCalls);
     window.__prevOids = oIds; window.__prevCids = cIds;
     updateBadge('ordersBadge', activeOrders.length);
     updateBadge('callsBadge', openCalls.length);

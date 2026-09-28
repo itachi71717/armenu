@@ -18,6 +18,7 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="preconnect" href="https://pub-6aeed51a836145e5be4673a4c349f0a9.r2.dev" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
 
 <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
@@ -329,7 +330,8 @@
     shadow-intensity="1.6"
     shadow-softness="0.8"
     exposure="1.05"
-    interaction-prompt="none">
+    interaction-prompt="none"
+    reveal="manual">
   </model-viewer>
   <div class="skeleton" id="skeleton" aria-hidden="true"><div class="skeleton-blob"></div></div>
   <div class="err" id="err">
@@ -570,6 +572,9 @@
     }
 
     const mv = document.getElementById('mv');
+    // reveal="manual" (set on the tag) defers the actual .glb network fetch
+    // until dismissPoster()/activateAR() is called from the AR button click
+    // handler below — the src is declared here but nothing downloads yet.
     mv.setAttribute('src', meal.glb);
     if(meal.usdz) mv.setAttribute('ios-src', meal.usdz);
     if(meal.orbit) mv.setAttribute('camera-orbit', meal.orbit);
@@ -578,11 +583,23 @@
     if (meal.scale && meal.scale !== 1) {
       mv.setAttribute('scale', `${meal.scale} ${meal.scale} ${meal.scale}`);
     }
+    // Poster image (thumb/poster) stands in for the model until the guest
+    // taps the AR button — this is what's actually visible on first paint.
+    const posterUrl = meal.thumb || meal.image || meal.poster;
+    if (posterUrl) mv.setAttribute('poster', posterUrl);
+
+    // reveal="manual" (static on the tag) means mv never auto-loads/fires
+    // 'load' until dismissPoster()/activateAR() runs, regardless of poster —
+    // so the loader/skeleton must come off immediately here in every case
+    // (poster or not), or a dish with no thumb would be stuck showing the
+    // loading overlay forever (it'd never get a 'load' event pre-tap).
+    document.getElementById('loader').classList.add('gone');
+    document.getElementById('skeleton').classList.add('gone');
+    setTimeout(()=>document.getElementById('scaleBadge').classList.add('show'), 600);
 
     mv.addEventListener('load', ()=>{
       document.getElementById('loader').classList.add('gone');
       document.getElementById('skeleton').classList.add('gone');
-      setTimeout(()=>document.getElementById('scaleBadge').classList.add('show'), 1000);
     });
 
     mv.addEventListener('error', ()=>{
@@ -756,6 +773,10 @@
     }
   });
 
+  // Tracks whether the (deferred, reveal="manual") .glb has been told to
+  // start loading yet — set the first time the AR button is tapped.
+  let _modelDismissed = false;
+
   arBtn.addEventListener('click', () => {
     // haptic-feel tap animation + real vibration if available
     arBtn.classList.remove('tap'); void arBtn.offsetWidth; arBtn.classList.add('tap');
@@ -764,19 +785,38 @@
       // iOS non-Safari: Quick Look not supported → guide them to Safari
       if (!supportsQuickLook()) { showSafariNag(); return; }
       const usdzUrl = mv.getAttribute('ios-src');
+      // Quick Look launches straight off the small .usdz — it never needs
+      // the (still-deferred) .glb model-viewer model to load at all.
       if (usdzUrl) { launchQuickLook(usdzUrl); return; }
       // No real .usdz for this dish yet. show the 3D view instead of
-      // silently failing (there's nothing valid for Quick Look to open).
+      // silently failing (there's nothing valid for Quick Look to open) —
+      // that does need the model, so fall through to the dismiss/activate
+      // logic below.
+    }
+
+    const activateNow = () => {
+      if (ios) {
+        mv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        arHint.classList.add('show');
+        return;
+      }
+      if (mv.canActivateAR) { mv.activateAR(); return; }
+      // Android without WebXR → guide to Chrome
+      if (isAndroid()) { showChromeNag(); return; }
+      // Desktop fallback
       mv.scrollIntoView({ behavior: 'smooth', block: 'center' });
       arHint.classList.add('show');
-      return;
+    };
+
+    if (!_modelDismissed) {
+      // First tap: kick off the deferred .glb fetch now, then activate AR
+      // (or fall back) once it has actually finished loading.
+      _modelDismissed = true;
+      mv.addEventListener('load', () => { updateArSupport(); activateNow(); }, { once: true });
+      mv.dismissPoster();
+    } else {
+      activateNow();
     }
-    if (mv.canActivateAR) { mv.activateAR(); return; }
-    // Android without WebXR → guide to Chrome
-    if (isAndroid()) { showChromeNag(); return; }
-    // Desktop fallback
-    mv.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    arHint.classList.add('show');
   });
 
   // ── iOS Safari nag ──────────────────────────────────────────────

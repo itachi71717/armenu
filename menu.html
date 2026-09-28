@@ -16,6 +16,7 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="preconnect" href="https://pub-6aeed51a836145e5be4673a4c349f0a9.r2.dev" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
 <style>
@@ -192,6 +193,9 @@
   .fav-row a{color:var(--ink);font-weight:600}
   .fav-row .fav-r{color:var(--ink-faint);font-size:11px;display:block;margin-top:2px}
   .profile-delete{display:block;text-align:center;margin-top:18px;font-size:12px;color:var(--ink-faint);text-decoration:underline}
+  .pf-danger-zone{margin-top:22px;padding-top:14px;border-top:1px solid var(--line);text-align:center}
+  .pf-danger-zone a{font-size:11px;color:var(--ink-faint);text-decoration:none;opacity:.75}
+  .pf-danger-zone a:hover{opacity:1;text-decoration:underline}
 
   .state{padding:80px 24px;text-align:center;color:var(--ink-dim)}
   .state h2{font-family:var(--serif);font-style:italic;font-size:28px;color:var(--ink);margin-bottom:8px;font-weight:400}
@@ -204,6 +208,21 @@
   .toast.err{border-color:rgba(248,113,113,.3);color:#f87171}
   .toast.ok{border-color:rgba(125,216,125,.3);color:#7dd87d}
   @keyframes fadein{from{opacity:0;transform:translate(-50%,-8px)}to{opacity:1;transform:translate(-50%,0)}}
+
+  .last-order-banner{display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(232,197,138,.1);border-bottom:1px solid var(--line);font-size:12.5px;color:var(--ink-dim)}
+  .last-order-banner .lob-text{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .last-order-banner .lob-text b{color:var(--ink)}
+  .last-order-banner .lob-view{flex-shrink:0;padding:6px 12px;border-radius:999px;background:rgba(232,197,138,.18);color:var(--accent-2);border:1px solid rgba(232,197,138,.3);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
+  .order-conf-panel{padding:30px 22px;text-align:center}
+  .order-conf-panel .conf-check{font-size:56px;line-height:1;margin-bottom:10px}
+  .order-conf-panel .conf-num{font-size:24px;font-weight:800;color:var(--accent);margin:4px 0 6px}
+  .order-conf-panel .conf-hint{color:var(--ink-dim);font-size:13px;margin-bottom:18px}
+  .order-conf-panel .conf-actions{display:flex;flex-direction:column;gap:8px}
+  .order-hist-row{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px}
+  .order-hist-row:last-child{border-bottom:none}
+  .order-hist-row .ohr-name{color:var(--ink);font-weight:600}
+  .order-hist-row .ohr-meta{color:var(--ink-faint);font-size:11.5px;margin-top:2px}
+  .order-hist-row .ohr-total{color:var(--accent-2);font-weight:700;white-space:nowrap}
 
   .foot-hint{text-align:center;padding:32px 24px 0;color:var(--ink-faint);font-size:12px;line-height:1.6}
   .foot-hint em{font-family:var(--serif);font-style:italic;color:var(--ink-dim);font-size:13px}
@@ -227,6 +246,11 @@
     <div class="venue-pill" id="navVenue">Loading…</div>
   </div>
 </header>
+
+<div class="last-order-banner" id="lastOrderBanner" style="display:none">
+  <div class="lob-text" id="lastOrderBannerText"></div>
+  <button type="button" class="lob-view" id="lastOrderBannerView">View</button>
+</div>
 
 <div id="content">
   <div class="state"><div class="spinner"></div><p>Loading the menu…</p></div>
@@ -295,6 +319,7 @@ let customerToken = null;
 let customer = null;              // { id, name, phone, email, allergies, dietary_prefs }
 let customerFavourites = [];      // [{ dish_id, restaurant_id, restaurant_slug, dish_slug, dish_name }]
 let customerFavKeys = new Set();  // "restaurant_slug::dish_slug"
+let customerRecentOrders = [];    // [{ order_id, restaurant_slug, restaurant_name, placed_at, total_cents, item_count }]
 
 function getCustomerToken() {
   try {
@@ -320,12 +345,75 @@ async function refreshCustomer() {
       if (d.customer) customer = d.customer;
       customerFavourites = Array.isArray(d.favourites) ? d.favourites : [];
       customerFavKeys = new Set(customerFavourites.map(f => f.restaurant_slug + '::' + f.dish_slug));
+      customerRecentOrders = Array.isArray(d.recent_orders) ? d.recent_orders : [];
     }
   } catch {}
   syncHeartButtons();
 }
 refreshCustomer();
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refreshCustomer(); });
+
+// ============ LAST ORDER (persistent confirmation banner) ============
+const LAST_ORDER_KEY = 'armenu_last_order';
+const LAST_ORDER_MAX_AGE_MS = 2 * 60 * 60 * 1000; // 2 hours
+
+function saveLastOrder(order) {
+  try { sessionStorage.setItem(LAST_ORDER_KEY, JSON.stringify(order)); } catch {}
+}
+function loadLastOrder() {
+  try {
+    const raw = sessionStorage.getItem(LAST_ORDER_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !parsed.placed_at) return null;
+    if (Date.now() - new Date(parsed.placed_at).getTime() > LAST_ORDER_MAX_AGE_MS) return null;
+    return parsed;
+  } catch { return null; }
+}
+function fmtRelativeTime(iso) {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.max(0, Math.round(diffMs / 60000));
+  if (mins < 1) return 'just now';
+  if (mins < 60) return mins + ' min ago';
+  const hrs = Math.floor(mins / 60);
+  return hrs + (hrs === 1 ? ' hour ago' : ' hours ago');
+}
+
+function renderLastOrderBanner() {
+  const order = loadLastOrder();
+  const banner = $('lastOrderBanner');
+  if (!banner) return;
+  if (!order) { banner.style.display = 'none'; return; }
+  const sym = state.settings?.locale?.currency_symbol || 'R';
+  $('lastOrderBannerText').innerHTML =
+    `Your order <b>#${escapeHTML(order.order_number)}</b> · ${escapeHTML(order.dish_summary || '')} · ${escapeHTML(fmtPrice(order.total_cents, sym) || '')} · Placed ${escapeHTML(fmtRelativeTime(order.placed_at))}`;
+  banner.style.display = 'flex';
+  $('lastOrderBannerView').onclick = () => openLastOrderSheet(order);
+}
+
+function openLastOrderSheet(order) {
+  const sym = state.settings?.locale?.currency_symbol || 'R';
+  const items = Array.isArray(order.items) ? order.items : [];
+  const itemsHtml = items.length
+    ? items.map(it => `
+      <div class="order-hist-row">
+        <div>
+          <div class="ohr-name">${escapeHTML(it.qty || 1)}× ${escapeHTML(it.name || '')}</div>
+        </div>
+        <div class="ohr-total">${fmtPrice(it.price_cents || 0, sym)}</div>
+      </div>`).join('')
+    : '';
+  openSheet(`
+    <h3>Order #${escapeHTML(order.order_number)}</h3>
+    <div class="sh-sub">${escapeHTML(order.restaurant_slug || '')}${order.table ? ' · Table ' + escapeHTML(order.table) : ''}</div>
+    ${itemsHtml}
+    <div class="cart-total" style="border-top:1px solid var(--line);padding-top:12px;font-size:16px"><span>Total</span><span style="color:var(--accent)">${fmtPrice(order.total_cents, sym)}</span></div>
+    <div class="sh-sub" style="margin-top:14px">Placed ${escapeHTML(fmtRelativeTime(order.placed_at))}</div>
+    <div class="sh-sub" style="margin-top:14px;line-height:1.6">To cancel or ask about a refund, please speak to your waiter — orders already sent to the kitchen may not be cancellable once prep has started.</div>
+  `);
+}
+
+renderLastOrderBanner();
 
 function syncHeartButtons() {
   document.querySelectorAll('.heart-btn[data-heart]').forEach(btn => {
@@ -427,6 +515,7 @@ async function boot() {
     applyBranding();
     render();
     wireActions();
+    renderLastOrderBanner();
   } catch (e) {
     showError('Could not load menu.', 'Check your internet and try again.', true);
   }
@@ -646,7 +735,7 @@ function render() {
       return true;
     });
   }
-  const dishesHtml = activeItems.map(d => renderDish(d)).join('');
+  const dishesHtml = activeItems.map((d, i) => renderDish(d, i)).join('');
 
   $('content').innerHTML = `
     ${cover}
@@ -753,7 +842,7 @@ function renderAllergenChips(raw) {
   return parts.length ? `<div class="diet-chips">${parts.join('')}</div>` : '';
 }
 
-function renderDish(d) {
+function renderDish(d, idx) {
   const sym = state.settings.locale.currency_symbol || 'R';
   const price = d.price_cents ? fmtPrice(d.price_cents, sym) : (d.price || '');
   const nameTr = d.translations?.[state.lang]?.name || d.name;
@@ -765,11 +854,21 @@ function renderDish(d) {
   const stockStatus = soldOut ? 'sold out' : (lowStock ? `only ${d.stock} left` : 'view in AR');
   const thumbAriaLabel = `${nameTr}, ${stockStatus}`;
   const isFav = customerFavKeys.has(r + '::' + d.slug);
+  // First ~4 above-the-fold tiles load their thumbnail immediately
+  // (eager/high-priority); everything else waits for the IntersectionObserver
+  // below to lazy-load it as it scrolls into view.
+  const isAboveFold = typeof idx === 'number' && idx < 4;
+  const thumbAttrs = isAboveFold
+    ? `loading="eager" fetchpriority="high"`
+    : `loading="lazy" fetchpriority="low"`;
+  const thumbBgAttr = d.thumb
+    ? (isAboveFold ? `style="background-image:url('${d.thumb}')"` : `data-bg="${d.thumb}"`)
+    : '';
   return `
     <div class="dish${soldOut ? ' sold-out' : ''}" data-fx="reveal" id="dish-${escapeHTML(d.slug)}">
       <button type="button" class="heart-btn${isFav ? ' on' : ''}" data-heart="${escapeHTML(d.slug)}" aria-pressed="${isFav ? 'true' : 'false'}" aria-label="Favourite ${escapeHTML(nameTr)}">♥</button>
       <a href="/view.html?r=${encodeURIComponent(r)}&d=${encodeURIComponent(d.slug)}${table ? '&t=' + encodeURIComponent(table) : ''}" class="thumb-link" aria-label="${escapeHTML(thumbAriaLabel)}">
-        <div class="thumb" data-fx="spotlight" ${d.thumb ? `data-bg="${d.thumb}"` : ''}>
+        <div class="thumb" data-fx="spotlight" ${thumbAttrs} ${thumbBgAttr}>
           ${d.thumb ? '' : `<span class="thumb-fallback" aria-hidden="true">${escapeHTML(nameTr[0] || '?')}</span>`}
           ${soldOut ? '<span class="stock-tag sold">Sold out</span>' : (lowStock ? `<span class="stock-tag low">Only ${d.stock} left</span>` : '<span class="ar-tag">View in AR</span>')}
         </div>
@@ -1075,6 +1174,7 @@ async function submitOrder() {
   const tbl = table || $('orderTable')?.value.trim() || undefined;
   const subtotal = state.cart.reduce((s, i) => s + i.price_cents * i.qty, 0);
   const tip_cents = Math.round(subtotal * (_tipPct / 100));
+  const total_cents = subtotal + tip_cents;
   // Client-side idempotency key — a network retry (spotty mobile signal
   // dropping the response leg after the DB write) sends the same key so
   // the server can short-circuit and return the same order_id.
@@ -1089,10 +1189,99 @@ async function submitOrder() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || data.error || 'Could not send');
-    clearCart(); updateActionbar(); closeSheet();
+
+    // Snapshot the order for the persistent banner + confirmation panel
+    // BEFORE the cart is cleared.
+    const items_snapshot = state.cart.map(i => ({ name: i.name, qty: i.qty, price_cents: i.price_cents * i.qty }));
+    const dishSummaryParts = state.cart.map(i => `${i.qty}x ${i.name}`);
+    let dish_summary = dishSummaryParts.join(', ');
+    if (dish_summary.length > 60) dish_summary = dish_summary.slice(0, 57) + '…';
+    const order_number = String(data.order_id || '').replace(/-/g, '').slice(-6).toUpperCase() || '------';
+    const lastOrder = {
+      order_id: data.order_id,
+      order_number,
+      restaurant_slug: r,
+      table: tbl || null,
+      dish_summary,
+      total_cents,
+      placed_at: new Date().toISOString(),
+      items: items_snapshot
+    };
+    saveLastOrder(lastOrder);
+
+    clearCart(); updateActionbar();
     window.ArMenuSound?.play('chime');
     toast('Order sent. kitchen has it ✓', 'ok');
+    renderLastOrderBanner();
+    showOrderConfirmation(lastOrder);
   } catch (e) { toast(e.message, 'err'); btn.disabled = false; btn.textContent = 'Send to kitchen →'; }
+}
+
+// Big check-mark confirmation shown right after the guest submits an order.
+// This is an ADDITIONAL layer on top of the existing "order placed" UX
+// (toast + chime + cart clear above) — it does not replace any of that.
+function showOrderConfirmation(order) {
+  const sym = state.settings?.locale?.currency_symbol || 'R';
+  openSheet(`
+    <div class="order-conf-panel">
+      <div class="conf-check">✓</div>
+      <h2 style="margin:0 0 4px;font-size:20px">Order placed</h2>
+      <div class="conf-num">#${escapeHTML(order.order_number)}</div>
+      <div class="conf-hint">Show this to your waiter if needed · ${escapeHTML(fmtPrice(order.total_cents, sym) || '')}${order.table ? ' · Table ' + escapeHTML(order.table) : ''}</div>
+      <div class="conf-actions">
+        <button class="submit" id="confSaveImg">📷 Save to phone</button>
+        <button class="submit" id="confDone" style="background:rgba(255,239,220,.06);color:var(--ink)">Done</button>
+      </div>
+    </div>
+  `);
+  $('confDone').onclick = closeSheet;
+  $('confSaveImg').onclick = () => saveOrderReceiptImage(order);
+}
+
+// Renders a simple receipt to an offscreen canvas and triggers a download.
+// Falls back to just leaving the confirmation panel visible if canvas
+// export isn't available (e.g. locked-down webview).
+function saveOrderReceiptImage(order) {
+  try {
+    const sym = state.settings?.locale?.currency_symbol || 'R';
+    const w = 640, lineH = 30;
+    const items = Array.isArray(order.items) ? order.items : [];
+    const h = 210 + items.length * lineH;
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('no canvas context');
+    ctx.fillStyle = '#0a0806'; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#e8c58a'; ctx.font = 'bold 30px sans-serif';
+    ctx.fillText('✓ Order #' + order.order_number, 24, 46);
+    ctx.fillStyle = '#c9c2b8'; ctx.font = '14px sans-serif';
+    ctx.fillText((order.restaurant_slug || '') + (order.table ? ' · Table ' + order.table : ''), 24, 74);
+    ctx.strokeStyle = '#3a342c'; ctx.beginPath(); ctx.moveTo(24, 90); ctx.lineTo(w - 24, 90); ctx.stroke();
+    let y = 122;
+    ctx.font = '15px sans-serif';
+    items.forEach(it => {
+      ctx.fillStyle = '#f5efdc';
+      ctx.fillText(`${it.qty}x ${it.name}`, 24, y);
+      ctx.fillStyle = '#e8c58a';
+      ctx.textAlign = 'right'; ctx.fillText(fmtPrice(it.price_cents, sym) || '', w - 24, y); ctx.textAlign = 'left';
+      y += lineH;
+    });
+    ctx.strokeStyle = '#3a342c'; ctx.beginPath(); ctx.moveTo(24, y + 4); ctx.lineTo(w - 24, y + 4); ctx.stroke();
+    ctx.font = 'bold 18px sans-serif'; ctx.fillStyle = '#e8c58a';
+    ctx.fillText('Total ' + (fmtPrice(order.total_cents, sym) || ''), 24, y + 34);
+    ctx.font = '12px sans-serif'; ctx.fillStyle = '#7a746a';
+    ctx.fillText('Placed ' + new Date(order.placed_at).toLocaleString(), 24, y + 58);
+
+    const dataUrl = canvas.toDataURL('image/png');
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = 'armenu-order-' + order.order_number + '.png';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  } catch {
+    toast('Could not save image — the order details above are still visible', 'err');
+  }
 }
 
 // ============ CUSTOMER PROFILE SHEET ============
@@ -1111,6 +1300,18 @@ function openProfile() {
           </a>
         </div>`).join('')
     : `<div class="sh-sub">No favourites yet — tap the ♥ on any dish.</div>`;
+
+  const sym = state.settings?.locale?.currency_symbol || 'R';
+  const ordersHtml = customerRecentOrders.length
+    ? customerRecentOrders.map(o => `
+        <div class="order-hist-row">
+          <div>
+            <div class="ohr-name">${escapeHTML(o.restaurant_name || o.restaurant_slug || '')}</div>
+            <div class="ohr-meta">${escapeHTML(new Date(o.placed_at).toLocaleDateString())} · ${escapeHTML(o.item_count)} item${o.item_count === 1 ? '' : 's'}</div>
+          </div>
+          <div class="ohr-total">${fmtPrice(o.total_cents, sym)}</div>
+        </div>`).join('')
+    : `<div class="sh-sub">No orders yet.</div>`;
 
   openSheet(`
     <h3>Your profile</h3>
@@ -1133,7 +1334,10 @@ function openProfile() {
     <button class="submit" id="pfSave">Save →</button>
     <div class="section-label" style="margin:24px 6px 12px">Your favourites</div>
     <div id="pfFavList">${favHtml}</div>
+    <h4 style="margin:24px 6px 12px;font-size:13px;color:var(--ink-dim)">Recent orders</h4>
+    <div id="pfOrderList">${ordersHtml}</div>
     <a href="#" class="profile-delete" id="pfDelete">Delete my profile</a>
+    <div class="pf-danger-zone"><a href="#" id="pfDeleteData">Delete my data</a></div>
   `);
 
   let allergyState = allergies.slice();
@@ -1203,6 +1407,26 @@ function openProfile() {
   };
 
   $('pfDelete').onclick = (e) => { e.preventDefault(); openDeleteConfirm(); };
+
+  $('pfDeleteData').onclick = async (e) => {
+    e.preventDefault();
+    const ok = window.confirm("Delete all your ARMenu data across every restaurant? This can't be undone.");
+    if (!ok) return;
+    try {
+      await fetch('/api/customer/me?token=' + encodeURIComponent(customerToken), { method: 'DELETE' });
+      try { localStorage.removeItem('armenu_customer_token'); } catch {}
+      customerToken = crypto.randomUUID();
+      try { localStorage.setItem('armenu_customer_token', customerToken); } catch {}
+      customer = null; customerFavourites = []; customerFavKeys = new Set();
+      syncHeartButtons();
+      if (window.ArmenuFX?.toast) window.ArmenuFX.toast('Your data has been deleted', { type: 'success' });
+      else alert('Your data has been deleted');
+      closeSheet();
+    } catch (err) {
+      if (window.ArmenuFX?.toast) window.ArmenuFX.toast('Could not delete — try again', { type: 'error' });
+      else alert('Could not delete — try again');
+    }
+  };
 }
 
 function openDeleteConfirm() {

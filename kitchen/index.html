@@ -74,6 +74,10 @@
   #board .empty-state h3{font-family:'Instrument Serif',serif;font-style:italic;font-size:36px;font-weight:400;color:var(--ink);margin-bottom:10px}
   #board .empty-state p{font-size:15px}
 
+  /* Connectivity heartbeat banner — hidden unless the last poll/SSE tick is stale */
+  #offlineBanner{display:none;padding:10px 16px;text-align:center;background:rgba(248,113,113,.14);border-bottom:1px solid var(--err);color:var(--err);font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+  #offlineBanner.show{display:block}
+
 </style>
 <script src="/vendor/armenu-errorbar.js" defer></script>
 <script src="/vendor/armenu-sounds.js" defer></script>
@@ -83,6 +87,8 @@
 <script src="/vendor/push-optin.js" defer></script>
 </head>
 <body>
+
+<div id="offlineBanner">⚠ Offline — orders may not appear</div>
 
 <div class="login" id="login">
   <div class="login-card">
@@ -133,6 +139,73 @@ try { session = JSON.parse(localStorage.getItem('armenu_kitchen_session') || 'nu
 let poll = null, es = null, tickTimer = null;
 let previousIds = new Set();
 
+// ---- Heartbeat / offline detection ----
+// lastTickAt is bumped on every successful poll or SSE event. If 15s pass
+// without one, we assume the network dropped and warn the operator.
+let hbTimer = null;
+let lastTickAt = Date.now();
+function markTick() { lastTickAt = Date.now(); hideOfflineBanner(); }
+function showOfflineBanner() { $('offlineBanner')?.classList.add('show'); }
+function hideOfflineBanner() { $('offlineBanner')?.classList.remove('show'); }
+function checkHeartbeat() {
+  if (!session) return;
+  if (Date.now() - lastTickAt > 15000) showOfflineBanner();
+}
+
+// ---- Notification fallback ----
+// Browser Notification API as a visual fallback for when sound fails
+// (suspended tab, muted device). No-op wherever unsupported.
+function ensureNotifyPermission() {
+  try {
+    if (window.Notification && Notification.permission === 'default') Notification.requestPermission().catch(() => {});
+  } catch {}
+}
+function fireOrderNotification(count) {
+  try {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    new Notification(count > 1 ? `${count} new orders` : 'New order', { body: 'New order in the kitchen queue', tag: 'armenu-kitchen-order' });
+  } catch {}
+}
+
+// ---- Tab title / favicon pulse fallback ----
+// Last-resort visual signal when sound + notification both fail: flash the
+// tab title with an unread count and swap the favicon to a red-dot version.
+// Resets as soon as the operator focuses the tab back.
+const KITCHEN_TITLE = 'Kitchen';
+let unreadOrders = 0;
+let _faviconLink = null, _faviconOrigHref = null;
+function ensureFaviconLink() {
+  if (_faviconLink) return _faviconLink;
+  _faviconLink = document.querySelector('link[rel="icon"]') || document.querySelector('link[rel="shortcut icon"]');
+  if (!_faviconLink) { _faviconLink = document.createElement('link'); _faviconLink.rel = 'icon'; document.head.appendChild(_faviconLink); }
+  _faviconOrigHref = _faviconLink.getAttribute('href') || '/favicon.svg';
+  return _faviconLink;
+}
+function pulseFavicon(on) {
+  try {
+    const link = ensureFaviconLink();
+    if (!on) { link.href = _faviconOrigHref; return; }
+    const canvas = document.createElement('canvas'); canvas.width = 32; canvas.height = 32;
+    const ctx = canvas.getContext('2d'); if (!ctx) return;
+    ctx.fillStyle = '#0a0806'; ctx.beginPath(); ctx.arc(16, 16, 15, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#f87171'; ctx.beginPath(); ctx.arc(16, 16, 10, 0, Math.PI * 2); ctx.fill();
+    link.href = canvas.toDataURL('image/png');
+  } catch {}
+}
+function bumpUnreadOrders(n) {
+  if (!document.hidden) return; // operator is already looking at the board
+  unreadOrders += n;
+  document.title = `(${unreadOrders}) ${KITCHEN_TITLE}`;
+  pulseFavicon(true);
+}
+function resetUnreadOrders() {
+  unreadOrders = 0;
+  document.title = KITCHEN_TITLE + ' · ARMenu';
+  pulseFavicon(false);
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) resetUnreadOrders(); });
+window.addEventListener('focus', resetUnreadOrders);
+
 async function api(path, opts = {}) {
   const res = await fetch(path, { ...opts, headers: { 'content-type': 'application/json', ...(session?.token ? { authorization: 'Bearer ' + session.token } : {}), ...(opts.headers || {}) } });
   if (res.status === 401) { signOut(); throw new Error('unauth'); }
@@ -148,6 +221,7 @@ $('loginBtn').onclick = async () => {
   const btn = $('loginBtn'); if (btn.disabled) return;
   const orig = btn.innerHTML;
   btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span>Entering…';
+  ensureNotifyPermission(); // first user interaction — safe point to ask
   try {
     const res = await fetch('/api/staff/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ r, pin }) });
     const data = await res.json();
@@ -166,7 +240,10 @@ function signOut() {
   localStorage.removeItem('armenu_kitchen_session');
   session = null;
   if (poll) clearInterval(poll);
+  if (hbTimer) { clearInterval(hbTimer); hbTimer = null; }
   try { es?.close(); } catch {}
+  hideOfflineBanner();
+  resetUnreadOrders();
   $('login').style.display = 'grid';
 }
 $('signout').onclick = signOut;
@@ -189,14 +266,19 @@ function onIn() {
   // 12s poll and 1Hz tick until the tab is a hundred timers deep.
   if (poll) { clearInterval(poll); poll = null; }
   if (tickTimer) { clearInterval(tickTimer); tickTimer = null; }
+  if (hbTimer) { clearInterval(hbTimer); hbTimer = null; }
   if (es) { try { es.close(); } catch {} es = null; }
+  lastTickAt = Date.now();
+  hideOfflineBanner();
   tick();
   refresh();
   poll = setInterval(refresh, 12000);
   tickTimer = setInterval(tick, 1000);
+  hbTimer = setInterval(checkHeartbeat, 5000);
   try {
     es = new EventSource('/api/events?token=' + encodeURIComponent(session.token));
-    es.addEventListener('orders', () => refresh());
+    es.onopen = () => markTick();
+    es.addEventListener('orders', () => { markTick(); refresh(); });
     es.onerror = () => { try { es.close(); } catch {} es = null; setTimeout(() => { if (session) onIn(); }, 4000); };
   } catch {}
   registerCmdK();
@@ -244,12 +326,15 @@ function tick() {
 async function refresh() {
   try {
     const { orders } = await api('/api/staff/orders');
+    markTick();
     const kitchen = (orders || []).filter(o => ['new','prep','ready'].includes(o.status));
     $('orderCount').textContent = `${kitchen.length} order${kitchen.length === 1 ? '' : 's'}`;
     render(kitchen);
     // Ding for new orders
     const currIds = new Set(kitchen.map(o => o.id));
-    for (const id of currIds) if (!previousIds.has(id)) beep();
+    let newCount = 0;
+    for (const id of currIds) if (!previousIds.has(id)) { beep(); newCount++; }
+    if (newCount > 0) { fireOrderNotification(newCount); bumpUnreadOrders(newCount); }
     previousIds = currIds;
   } catch (e) { console.error(e); }
 }
@@ -350,8 +435,8 @@ function beep() {
   if (window.ArMenuSound?.muted?.()) return;
   try {
     if (!_kbeepCtx) _kbeepCtx = new (window.AudioContext || window.webkitAudioContext)();
-    // Resume in case the ctx was suspended before a user gesture — .resume() is idempotent.
-    _kbeepCtx.resume?.();
+    // Inactive tabs suspend the AudioContext — check and resume on every attempt.
+    if (_kbeepCtx.state === 'suspended') _kbeepCtx.resume?.();
     const now = _kbeepCtx.currentTime;
     // Two-tone chirp (E5 → A5) with a soft envelope so it's noticeable not annoying
     [[659.25, 0], [880, 0.13]].forEach(([freq, t]) => {

@@ -29,7 +29,10 @@
   .qr-card .cta{margin-top:14px;font-size:14px;font-weight:700;letter-spacing:.02em}
   .qr-card .cta em{font-style:normal;color:#ff5722}
   .qr-card .foot{font-family:'JetBrains Mono',monospace;font-size:8.5px;color:#888;letter-spacing:.1em;text-transform:uppercase;margin-top:10px}
+  .qr-card .rname{font-size:11px;color:#0a0806;font-weight:700;margin-bottom:2px}
+  .qr-card .tagline{font-size:9.5px;color:#888;margin-top:4px}
   .msg{padding:60px 20px;text-align:center;color:#666}
+  @page{size:A4 portrait;margin:12mm}
   @media print{.toolbar{display:none}main{padding:15mm 12mm}}
 </style>
 <script src="/vendor/armenu-errorbar.js" defer></script>
@@ -87,10 +90,12 @@ async function api(path) {
 }
 
 let cachedItems = [];
+let restaurantName = '';
 async function load() {
   if (!slug) return document.getElementById('root').innerHTML = '<div class="msg">Missing ?r=&lt;restaurant-slug&gt;</div>';
   try {
     const client = await api('/api/admin/client?slug=' + slug);
+    restaurantName = client.restaurant.name || '';
     document.getElementById('restName').textContent = client.restaurant.name;
 
     if (type === 'tables') {
@@ -135,12 +140,14 @@ function render(items) {
       <div class="qr-card">
         <div>
           <div class="brand">AR · Menu</div>
+          ${restaurantName ? `<div class="rname">${escapeHTML(restaurantName)}</div>` : ''}
           <div class="title">${escapeHTML(it.title)}</div>
           ${it.subtitle ? `<div class="subtitle">${escapeHTML(it.subtitle)}</div>` : ''}
         </div>
         <div class="qr-holder"><canvas data-qr="${escapeHTML(it.url)}"></canvas></div>
         <div>
           <div class="cta">Scan · <em>See in AR</em></div>
+          <div class="tagline">Scan to see the menu in AR</div>
           <div class="foot">${escapeHTML(it.url.replace(/^https?:\/\//, ''))}</div>
         </div>
       </div>`).join('')}</div>`;

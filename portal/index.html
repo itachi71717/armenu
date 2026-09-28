@@ -145,6 +145,12 @@
   .wiz-actions .wiz-primary{background:linear-gradient(135deg,#e8c58a,#d4a574);color:#0a0806;box-shadow:0 10px 24px rgba(212,165,116,.28)}
   .wiz-actions .wiz-secondary{background:rgba(245,236,216,.06);color:var(--ink-dim);border:1px solid var(--line)}
   .wiz-close{position:absolute;top:8px;right:12px;color:var(--ink-faint);background:none;border:none;font-size:22px;cursor:pointer;min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px}
+  /* Onboarding wizard sits ABOVE any other .wiz-overlay use (QR pick, credits, add-dish, etc.) */
+  #onboardWiz{z-index:960}
+  #onboardSkip{color:var(--ink-faint);font-size:12px;text-decoration:underline;cursor:pointer}
+  .onboard-field{margin-bottom:12px}
+  .onboard-field label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:4px}
+  .onboard-field input,.onboard-field textarea{width:100%;padding:11px 13px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:14px;font-family:inherit}
 
   .empty-state{padding:60px 24px;text-align:center;color:var(--ink-dim);border-radius:18px;border:1px dashed var(--line)}
   .empty-state h3{font-family:var(--serif);font-style:italic;font-size:22px;color:var(--ink);margin-bottom:8px;font-weight:400}
@@ -430,6 +436,20 @@
     <div class="wiz-title" id="wizTitle">Welcome</div>
     <div class="wiz-body" id="wizBody">—</div>
     <div class="wiz-actions" id="wizActions"></div>
+  </div>
+</div>
+
+<!-- First-time onboarding wizard — distinct overlay, sits above #wizOverlay.
+     Never touch #wizOverlay's ids/handlers from here. -->
+<div class="wiz-overlay" id="onboardWiz">
+  <div class="wiz-card" style="position:relative">
+    <button class="wiz-close" id="onboardClose" aria-label="Close">×</button>
+    <div class="wiz-progress" id="onboardProgress"></div>
+    <div class="wiz-kicker" id="onboardKicker">Step 1 of 3</div>
+    <div class="wiz-title" id="onboardTitle">—</div>
+    <div class="wiz-body" id="onboardBody">—</div>
+    <div class="wiz-actions" id="onboardActions"></div>
+    <div style="text-align:center;margin-top:14px"><a href="#" id="onboardSkip">Skip for now</a></div>
   </div>
 </div>
 
@@ -753,11 +773,10 @@
       });
     }
 
-    // First-time onboarding wizard: if this is the primary restaurant and it
-    // has zero dishes, show a step-by-step modal (once per session).
-    if (data.dishes.length === 0 && !sessionStorage.getItem('armenu_wizard_seen')) {
-      setTimeout(() => showOnboardingWizard(r), 800);
-    }
+    // First-time onboarding wizard (3-step: add dish → print QR → test it).
+    // Gate on a persistent flag + a live zero-dishes check so it never
+    // re-appears for a manager who already has a menu.
+    maybeShowOnboardWiz(r);
 
     $('dishesWrap').innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:10px;flex-wrap:wrap">
@@ -2312,6 +2331,99 @@ Sub gluten-free bun +1200</code></div>
   }
 
   // ============================================================
+  // First-time onboarding wizard — new managers, 14-buttons-at-once fix.
+  // Separate overlay (#onboardWiz) from the legacy #wizOverlay-driven
+  // showOnboardingWizard() above; does not reuse any of its ids/handlers.
+  // ============================================================
+  const ONBOARD_FLAG = 'armenu_portal_onboarded';
+  function onboardDone() {
+    try { localStorage.setItem(ONBOARD_FLAG, '1'); } catch {}
+    try { sessionStorage.setItem(ONBOARD_FLAG, '1'); } catch {}
+    $('onboardWiz').classList.remove('on');
+  }
+  async function maybeShowOnboardWiz(rest) {
+    let already = false;
+    try { already = !!(localStorage.getItem(ONBOARD_FLAG) || sessionStorage.getItem(ONBOARD_FLAG)); } catch {}
+    if (already) return;
+    try {
+      const res = await fetch(`/api/dish?r=${encodeURIComponent(rest.slug)}`);
+      const d = await res.json().catch(() => ({}));
+      const dishes = Array.isArray(d.dishes) ? d.dishes : [];
+      if (dishes.length === 0) setTimeout(() => showOnboardWiz(rest), 800);
+    } catch (e) { /* network hiccup — don't block the portal on this */ }
+  }
+  function showOnboardWiz(rest) {
+    const ONBOARD_STEPS = [
+      {
+        title: 'Add your first dish.',
+        body: `<p>Name, price, a short description — that's it.</p>
+          <div class="onboard-field"><label>Dish name</label><input id="onbDishName" placeholder="e.g. Grilled Kingklip" /></div>
+          <div class="onboard-field"><label>Price</label><input id="onbDishPrice" type="text" placeholder="e.g. 185" /></div>
+          <div class="onboard-field"><label>Description (optional)</label><textarea id="onbDishDesc" rows="2" placeholder="One line diners will see"></textarea></div>
+          <div id="onbDishErr" style="color:#f87171;font-size:12.5px;min-height:16px"></div>`,
+        wire: () => {
+          $('onboardActions').innerHTML = `<button class="wiz-primary" id="onbAddBtn">Add dish →</button>`;
+          $('onbAddBtn').onclick = async () => {
+            const name = $('onbDishName').value.trim();
+            const price = $('onbDishPrice').value.trim();
+            const description = $('onbDishDesc').value.trim();
+            if (!name) { $('onbDishErr').textContent = 'Name is required'; return; }
+            const btn = $('onbAddBtn');
+            btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span>Adding…';
+            try {
+              const glb_url = location.origin + '/vendor/models/dish.glb';
+              const { ok, data } = await mgrFetch('/api/admin/dishes', {
+                method: 'POST',
+                body: JSON.stringify({ restaurant_slug: rest.slug, name, price, description, glb_url, ar_source: 'vendor' })
+              });
+              if (!ok) throw new Error(data.error || 'Could not add dish');
+              toast('First dish added', 'ok');
+              loadMe();
+              render(1);
+            } catch (e) {
+              $('onbDishErr').textContent = e.message;
+              btn.disabled = false; btn.textContent = 'Add dish →';
+            }
+          };
+        }
+      },
+      {
+        title: 'Print your table QR.',
+        body: `<p>One sheet, every table. Print it and you're set.</p>`,
+        wire: () => {
+          $('onboardActions').innerHTML = `
+            <a class="wiz-primary" href="/qr-print.html?r=${encodeURIComponent(rest.slug)}&t=1" target="_blank">Open QR sheet →</a>
+            <button class="wiz-secondary" id="onbPrintedBtn">I printed it</button>`;
+          $('onbPrintedBtn').onclick = () => render(2);
+        }
+      },
+      {
+        title: 'Test it.',
+        body: `<p>Scan me! This is exactly what your diners will see.</p>
+          <div style="display:flex;justify-content:center;margin:14px 0"><img id="onbTestQr" alt="Scan to open your live menu" style="width:180px;height:180px;border-radius:10px;background:#fff;padding:8px" /></div>`,
+        wire: async () => {
+          $('onboardActions').innerHTML = `<button class="wiz-primary" id="onbTestedBtn">I tested it</button>`;
+          $('onbTestedBtn').onclick = () => { onboardDone(); toast("You're live — nice work", 'ok'); };
+          try { $('onbTestQr').src = await qrDataUrl(menuTargetUrl(rest.slug), 320); } catch {}
+        }
+      }
+    ];
+    function render(i) {
+      const step = ONBOARD_STEPS[i];
+      $('onboardKicker').textContent = `Step ${i + 1} of ${ONBOARD_STEPS.length}`;
+      $('onboardTitle').innerHTML = step.title;
+      $('onboardBody').innerHTML = step.body;
+      $('onboardProgress').innerHTML = ONBOARD_STEPS.map((_, k) =>
+        `<span class="wiz-dot ${k < i ? 'done' : (k === i ? 'on' : '')}"></span>`).join('');
+      step.wire();
+    }
+    $('onboardSkip').onclick = (e) => { e.preventDefault(); onboardDone(); };
+    $('onboardClose').onclick = () => onboardDone();
+    $('onboardWiz').classList.add('on');
+    render(0);
+  }
+
+  // ============================================================
   // Push notification opt-in — non-intrusive banner after loadMe.
   // ============================================================
   async function offerPushOptIn() {
@@ -2386,8 +2498,14 @@ Sub gluten-free bun +1200</code></div>
 <script>
 (function () {
   function closeTopOverlay() {
+    var onboard = document.getElementById('onboardWiz');
     var wiz = document.getElementById('wizOverlay');
     var qr = document.getElementById('qrModal');
+    if (onboard && onboard.classList.contains('on')) {
+      var oc = document.getElementById('onboardClose');
+      if (oc) oc.click(); else onboard.classList.remove('on');
+      return true;
+    }
     if (wiz && wiz.classList.contains('on')) {
       var wc = document.getElementById('wizClose');
       if (wc) wc.click(); else wiz.classList.remove('on');
@@ -2402,6 +2520,10 @@ Sub gluten-free bun +1200</code></div>
   }
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') closeTopOverlay();
+  });
+  var onboardEl = document.getElementById('onboardWiz');
+  if (onboardEl) onboardEl.addEventListener('mousedown', function (e) {
+    if (e.target === onboardEl) closeTopOverlay();
   });
   var wizEl = document.getElementById('wizOverlay');
   if (wizEl) wizEl.addEventListener('mousedown', function (e) {

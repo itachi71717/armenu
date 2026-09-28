@@ -65,6 +65,30 @@ async function buildFavourites(customerId) {
 // merged_into is set to the winner, and any orders.customer_id pointing at
 // it are repointed. Remaining sanitized fields (minus phone, which now
 // belongs to the winner) are applied to the winner.
+// Recent orders across every restaurant, most recent first. Item count comes
+// from a per-order subquery over order_items so we don't fetch full rows.
+async function buildRecentOrders(customerId) {
+  const { data: rows = [] } = await supabase.raw(
+    `select o.id as order_id, o.total_cents, o.created_at as placed_at,
+            r.slug as restaurant_slug, r.name as restaurant_name,
+            (select coalesce(sum(oi.qty), 0) from order_items oi where oi.order_id = o.id) as item_count
+       from orders o
+       join restaurants r on r.id = o.restaurant_id
+      where o.customer_id = $1
+      order by o.created_at desc
+      limit 10`,
+    [customerId]
+  );
+  return rows.map(row => ({
+    order_id: row.order_id,
+    restaurant_slug: row.restaurant_slug,
+    restaurant_name: row.restaurant_name,
+    placed_at: row.placed_at,
+    total_cents: row.total_cents,
+    item_count: parseInt(row.item_count, 10) || 0
+  }));
+}
+
 async function mergeInto(winner, loser, otherFields) {
   // Re-point favourites, skipping any the winner already has.
   await supabase.raw(
@@ -99,7 +123,8 @@ export default async function handler(req, res) {
     const row = await resolveCustomerRowByToken(token);
     if (!row) return res.status(404).json({ error: 'not_found' });
     const favourites = await buildFavourites(row.id);
-    return res.status(200).json({ customer: toExternalCustomer(row), favourites });
+    const recent_orders = await buildRecentOrders(row.id);
+    return res.status(200).json({ customer: toExternalCustomer(row), favourites, recent_orders });
   }
 
   if (req.method === 'PATCH') {
