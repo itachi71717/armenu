@@ -7,7 +7,9 @@
     "dev": "vercel dev",
     "deploy": "vercel --prod",
     "test": "vitest run",
-    "syntax-check": "node scripts/syntax-check.js"
+    "syntax-check": "node scripts/syntax-check.js",
+    "html-check": "node --experimental-vm-modules scripts/html-script-check.js",
+    "check": "node --experimental-vm-modules scripts/syntax-check.js && node --experimental-vm-modules scripts/html-script-check.js && vitest run"
   },
   "devDependencies": {
     "vitest": "^2.1.8"

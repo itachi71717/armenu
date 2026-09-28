@@ -18,5 +18,7 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Syntax check
         run: node --experimental-vm-modules scripts/syntax-check.js
+      - name: Inline HTML script check
+        run: node --experimental-vm-modules scripts/html-script-check.js
       - name: Test
         run: npm test
