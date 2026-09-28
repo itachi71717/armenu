@@ -5,8 +5,12 @@
 // into. On success:
 //   - restaurants.email → new_owner_email
 //   - a manager_users row for the OLD owner is inserted (role: manager) so
-//     they don't lose access. The new owner is removed from manager_users
-//     if they were there (they're the owner now).
+//     they don't lose access.
+//   - manager_users is kept in sync with restaurants.email: the old owner's
+//     row (if any) is demoted to role='manager', and the new owner's row is
+//     upserted with role='owner' (creating it if they weren't already a
+//     teammate). This is additive — restaurants.email is still authoritative
+//     everywhere else that reads it.
 
 import { supabaseAdmin } from '../../_db.js';
 import { requireManager } from '../../_auth.js';
@@ -36,13 +40,17 @@ export default async function handler(req, res) {
   if (error) return res.status(500).json({ error: error.message });
 
   // Keep the old owner as a manager teammate so they don't lock themselves out.
+  // (Demotes them off role='owner' if that row already existed.)
   await supabaseAdmin.from('manager_users').upsert({
     restaurant_id, email: oldOwner, role: 'manager', invited_by: oldOwner, accepted_at: new Date().toISOString()
   }, { onConflict: 'restaurant_id,email' }).catch(() => {});
 
-  // If the new owner was already a teammate, remove the redundant row.
-  await supabaseAdmin.from('manager_users')
-    .delete().eq('restaurant_id', restaurant_id).eq('email', newOwner).catch(() => {});
+  // Mirror the new owner into manager_users with role='owner' (creating the
+  // row if they weren't already a teammate) so manager_users.role='owner'
+  // and restaurants.email never disagree.
+  await supabaseAdmin.from('manager_users').upsert({
+    restaurant_id, email: newOwner, role: 'owner', invited_by: oldOwner, accepted_at: new Date().toISOString()
+  }, { onConflict: 'restaurant_id,email' }).catch(() => {});
 
   await auditLog(req, restaurant_id, 'ownership.transferred', {
     target: newOwner, metadata: { from: oldOwner }

@@ -297,6 +297,46 @@ update restaurants     set email = lower(email) where email is not null and emai
 update manager_users   set email = lower(email) where email is not null and email <> lower(email);
 update pending_signups set email = lower(email) where email is not null and email <> lower(email);
 
+-- =====================================================================
+-- Ownership as a manager_users row (additive — restaurants.email keeps
+-- working everywhere it's read today). role gets a real 'owner' value so
+-- a transfer becomes a plain row change with an audit trail via
+-- api/_h/portal/transfer.js, instead of only rewriting restaurants.email.
+-- =====================================================================
+alter table manager_users add column if not exists role text default 'manager';
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'manager_users_role_check'
+  ) then
+    alter table manager_users add constraint manager_users_role_check
+      check (role in ('owner', 'manager', 'viewer'));
+  end if;
+end $$;
+
+-- Back-fill: every restaurant gets a manager_users row for its current
+-- owner (restaurants.email) with role='owner'. Idempotent — skips a
+-- restaurant that already has an owner row, and skips (no-ops) an
+-- existing non-owner row for that same email rather than clobbering it.
+do $$
+declare r record;
+begin
+  for r in select id, email from restaurants where email is not null loop
+    if not exists (
+      select 1 from manager_users where restaurant_id = r.id and role = 'owner'
+    ) then
+      insert into manager_users (restaurant_id, email, role, invited_by, accepted_at)
+        values (r.id, lower(r.email), 'owner', lower(r.email), now())
+      on conflict (restaurant_id, email)
+        do update set role = 'owner' where manager_users.role <> 'owner';
+    end if;
+  end loop;
+end $$;
+
+-- At most one owner per restaurant.
+create unique index if not exists manager_users_one_owner
+  on manager_users (restaurant_id) where role = 'owner';
+
 -- Restaurant local timezone (IANA name) — used for reservation emails,
 -- push notifications, and any user-visible time formatting. Falls back
 -- to Africa/Johannesburg when null. Managers can set this from settings.
@@ -313,3 +353,19 @@ create index if not exists orders_client_key on orders(restaurant_id, client_ord
 -- never existed → 404 in model-viewer) at the statically served copy.
 update dishes set glb_url = 'https://armenu.co.za/vendor/models/dish.glb'
  where glb_url = 'https://pub-6aeed51a836145e5be4673a4c349f0a9.r2.dev/vendor/models/dish.glb';
+
+-- Server-side "plated" state for kitchen line items. Previously tracked
+-- client-side in localStorage, so different kitchen tablets disagreed on
+-- which items were plated. Moving it into the row means every tablet on
+-- the same restaurant sees the same ticks in real time.
+alter table order_items add column if not exists plated_at timestamptz;
+
+-- Split-bill v2: per-item payer assignment + partial payment tracking.
+-- paid_by is a free-form label the waiter picks (e.g. 'A', 'B', 'Card 1'),
+-- capped at 40 chars server-side in api/_h/staff/orders.js. paid_at marks
+-- that item as settled. orders.paid_cents is a running total so the UI
+-- (and any future reconciliation job) can compare against total_cents
+-- without re-summing order_items on every read.
+alter table order_items add column if not exists paid_by text;
+alter table order_items add column if not exists paid_at timestamptz;
+alter table orders add column if not exists paid_cents integer default 0;

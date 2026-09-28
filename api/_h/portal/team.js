@@ -68,6 +68,14 @@ export default async function handler(req, res) {
   if (req.method === 'DELETE') {
     const email = String(req.query?.email || '').trim().toLowerCase();
     if (!email) return res.status(400).json({ error: 'email required' });
+    // The sole owner row (role='owner') can't be removed this way — ownership
+    // only moves via /api/portal/transfer, which keeps restaurants.email and
+    // manager_users in sync and leaves an audit trail.
+    const { data: target } = await supabase.from('manager_users')
+      .select('role').eq('restaurant_id', rid).eq('email', email).maybeSingle();
+    if (target && target.role === 'owner') {
+      return res.status(400).json({ error: 'cannot_remove_owner' });
+    }
     await supabaseAdmin.from('manager_users')
       .delete().eq('restaurant_id', rid).eq('email', email);
     await auditLog(req, rid, 'team_removed', { target: email });

@@ -29,8 +29,14 @@ export default async function handler(req, res) {
   if (inviteIds.length) {
     const { data: teamRests = [] } = await supabaseAdmin
       .from('restaurants').select('id, slug, name, email').in('id', inviteIds);
-    // Mark invited-in restaurants so the UI can hide owner-only actions
-    for (const r of teamRests) r._role = 'teammate';
+    // Mark invited-in restaurants so the UI can hide owner-only actions.
+    // manager_users.role is normally 'manager'/'viewer' here, but if it's
+    // 'owner' (e.g. a transfer landed a manager_users row before
+    // restaurants.email caught up) surface that rather than the generic
+    // 'teammate' label.
+    const roleByRestId = {};
+    for (const t of teamRes.data || []) roleByRestId[t.restaurant_id] = t.role;
+    for (const r of teamRests) r._role = roleByRestId[r.id] === 'owner' ? 'owner' : 'teammate';
     rests = [...rests, ...teamRests];
   }
   rests.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));

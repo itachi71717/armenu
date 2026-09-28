@@ -350,7 +350,9 @@
         </div>
       </div>
       <div class="card" style="padding:0;overflow:hidden">
-        <div id="audRows" style="max-height:72vh;overflow-y:auto">Loading…</div>
+        <div id="audRows" style="max-height:72vh;overflow-y:auto"><div style="padding:16px">
+          <div class="sk-line" style="width:90%"></div><div class="sk-line" style="width:75%"></div><div class="sk-line" style="width:85%"></div><div class="sk-line" style="width:60%"></div><div class="sk-line" style="width:80%"></div>
+        </div></div>
       </div>
     </div>
 
@@ -468,7 +470,10 @@
   let _audKnownActions = new Set();
   async function loadAudit(append = false) {
     try {
-      if (!append) { _audCursor = null; _audAccumulated = []; _audKnownActions = new Set(); }
+      if (!append) {
+        _audCursor = null; _audAccumulated = []; _audKnownActions = new Set();
+        $('audRows').innerHTML = '<div style="padding:16px"><div class="sk-line" style="width:90%"></div><div class="sk-line" style="width:75%"></div><div class="sk-line" style="width:85%"></div><div class="sk-line" style="width:60%"></div><div class="sk-line" style="width:80%"></div></div>';
+      }
       const rSlug = $('audFilterR').value;
       const actionF = $('audFilterAction').value;
       const actorF = $('audFilterActor')?.value?.trim() || '';
@@ -758,7 +763,7 @@
     }
     if (!email) { $('ncEmail').focus(); return toast('Manager email is required', 'err'); }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { $('ncEmail').focus(); return toast('That email doesn\'t look valid', 'err'); }
-    $('ncSubmit').disabled = true; $('ncSubmit').textContent = 'Creating…';
+    $('ncSubmit').disabled = true; $('ncSubmit').innerHTML = '<span class="btn-spinner"></span>Creating…';
     try {
       await api('/api/admin/clients', { method: 'POST', body: JSON.stringify({ name, slug, email }) });
       $('ncName').value = $('ncSlug').value = $('ncEmail').value = '';
@@ -859,7 +864,7 @@
     try {
       // STEP 1 — direct upload to Supabase Storage via signed URL (raw PUT, no SDK)
       if (pickedFile) {
-        btn.textContent = 'Uploading 3D model…';
+        btn.innerHTML = '<span class="btn-spinner"></span>Uploading 3D model…';
         const sign = await api('/api/admin/upload-url', {
           method: 'POST',
           body: JSON.stringify({ filename: pickedFile.name })
@@ -882,7 +887,7 @@
       }
 
       // STEP 2 — re-host through our bucket (and auto-optimise when available)
-      btn.textContent = 'Processing 3D model…';
+      btn.innerHTML = '<span class="btn-spinner"></span>Processing 3D model…';
       const comp = await api('/api/admin/compress', {
         method: 'POST',
         body: JSON.stringify({ glb_url })
@@ -922,7 +927,7 @@
       else if (comp.usdz_url) toast('iPhone AR file generated ✓', 'ok');
 
       // STEP 3 — save the dish record using the optimised URL
-      btn.textContent = 'Publishing…';
+      btn.innerHTML = '<span class="btn-spinner"></span>Publishing…';
       await api('/api/admin/dishes', {
         method: 'POST',
         body: JSON.stringify({

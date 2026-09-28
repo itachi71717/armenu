@@ -69,12 +69,11 @@
   .btn-ready{background:linear-gradient(135deg,var(--ok),#4ea54e);color:#0a0806}
   .btn-served{background:rgba(154,147,136,.14);color:var(--ink-dim);border:1px solid var(--line)}
 
-  .empty{grid-column:1/-1;padding:100px 24px;text-align:center;color:var(--ink-dim)}
-  .empty h2{font-family:'Instrument Serif',serif;font-style:italic;font-size:36px;color:var(--ink);margin-bottom:10px}
-  .empty .icon{font-size:64px;margin-bottom:20px;opacity:.4}
+  #board .empty-state{grid-column:1/-1;padding:100px 24px}
+  #board .empty-state::before{font-size:64px;margin-bottom:20px}
+  #board .empty-state h3{font-family:'Instrument Serif',serif;font-style:italic;font-size:36px;font-weight:400;color:var(--ink);margin-bottom:10px}
+  #board .empty-state p{font-size:15px}
 
-  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);padding:14px 24px;border-radius:12px;background:#13100c;border:1px solid var(--line);font-size:14px;z-index:200;display:none;box-shadow:0 12px 32px rgba(0,0,0,.6)}
-  .toast.show{display:block}
 </style>
 <script src="/vendor/armenu-errorbar.js" defer></script>
 <script src="/vendor/armenu-sounds.js" defer></script>
@@ -104,18 +103,14 @@
 </header>
 
 <main id="board">
-  <div class="empty" id="emptyState">
-    <div class="icon">🍳</div>
-    <h2>Kitchen ready.</h2>
-    <p>New orders will appear here the moment guests place them.</p>
-  </div>
+  <div class="sk-card" style="height:220px"></div>
+  <div class="sk-card" style="height:220px"></div>
+  <div class="sk-card" style="height:220px"></div>
 </main>
-
-<div class="toast" id="toast"></div>
 
 <script>
 const $ = id => document.getElementById(id);
-const toast = m => { const t = $('toast'); t.textContent = m; t.className = 'toast show'; setTimeout(() => t.classList.remove('show'), 2500); };
+const toast = m => window.ArmenuFX?.toast(m);
 let session = null;
 try { session = JSON.parse(localStorage.getItem('armenu_kitchen_session') || 'null'); } catch {}
 // Manager hand-off: /kitchen/?r=<slug>&portal_token=<...> → auto-login
@@ -142,7 +137,7 @@ async function api(path, opts = {}) {
   const res = await fetch(path, { ...opts, headers: { 'content-type': 'application/json', ...(session?.token ? { authorization: 'Bearer ' + session.token } : {}), ...(opts.headers || {}) } });
   if (res.status === 401) { signOut(); throw new Error('unauth'); }
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || 'Request failed');
+  if (!res.ok) { const err = new Error(data.error || 'Request failed'); err.status = res.status; throw err; }
   return data;
 }
 
@@ -204,7 +199,26 @@ function onIn() {
     es.addEventListener('orders', () => refresh());
     es.onerror = () => { try { es.close(); } catch {} es = null; setTimeout(() => { if (session) onIn(); }, 4000); };
   } catch {}
+  registerCmdK();
 }
+
+// Command palette — skipped on touch-only kiosks (speed over discoverability).
+// Registers once; commands call the same functions the on-screen controls do.
+let _cmdkRegistered = false;
+function registerCmdK() {
+  if (_cmdkRegistered || !window.ArmenuCmdK) return;
+  if (window.matchMedia && window.matchMedia('(pointer:coarse)').matches) return;
+  _cmdkRegistered = true;
+  window.ArmenuCmdK.register([
+    { id: 'sign-out', label: 'Sign out', run: signOut },
+    { id: 'fullscreen', label: 'Fullscreen', run: () => document.documentElement.requestFullscreen?.() },
+    { id: 'toggle-sounds', label: 'Turn sounds off/on', run: () => toast(window.ArMenuSound?.toggle() ? 'Sounds off' : 'Sounds on') },
+    { id: 'refresh', label: 'Refresh', run: refresh }
+  ]);
+}
+// armenu-cmdk.js loads deferred, so a boot-with-existing-session's onIn()
+// call above may fire before it lands; retry once the deferred scripts land.
+document.addEventListener('DOMContentLoaded', registerCmdK);
 
 function tick() {
   const d = new Date(); $('clock').textContent = d.toTimeString().slice(0, 5);
@@ -241,7 +255,7 @@ async function refresh() {
 }
 
 function render(orders) {
-  if (!orders.length) { $('board').innerHTML = `<div class="empty" id="emptyState"><div class="icon">🍳</div><h2>All caught up.</h2><p>Great work. New orders will appear here.</p></div>`; return; }
+  if (!orders.length) { $('board').innerHTML = `<div class="empty-state" id="emptyState" data-icon="🎉"><h3>All caught up.</h3><p>Great work. New orders will appear here.</p></div>`; return; }
   $('board').innerHTML = orders.map(o => {
     const ageMs = Date.now() - new Date(o.created_at).getTime();
     const ageSec = Math.round(ageMs / 1000);
@@ -255,7 +269,7 @@ function render(orders) {
         <div class="t-table">${o.table_label ? `<b>${escapeHTML(o.table_label)}</b>` : 'Walk-up'}</div>
         <div class="t-age ${ageClass}">${ageDisplay}</div>
       </div>
-      <ul class="t-items" title="Tap items to mark plated — this device only, not shared with other kitchen screens">${(o.order_items || []).map(it => `<li data-item="${o.id}:${it.id}" class="${itemDone(o.id, it.id) ? 'done' : ''}">
+      <ul class="t-items" title="Tap items to mark plated — synced across kitchen screens">${(o.order_items || []).map(it => `<li data-item="${o.id}:${it.id}" class="${isPlated(it) ? 'done' : ''}">
         <span class="qty">×${it.qty}</span>
         <div class="name">${escapeHTML(it.dish_name)}
           ${Array.isArray(it.modifiers) && it.modifiers.length ? '<ul class="mods" style="margin:4px 0 0 0;padding:0;list-style:none">' + it.modifiers.map(m => '<li style="font-size:12px;color:var(--warn);padding:2px 0">↳ ' + escapeHTML(m.name) + '</li>').join('') + '</ul>' : ''}
@@ -279,15 +293,40 @@ function render(orders) {
   });
   // Tap a line-item to mark it done inside the ticket (client-side only —
   // no schema change; kitchen-local ephemeral state).
-  document.querySelectorAll('.t-items li[data-item]').forEach(li => li.onclick = () => {
-    const [oid, iid] = li.dataset.item.split(':');
-    toggleItemDone(oid, iid);
-    li.classList.toggle('done');
-  });
+  document.querySelectorAll('.t-items li[data-item]').forEach(li => li.onclick = () => togglePlated(li));
 }
 
-// Per-order item strike-through, persisted in localStorage. Cleared when an
-// order transitions to 'ready' (no longer relevant) or is >6h old.
+// "Plated" ticks are server-driven (order_items.plated_at) so every kitchen
+// tablet on the restaurant sees the same state in real time. If the API
+// hasn't been deployed yet (404/501 on the PATCH), fall back to the old
+// localStorage-only behaviour for the rest of this session so a mid-deploy
+// tablet doesn't break.
+let plateApiDown = false;
+function isPlated(it) {
+  if (plateApiDown) return itemDone(it.order_id, it.id);
+  return !!it.plated_at;
+}
+async function togglePlated(li) {
+  const [oid, iid] = li.dataset.item.split(':');
+  const wasDone = li.classList.contains('done');
+  const next = !wasDone;
+  li.classList.toggle('done', next);
+  if (plateApiDown) { toggleItemDone(oid, iid); return; }
+  try {
+    await api('/api/staff/orders?item=' + encodeURIComponent(iid) + '&plated=' + (next ? '1' : '0'), { method: 'PATCH' });
+  } catch (e) {
+    if (e.status === 404 || e.status === 501) {
+      plateApiDown = true;
+      toggleItemDone(oid, iid);
+      return;
+    }
+    li.classList.toggle('done', wasDone); // revert optimistic UI
+    toast(e.message || 'Could not update item');
+  }
+}
+
+// Legacy per-order item strike-through, persisted in localStorage. Only
+// used as a fallback when the server-side plated_at API is unavailable.
 function itemDoneKey() { return 'armenu_kitchen_item_done'; }
 function loadItemDone() {
   try { return JSON.parse(localStorage.getItem(itemDoneKey()) || '{}'); } catch { return {}; }
@@ -308,6 +347,7 @@ function toggleItemDone(orderId, itemId) {
 // Reused AudioContext — some browsers throttle after too many one-off ctxs.
 let _kbeepCtx = null;
 function beep() {
+  if (window.ArMenuSound?.muted?.()) return;
   try {
     if (!_kbeepCtx) _kbeepCtx = new (window.AudioContext || window.webkitAudioContext)();
     // Resume in case the ctx was suspended before a user gesture — .resume() is idempotent.
@@ -337,5 +377,8 @@ if ('wakeLock' in navigator) {
 
 if (session?.token) onIn();
 </script>
+<link rel="stylesheet" href="/vendor/armenu-fx.css">
+<script defer src="/vendor/armenu-fx.js"></script>
+<script defer src="/vendor/armenu-cmdk.js"></script>
 </body>
 </html>

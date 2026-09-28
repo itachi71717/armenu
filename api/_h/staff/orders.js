@@ -1,12 +1,14 @@
 // GET   /api/staff/orders                   → list this restaurant's active orders
 // POST  /api/staff/orders                   → create staff-taken order { table, items, note?, complimentary? }
 // PATCH /api/staff/orders?id=<id>           → { status }
+//                                            → { assignments: [{item_id, paid_by}], mark_paid? } — split-bill v2
 // Auth: Authorization: Bearer <staff-token>
 import { supabase, supabaseAdmin } from '../../_db.js';
 import { verifyToken } from './login.js';
 import { auditLog } from '../_audit.js';
 
 const VALID = ['new','prep','ready','served','cancelled'];
+const PAID_BY_MAX = 40;
 
 function auth(req) {
   const tok = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
@@ -92,10 +94,34 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, order_id: order.id });
   }
 
-  if (req.method === 'PATCH') {
-    const { id } = req.query;
+  if (req.method === 'PATCH' && req.query.item) {
+    const itemId = String(req.query.item);
     let body = {};
     try { body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body; } catch {}
+    const plated = req.query.plated != null ? req.query.plated : body?.plated;
+    const wantPlated = plated === '1' || plated === 1 || plated === true || plated === 'true';
+    // Confirm the item's order belongs to this staff's restaurant.
+    const { data: item } = await supabase.from('order_items')
+      .select('id, order_id').eq('id', itemId).maybeSingle();
+    if (!item) return res.status(404).json({ error: 'not found' });
+    const { data: order } = await supabase.from('orders')
+      .select('id, restaurant_id').eq('id', item.order_id).maybeSingle();
+    if (!order || order.restaurant_id !== session.restaurant_id) return res.status(404).json({ error: 'not found' });
+    await supabaseAdmin.from('order_items').update({ plated_at: wantPlated ? new Date().toISOString() : null }).eq('id', itemId);
+    auditLog(req, session.restaurant_id, wantPlated ? 'order_item.plated' : 'order_item.unplated', {
+      target: itemId,
+      metadata: { order_id: order.id }
+    }).catch(() => {});
+    return res.status(200).json({ ok: true, item_id: itemId, plated: wantPlated });
+  }
+
+  if (req.method === 'PATCH' && req.query.id) {
+    let body = {};
+    try { body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body; } catch {}
+    if (Array.isArray(body?.assignments) || typeof body?.mark_paid === 'string') {
+      return handleSplitPatch(req, res, session, body);
+    }
+    const { id } = req.query;
     if (!VALID.includes(body.status)) return res.status(400).json({ error: 'bad status' });
     // Confirm order belongs to this staff's restaurant
     const { data: order } = await supabase.from('orders').select('restaurant_id, total_cents, tip_cents, status').eq('id', id).single();
@@ -123,6 +149,58 @@ export default async function handler(req, res) {
   }
 
   return res.status(405).end();
+}
+
+// Split-bill v2: per-item payer assignment + partial payment tracking.
+// Body: { assignments?: [{ item_id, paid_by }], mark_paid?: label }
+// - assignments: sets/clears order_items.paid_by for items on this order.
+// - mark_paid: for every item on this order currently assigned to that
+//   label (after assignments are applied) and not yet paid, stamps
+//   paid_at=now() and bumps orders.paid_cents by their subtotal.
+async function handleSplitPatch(req, res, session, body) {
+  const { id: orderId } = req.query;
+  const { data: order } = await supabase.from('orders')
+    .select('id, restaurant_id, total_cents, paid_cents').eq('id', orderId).maybeSingle();
+  if (!order || order.restaurant_id !== session.restaurant_id) return res.status(404).json({ error: 'not found' });
+
+  const { data: items = [] } = await supabase.from('order_items').select('*').eq('order_id', orderId);
+  const itemIds = new Set(items.map(i => i.id));
+
+  const assignments = Array.isArray(body.assignments) ? body.assignments : [];
+  for (const a of assignments) {
+    if (!a || !itemIds.has(a.item_id)) return res.status(400).json({ error: 'assignment references an item outside this order' });
+    if (typeof a.paid_by !== 'string' && a.paid_by !== null) return res.status(400).json({ error: 'paid_by must be a string or null' });
+    if (typeof a.paid_by === 'string' && a.paid_by.length > PAID_BY_MAX) return res.status(400).json({ error: `paid_by must be ${PAID_BY_MAX} characters or fewer` });
+  }
+  for (const a of assignments) {
+    const paid_by = a.paid_by === null ? null : String(a.paid_by).slice(0, PAID_BY_MAX) || null;
+    await supabaseAdmin.from('order_items').update({ paid_by }).eq('id', a.item_id);
+    const local = items.find(i => i.id === a.item_id);
+    if (local) local.paid_by = paid_by; // keep the in-memory copy in sync for mark_paid below
+  }
+
+  let bumped = 0;
+  if (typeof body.mark_paid === 'string' && body.mark_paid) {
+    const label = body.mark_paid.slice(0, PAID_BY_MAX);
+    const toMark = items.filter(i => i.paid_by === label && !i.paid_at);
+    if (toMark.length) {
+      const now = new Date().toISOString();
+      await supabaseAdmin.from('order_items').update({ paid_at: now }).in('id', toMark.map(i => i.id));
+      bumped = toMark.reduce((s, i) => s + (i.price_cents || 0) * (i.qty || 1), 0);
+      await supabaseAdmin.from('orders').update({ paid_cents: (order.paid_cents || 0) + bumped }).eq('id', orderId);
+      auditLog(req, session.restaurant_id, 'order.split_payment', {
+        target: orderId,
+        metadata: { paid_by: label, amount_cents: bumped, item_ids: toMark.map(i => i.id) }
+      }).catch(() => {});
+    }
+  }
+
+  return res.status(200).json({
+    ok: true,
+    order_id: orderId,
+    paid_cents: (order.paid_cents || 0) + bumped,
+    total_cents: order.total_cents || 0
+  });
 }
 
 function parsePrice(str) {

@@ -88,10 +88,6 @@
   .empty{padding:60px 20px;text-align:center;color:var(--ink-dim)}
   .empty h3{font-family:var(--serif);font-style:italic;font-size:22px;color:var(--ink);margin-bottom:6px}
 
-  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);padding:12px 20px;border-radius:12px;background:#13100c;border:1px solid var(--line);font-size:13px;z-index:100;display:none;box-shadow:0 12px 32px rgba(0,0,0,.6)}
-  .toast.show{display:block}
-  .toast.err{border-color:rgba(248,113,113,.3);color:var(--err)}
-  .toast.ok{border-color:rgba(125,216,125,.3);color:var(--ok)}
 
   .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:50;display:none;align-items:center;justify-content:center;padding:20px}
   .modal-overlay.on{display:flex}
@@ -140,17 +136,16 @@
 </nav>
 
 <main>
-  <div class="view on" id="view-orders"></div>
-  <div class="view" id="view-calls"></div>
-  <div class="view" id="view-tables"></div>
+  <div class="view on" id="view-orders"><div class="grid"><div class="sk-card"></div><div class="sk-card"></div><div class="sk-card"></div></div></div>
+  <div class="view" id="view-calls"><div class="grid"><div class="sk-card"></div><div class="sk-card"></div></div></div>
+  <div class="view" id="view-tables"><div class="sk-line"></div><div class="sk-line"></div><div class="sk-line"></div></div>
 </main>
 
 <div class="modal-overlay" id="modal"><div class="modal" id="modalBody"></div></div>
-<div class="toast" id="toast"></div>
 
 <script>
 const $ = id => document.getElementById(id);
-const toast = (m, k='ok') => { const t = $('toast'); t.textContent = m; t.className = 'toast show ' + k; setTimeout(() => t.classList.remove('show'), 2400); };
+const toast = (m, k='ok') => window.ArmenuFX?.toast(m, { type: k === 'err' ? 'error' : 'success' });
 
 let session = null;
 try { session = JSON.parse(localStorage.getItem('armenu_staff_session') || 'null'); } catch {}
@@ -243,6 +238,24 @@ function onLoggedIn() {
   refresh();
   poll = setInterval(refresh, 15000);   // fallback poll — SSE handles instant updates
   startSSE();
+  registerCmdK();
+}
+
+// Command palette — skipped on touch-only kiosks (speed over discoverability).
+// Registers once; commands call the same functions the on-screen buttons do.
+let _cmdkRegistered = false;
+function registerCmdK() {
+  if (_cmdkRegistered || !window.ArmenuCmdK) return;
+  if (window.matchMedia && window.matchMedia('(pointer:coarse)').matches) return;
+  _cmdkRegistered = true;
+  window.ArmenuCmdK.register([
+    { id: 'new-orders', label: 'New orders', hint: 'Go to Orders tab', run: () => document.querySelector('.tab[data-tab="orders"]').click() },
+    { id: 'tables', label: 'Tables', hint: 'Go to Tables tab', run: () => document.querySelector('.tab[data-tab="tables"]').click() },
+    { id: 'waiter-calls', label: 'Waiter calls', hint: 'Go to Calls tab', run: () => document.querySelector('.tab[data-tab="calls"]').click() },
+    { id: 'sign-out', label: 'Sign out', run: signOut },
+    { id: 'toggle-sounds', label: 'Turn sounds off/on', run: () => toast(window.ArMenuSound?.toggle() ? 'Sounds off' : 'Sounds on') },
+    { id: 'refresh', label: 'Refresh', run: refresh }
+  ]);
 }
 
 let es = null;
@@ -296,6 +309,7 @@ function updateBadge(id, n) {
 
 function renderOrders(orders) {
   if (!orders.length) return $('view-orders').innerHTML = `<div class="empty-state" data-icon="📋"><h3>No active orders</h3><p>New orders appear here the moment a guest places one.</p></div>`;
+  window.__ordersById = Object.fromEntries(orders.map(o => [o.id, o])); // for openSplitBill lookup
   const sym = 'R';
   $('view-orders').innerHTML = `<div class="grid">${orders.map(o => `
     <div class="card ${o.status}">
@@ -310,7 +324,7 @@ function renderOrders(orders) {
       ${o.guest_note ? `<div class="note">📝 ${escapeHTML(o.guest_note)}</div>` : ''}
       ${o.total_cents ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--ink-dim)">
         <span>Total <b style="color:var(--ink);font-size:14px">R${(o.total_cents/100).toFixed(2)}</b>${o.tip_cents ? ` <span style="color:var(--ok)">(+R${(o.tip_cents/100).toFixed(2)} tip)</span>` : ''}</span>
-        <button class="btn-ghost" data-split="${o.id}:${o.total_cents}" style="padding:8px 14px;min-height:44px;font-size:11px">Split ⋯</button>
+        <button class="btn-ghost" data-split="${o.id}" style="padding:8px 14px;min-height:44px;font-size:11px">Split ⋯</button>
       </div>` : ''}
       <div class="actions">
         ${o.status === 'new' ? `<button class="btn-primary" data-mark="${o.id}:prep">Start prep</button>` : ''}
@@ -336,34 +350,69 @@ function renderOrders(orders) {
     } catch (e) { toast(e.message, 'err'); }
   });
   document.querySelectorAll('[data-split]').forEach(b => b.onclick = () => {
-    const [, cents] = b.dataset.split.split(':');
-    openSplitBill(parseInt(cents, 10));
+    openSplitBill(window.__ordersById?.[b.dataset.split]);
   });
 }
 
-// Simple even-split calculator — no DB changes, no partial payment tracking.
-// Waiters use this at the point of settling the bill to hand each guest the
-// amount they owe (in ZAR cents, one over-cent absorbed by the last share
-// so the shares sum exactly to the total).
-function openSplitBill(totalCents) {
+// Split bill — two tabs. "Even split" is the original client-only calculator
+// (no DB writes). "Per item" assigns each order_item to a payer label (A-H)
+// and tracks partial payment server-side via PATCH /api/staff/orders.
+const SPLIT_LABELS = ['A','B','C','D','E','F','G','H'];
+let _splitOrder = null; // the order object currently open in the split modal
+
+function openSplitBill(order) {
+  if (!order) return;
+  _splitOrder = order;
   const existing = document.getElementById('splitOverlay');
   if (existing) existing.remove();
   const overlay = document.createElement('div');
   overlay.id = 'splitOverlay';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;display:grid;place-items:center;padding:20px;backdrop-filter:blur(8px)';
   overlay.innerHTML = `
-    <div style="width:min(360px,100%);background:linear-gradient(180deg,rgba(18,16,11,.98),rgba(10,8,6,.98));border:1px solid rgba(232,197,138,.3);border-radius:18px;padding:24px;color:var(--ink)">
+    <div style="width:min(400px,100%);max-height:90vh;overflow:auto;background:linear-gradient(180deg,rgba(18,16,11,.98),rgba(10,8,6,.98));border:1px solid rgba(232,197,138,.3);border-radius:18px;padding:24px;color:var(--ink)">
       <h3 style="margin:0 0 4px;font-size:18px">Split bill</h3>
-      <p style="color:var(--ink-dim);font-size:12.5px;margin:0 0 16px">Total: <b style="color:var(--ink)">R${(totalCents/100).toFixed(2)}</b>. Enter the number of guests and hand each person their amount.</p>
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
-        <button id="spMinus" style="width:38px;height:38px;border-radius:10px;background:rgba(245,236,216,.06);color:var(--ink);border:1px solid var(--line);font-size:18px">−</button>
-        <input id="spN" type="number" min="1" max="20" value="2" style="flex:1;padding:12px;border-radius:10px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:20px;text-align:center;font-family:var(--mono)" />
-        <button id="spPlus" style="width:38px;height:38px;border-radius:10px;background:rgba(245,236,216,.06);color:var(--ink);border:1px solid var(--line);font-size:18px">+</button>
+      <p style="color:var(--ink-dim);font-size:12.5px;margin:0 0 14px">Total: <b style="color:var(--ink)">R${(order.total_cents/100).toFixed(2)}</b>${order.paid_cents ? ` · <b style="color:var(--ok)">R${(order.paid_cents/100).toFixed(2)} paid</b>` : ''}${order.paid_cents >= order.total_cents && order.total_cents ? ' · <b style="color:var(--ok)">✅ Fully paid</b>' : ''}</p>
+      <div style="display:flex;gap:6px;margin-bottom:14px">
+        <button id="spTabEven" class="tab active" style="flex:1;text-align:center">Even split</button>
+        <button id="spTabItem" class="tab" style="flex:1;text-align:center">Per item</button>
       </div>
-      <div id="spBreakdown" style="padding:14px;border-radius:12px;background:rgba(232,197,138,.08);border:1px solid rgba(232,197,138,.2);margin-bottom:16px;min-height:60px"></div>
-      <button id="spClose" style="width:100%;padding:12px;border-radius:10px;background:linear-gradient(135deg,#e8c58a,#d4a574);color:#0a0806;font-weight:700;border:none">Done</button>
+      <div id="spEvenPane"></div>
+      <div id="spItemPane" style="display:none"></div>
+      <button id="spClose" style="width:100%;padding:12px;border-radius:10px;background:linear-gradient(135deg,#e8c58a,#d4a574);color:#0a0806;font-weight:700;border:none;margin-top:14px">Done</button>
     </div>`;
   document.body.appendChild(overlay);
+  renderEvenSplitPane(order.total_cents);
+  renderPerItemPane(order);
+  document.getElementById('spTabEven').onclick = () => {
+    document.getElementById('spTabEven').classList.add('active');
+    document.getElementById('spTabItem').classList.remove('active');
+    document.getElementById('spEvenPane').style.display = '';
+    document.getElementById('spItemPane').style.display = 'none';
+  };
+  document.getElementById('spTabItem').onclick = () => {
+    document.getElementById('spTabItem').classList.add('active');
+    document.getElementById('spTabEven').classList.remove('active');
+    document.getElementById('spItemPane').style.display = '';
+    document.getElementById('spEvenPane').style.display = 'none';
+  };
+  document.getElementById('spClose').onclick = () => { overlay.remove(); _splitOrder = null; };
+  overlay.onclick = (e) => { if (e.target === overlay) { overlay.remove(); _splitOrder = null; } };
+}
+
+// Original even-split calculator — no DB changes, no partial payment
+// tracking. Waiters use this to hand each guest the amount they owe (in
+// ZAR cents, one over-cent absorbed by the last share so the shares sum
+// exactly to the total).
+function renderEvenSplitPane(totalCents) {
+  const pane = document.getElementById('spEvenPane');
+  pane.innerHTML = `
+    <p style="color:var(--ink-dim);font-size:12.5px;margin:0 0 16px">Enter the number of guests and hand each person their amount.</p>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+      <button id="spMinus" style="width:38px;height:38px;border-radius:10px;background:rgba(245,236,216,.06);color:var(--ink);border:1px solid var(--line);font-size:18px">−</button>
+      <input id="spN" type="number" min="1" max="20" value="2" style="flex:1;padding:12px;border-radius:10px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:20px;text-align:center;font-family:var(--mono)" />
+      <button id="spPlus" style="width:38px;height:38px;border-radius:10px;background:rgba(245,236,216,.06);color:var(--ink);border:1px solid var(--line);font-size:18px">+</button>
+    </div>
+    <div id="spBreakdown" style="padding:14px;border-radius:12px;background:rgba(232,197,138,.08);border:1px solid rgba(232,197,138,.2);min-height:60px"></div>`;
   const inp = document.getElementById('spN');
   const render = () => {
     let n = Math.max(1, Math.min(20, parseInt(inp.value, 10) || 1));
@@ -384,9 +433,75 @@ function openSplitBill(totalCents) {
   document.getElementById('spMinus').onclick = () => { inp.value = Math.max(1, +inp.value - 1); render(); };
   document.getElementById('spPlus').onclick  = () => { inp.value = Math.min(20, +inp.value + 1); render(); };
   inp.oninput = render;
-  document.getElementById('spClose').onclick = () => overlay.remove();
-  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
   render();
+}
+
+// Per-item split — assign each order_item to a payer label, live subtotal
+// per label, and a "Mark <label> paid" button that PATCHes the assignment
+// + payment in one request (see api/_h/staff/orders.js handleSplitPatch).
+function renderPerItemPane(order) {
+  const pane = document.getElementById('spItemPane');
+  const items = order.order_items || [];
+  const labelsUsed = [...new Set(items.map(it => it.paid_by).filter(Boolean))];
+  const labels = [...new Set([...SPLIT_LABELS.slice(0, Math.max(2, labelsUsed.length)), ...labelsUsed])];
+
+  const subtotals = () => {
+    const s = {};
+    for (const it of items) if (it.paid_by) s[it.paid_by] = (s[it.paid_by] || 0) + (it.price_cents || 0) * (it.qty || 1);
+    return s;
+  };
+
+  const draw = () => {
+    const s = subtotals();
+    pane.innerHTML = `
+      <div style="max-height:38vh;overflow:auto;margin-bottom:14px">${items.map(it => `
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--line)">
+          <div style="min-width:0">
+            <div style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${it.qty}× ${escapeHTML(it.dish_name)}</div>
+            <div style="font-size:11px;color:var(--ink-dim)">R${(it.price_cents*it.qty/100).toFixed(2)}${it.paid_at ? ' · <span style="color:var(--ok)">paid</span>' : ''}</div>
+          </div>
+          <select data-item-label="${it.id}" ${it.paid_at ? 'disabled' : ''} style="padding:8px 10px;border-radius:8px;background:rgba(245,236,216,.05);border:1px solid var(--line);color:var(--ink);min-height:38px">
+            <option value="">—</option>
+            ${labels.map(l => `<option value="${escapeHTML(l)}" ${it.paid_by === l ? 'selected' : ''}>${escapeHTML(l)}</option>`).join('')}
+          </select>
+        </div>`).join('')}</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${labels.filter(l => s[l]).map(l => {
+          const allPaid = items.filter(it => it.paid_by === l).every(it => it.paid_at);
+          return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:10px;background:rgba(232,197,138,.08);border:1px solid rgba(232,197,138,.2)">
+            <span style="font-size:13px">${escapeHTML(l)} <b style="color:var(--accent-2);margin-left:6px">R${(s[l]/100).toFixed(2)}</b></span>
+            ${allPaid
+              ? `<span style="color:var(--ok);font-size:13px">✅ Paid</span>`
+              : `<button data-mark-label="${escapeHTML(l)}" class="btn-ghost" style="padding:7px 12px;min-height:36px;font-size:11px">Mark ${escapeHTML(l)} paid</button>`}
+          </div>`;
+        }).join('') || '<div style="color:var(--ink-dim);font-size:12px;text-align:center;padding:10px 0">Assign items to a payer to see subtotals.</div>'}
+      </div>`;
+    pane.querySelectorAll('[data-item-label]').forEach(sel => sel.onchange = async () => {
+      try {
+        const resp = await api(`/api/staff/orders?id=${order.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ assignments: [{ item_id: sel.dataset.itemLabel, paid_by: sel.value || null }] })
+        });
+        const it = items.find(i => i.id === sel.dataset.itemLabel);
+        if (it) it.paid_by = sel.value || null;
+        draw();
+      } catch (e) { toast(e.message, 'err'); }
+    });
+    pane.querySelectorAll('[data-mark-label]').forEach(btn => btn.onclick = async () => {
+      try {
+        const resp = await api(`/api/staff/orders?id=${order.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ mark_paid: btn.dataset.markLabel })
+        });
+        const now = new Date().toISOString();
+        for (const it of items) if (it.paid_by === btn.dataset.markLabel) it.paid_at = now;
+        order.paid_cents = resp.paid_cents;
+        draw();
+        refresh(); // pulls the authoritative order + paid_cents on the next poll/SSE tick
+      } catch (e) { toast(e.message, 'err'); }
+    });
+  };
+  draw();
 }
 
 function renderCalls(calls) {
@@ -471,6 +586,13 @@ function escapeHTML(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'
 
 // Boot
 if (session?.token) onLoggedIn();
+// armenu-cmdk.js loads deferred (after this inline script runs), so the
+// registerCmdK() call above may no-op on a boot-with-existing-session;
+// retry once the deferred scripts have landed.
+document.addEventListener('DOMContentLoaded', registerCmdK);
 </script>
+<link rel="stylesheet" href="/vendor/armenu-fx.css">
+<script defer src="/vendor/armenu-fx.js"></script>
+<script defer src="/vendor/armenu-cmdk.js"></script>
 </body>
 </html>

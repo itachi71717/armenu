@@ -655,6 +655,7 @@ async function boot() {
 async function load(tab) {
   try {
     if (tab === 'settings') {
+      $('toggles').innerHTML = skRows(5);
       const { settings: s } = await api('/api/admin/settings?slug=' + slug);
       settings = s;
       $('toggles').innerHTML = FEATURES.map(f => `
@@ -686,6 +687,7 @@ async function load(tab) {
       $('b_tagline').value = s.tagline || '';
     }
     if (tab === 'categories') {
+      $('cat_list').innerHTML = skRows(4);
       const { categories } = await api('/api/admin/categories?slug=' + slug);
       $('cat_list').innerHTML = categories.length
         ? `<table><thead><tr><th>Name</th><th>Order</th><th>Status</th><th></th></tr></thead><tbody>${categories.map(c => `<tr><td>${escapeHTML(c.name)}</td><td>${c.sort_order}</td><td><span class="status-pill ${c.active ? 'ready' : ''}">${c.active ? 'active' : 'hidden'}</span></td><td style="text-align:right"><button class="btn-ghost btn" data-toggle-cat="${c.id}:${!c.active}">${c.active ? 'Hide' : 'Show'}</button> <button class="btn-err btn" data-del-cat="${c.id}">✕</button></td></tr>`).join('')}</tbody></table>`
@@ -696,6 +698,7 @@ async function load(tab) {
     if (tab === 'tables') {
       $('tbl_print_all').href = '/qr-print.html?r=' + slug + '&type=tables';
       $('tbl_print_menu').href = '/qr-print.html?r=' + slug + '&type=menu';
+      $('tbl_list').innerHTML = skRows(4);
       const { tables } = await api('/api/admin/tables?slug=' + slug);
       $('tbl_list').innerHTML = tables.length
         ? `<table><thead><tr><th>Label</th><th>Seats</th><th>Status</th><th>QR link</th><th></th></tr></thead><tbody>${tables.map(t => `<tr><td><strong>${escapeHTML(t.label)}</strong></td><td>${t.seats}</td><td><span class="status-pill">${t.status}</span></td><td style="font-family:var(--mono);font-size:11px"><a href="/menu.html?r=${slug}&t=${encodeURIComponent(t.label)}" target="_blank">/menu?r=${slug}&t=${escapeHTML(t.label)}</a></td><td style="text-align:right"><button class="btn-err btn" data-del-tbl="${t.id}">✕</button></td></tr>`).join('')}</tbody></table>`
@@ -703,6 +706,7 @@ async function load(tab) {
       wireList('[data-del-tbl]', async id => { if (confirm('Delete table?')) { await api('/api/admin/tables?id=' + id, { method: 'DELETE' }); load('tables'); } });
     }
     if (tab === 'staff') {
+      $('st_list').innerHTML = skRows(4);
       const { staff } = await api('/api/admin/staff?slug=' + slug);
       $('st_list').innerHTML = staff.length
         ? `<table><thead><tr><th>Name</th><th>Role</th><th>Last sign-in</th><th>Status</th><th></th></tr></thead><tbody>${staff.map(s => `<tr><td>${escapeHTML(s.name)}</td><td>${s.role}</td><td style="font-size:12px;color:var(--ink-dim)">${s.last_login_at ? new Date(s.last_login_at).toLocaleString() : '—'}</td><td><span class="status-pill ${s.active ? 'ready' : ''}">${s.active ? 'active' : 'disabled'}</span></td><td style="text-align:right"><button class="btn-ghost btn" data-reset-pin="${s.id}">Reset PIN</button> <button class="btn-err btn" data-del-staff="${s.id}">✕</button></td></tr>`).join('')}</tbody></table>`
@@ -711,18 +715,21 @@ async function load(tab) {
       wireList('[data-reset-pin]', async id => { const pin = prompt('New 4–6 digit PIN:'); if (pin && /^\d{4,6}$/.test(pin)) { await api('/api/admin/staff?id=' + id, { method: 'PATCH', body: JSON.stringify({ pin }) }); toast('PIN reset', 'ok'); } });
     }
     if (tab === 'orders') {
+      $('orders_list').innerHTML = skRows(5);
       const { orders } = await api('/api/admin/orders?slug=' + slug);
       $('orders_list').innerHTML = orders.length
         ? `<table><thead><tr><th>Time</th><th>Table</th><th>Items</th><th>Total</th><th>Status</th></tr></thead><tbody>${orders.map(o => `<tr><td style="font-size:12px;color:var(--ink-dim)">${new Date(o.created_at).toLocaleString()}</td><td>${escapeHTML(o.table_label || '—')}</td><td>${(o.order_items || []).map(i => `${i.qty}× ${escapeHTML(i.dish_name)}`).join(', ')}</td><td>R${(o.total_cents / 100).toFixed(2)}</td><td><span class="status-pill ${o.status}">${o.status}</span></td></tr>`).join('')}</tbody></table>`
         : `<div class="empty-state" data-icon="📋"><h3>No orders yet</h3></div>`;
     }
     if (tab === 'calls') {
+      $('calls_list').innerHTML = skRows(4);
       const { calls } = await api('/api/admin/waiter-calls?slug=' + slug);
       $('calls_list').innerHTML = calls.length
         ? `<table><thead><tr><th>Time</th><th>Table</th><th>Reason</th><th>Status</th></tr></thead><tbody>${calls.map(c => `<tr><td style="font-size:12px;color:var(--ink-dim)">${new Date(c.created_at).toLocaleString()}</td><td>${escapeHTML(c.table_label || '—')}</td><td>${escapeHTML(c.reason)}</td><td><span class="status-pill ${c.status === 'open' ? 'new' : ''}">${c.status}</span></td></tr>`).join('')}</tbody></table>`
         : `<div class="empty-state" data-icon="🛎"><h3>No calls yet</h3></div>`;
     }
     if (tab === 'reviews') {
+      $('rev_list').innerHTML = skRows(4);
       const { reviews } = await api('/api/admin/reviews?slug=' + slug);
       $('rev_list').innerHTML = reviews.length
         ? `<table><thead><tr><th>Date</th><th>Rating</th><th>Comment</th><th>Google?</th></tr></thead><tbody>${reviews.map(r => `<tr><td style="font-size:12px;color:var(--ink-dim)">${new Date(r.created_at).toLocaleDateString()}</td><td style="color:var(--accent-2);font-size:16px">${'★'.repeat(r.stars)}${'☆'.repeat(5 - r.stars)}</td><td>${escapeHTML(r.comment || '—')}</td><td>${r.routed_to_google ? '✓' : ''}</td></tr>`).join('')}</tbody></table>`
@@ -734,6 +741,7 @@ async function load(tab) {
     if (tab === 'dishes') await loadDishes();
     if (tab === 'billing') await loadBilling();
     if (tab === 'offers') {
+      $('of_list').innerHTML = skRows(4);
       const { offers } = await api('/api/admin/offers?slug=' + slug);
       $('of_list').innerHTML = offers.length
         ? `<table><thead><tr><th>Name</th><th>Discount</th><th>Window</th><th>Days</th><th></th></tr></thead><tbody>${offers.map(o => `<tr><td>${escapeHTML(o.name)}</td><td>${o.discount_pct}%</td><td>${o.starts_at} → ${o.ends_at}</td><td>${(o.days_of_week || []).join(',')}</td><td style="text-align:right"><button class="btn-err btn" data-del-offer="${o.id}">✕</button></td></tr>`).join('')}</tbody></table>`
@@ -744,16 +752,33 @@ async function load(tab) {
 }
 
 function wireList(sel, fn) { document.querySelectorAll(sel).forEach(el => el.onclick = () => fn(el.dataset[Object.keys(el.dataset)[0]])); }
+// n sk-line skeleton rows, shaped roughly like a table/list while a fetch resolves.
+function skRows(n) { return Array.from({ length: n }, () => '<div class="sk-line"></div>').join(''); }
 function escapeHTML(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 // Save buttons
 $('s_saveLocale').onclick = async () => {
   const langs = $('s_langs').value.split(',').map(x => x.trim()).filter(Boolean);
+  const btn = $('s_saveLocale'); if (btn.disabled) return; const orig = btn.textContent;
+  btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span>Saving…';
   try { await api('/api/admin/settings?slug=' + slug, { method: 'PATCH', body: JSON.stringify({ default_currency: $('s_currency').value.trim(), currency_symbol: $('s_symbol').value.trim(), default_language: $('s_lang').value.trim(), enabled_languages: langs }) }); toast('Locale saved', 'ok'); }
   catch (e) { toast(e.message, 'err'); }
+  finally { btn.disabled = false; btn.textContent = orig; }
 };
-$('s_saveGoogle').onclick = async () => { try { await api('/api/admin/settings?slug=' + slug, { method: 'PATCH', body: JSON.stringify({ google_review_url: $('s_gurl').value.trim() }) }); toast('Saved', 'ok'); } catch (e) { toast(e.message, 'err'); } };
-$('s_savePlan').onclick = async () => { try { await api('/api/admin/settings?slug=' + slug, { method: 'PATCH', body: JSON.stringify({ plan: $('s_plan').value }) }); toast('Plan saved', 'ok'); } catch (e) { toast(e.message, 'err'); } };
+$('s_saveGoogle').onclick = async () => {
+  const btn = $('s_saveGoogle'); if (btn.disabled) return; const orig = btn.textContent;
+  btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span>Saving…';
+  try { await api('/api/admin/settings?slug=' + slug, { method: 'PATCH', body: JSON.stringify({ google_review_url: $('s_gurl').value.trim() }) }); toast('Saved', 'ok'); }
+  catch (e) { toast(e.message, 'err'); }
+  finally { btn.disabled = false; btn.textContent = orig; }
+};
+$('s_savePlan').onclick = async () => {
+  const btn = $('s_savePlan'); if (btn.disabled) return; const orig = btn.textContent;
+  btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span>Saving…';
+  try { await api('/api/admin/settings?slug=' + slug, { method: 'PATCH', body: JSON.stringify({ plan: $('s_plan').value }) }); toast('Plan saved', 'ok'); }
+  catch (e) { toast(e.message, 'err'); }
+  finally { btn.disabled = false; btn.textContent = orig; }
+};
 
 // ----- Dominant-color extraction from uploaded logo -----
 function _rgbToHsl(r, g, b) {
@@ -848,35 +873,51 @@ async function _runLogoExtract(file) {
 })();
 
 $('b_save').onclick = async () => {
+  const btn = $('b_save'); if (btn.disabled) return; const orig = btn.textContent;
+  btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span>Saving…';
   try { await api('/api/admin/settings?slug=' + slug, { method: 'PATCH', body: JSON.stringify({ logo_url: $('b_logo').value.trim() || null, cover_url: $('b_cover').value.trim() || null, theme_primary: $('b_primary').value, theme_bg: $('b_bg').value, tagline: $('b_tagline').value.trim() || null }) }); toast('Branding saved ✓', 'ok'); }
   catch (e) { toast(e.message, 'err'); }
+  finally { btn.disabled = false; btn.textContent = orig; }
 };
 
 $('cat_add').onclick = async () => {
   const name = $('cat_name').value.trim(); if (!name) return;
+  const btn = $('cat_add'); if (btn.disabled) return; const orig = btn.textContent;
+  btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span>Adding…';
   try { await api('/api/admin/categories?slug=' + slug, { method: 'POST', body: JSON.stringify({ name }) }); $('cat_name').value = ''; load('categories'); }
   catch (e) { toast(e.message, 'err'); }
+  finally { btn.disabled = false; btn.textContent = orig; }
 };
 $('tbl_add').onclick = async () => {
   const label = $('tbl_label').value.trim(); if (!label) return;
+  const btn = $('tbl_add'); if (btn.disabled) return; const orig = btn.textContent;
+  btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span>Adding…';
   try { await api('/api/admin/tables?slug=' + slug, { method: 'POST', body: JSON.stringify({ label, seats: parseInt($('tbl_seats').value) || 2 }) }); $('tbl_label').value = ''; load('tables'); }
   catch (e) { toast(e.message, 'err'); }
+  finally { btn.disabled = false; btn.textContent = orig; }
 };
 $('st_add').onclick = async () => {
   const name = $('st_name').value.trim(); const pin = $('st_pin').value.trim(); const role = $('st_role').value;
   if (!name || !/^\d{4,6}$/.test(pin)) return toast('Name and 4–6 digit PIN required', 'err');
+  const btn = $('st_add'); if (btn.disabled) return; const orig = btn.textContent;
+  btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span>Adding…';
   try { await api('/api/admin/staff?slug=' + slug, { method: 'POST', body: JSON.stringify({ name, pin, role }) }); $('st_name').value = ''; $('st_pin').value = ''; load('staff'); toast('Staff added ✓', 'ok'); }
   catch (e) { toast(e.message, 'err'); }
+  finally { btn.disabled = false; btn.textContent = orig; }
 };
 $('of_add').onclick = async () => {
   const days = ($('of_days').value || '0,1,2,3,4,5,6').split(',').map(x => parseInt(x)).filter(n => n >= 0 && n <= 6);
+  const btn = $('of_add'); if (btn.disabled) return; const orig = btn.textContent;
+  btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span>Adding…';
   try { await api('/api/admin/offers?slug=' + slug, { method: 'POST', body: JSON.stringify({ name: $('of_name').value.trim(), discount_pct: parseInt($('of_pct').value), starts_at: $('of_start').value, ends_at: $('of_end').value, days_of_week: days }) }); load('offers'); }
   catch (e) { toast(e.message, 'err'); }
+  finally { btn.disabled = false; btn.textContent = orig; }
 };
 
 // ===== ANALYTICS =====
 async function loadAnalytics() {
   const days = $('an_days').value || '30';
+  $('an_totals').innerHTML = '<div class="sk-card"></div><div class="sk-card"></div><div class="sk-card"></div>';
   const d = await api(`/api/admin/analytics?slug=${slug}&days=${days}`);
   const t = d.totals;
   const money = c => 'R' + ((c || 0) / 100).toFixed(2);
@@ -922,7 +963,7 @@ $('air_scan').onclick = async () => {
   const url = $('air_url').value.trim();
   if (!url) return toast('Paste a menu URL', 'err');
   const btn = $('air_scan'); btn.disabled = true; btn.textContent = 'Scanning with AI…';
-  $('air_result').innerHTML = '<div style="color:var(--ink-dim)">Reading your menu — this can take 30–60s…</div>';
+  $('air_result').innerHTML = '<div style="color:var(--ink-dim);margin-bottom:10px"><span class="btn-spinner"></span>Reading your menu — this can take 30–60s…</div><div class="sk-line"></div><div class="sk-line"></div><div class="sk-line"></div><div class="sk-card"></div>';
   try {
     const body = /\.pdf(\?|$)/i.test(url) ? { slug, pdf_url: url } : { slug, image_url: url };
     const d = await api('/api/admin/ai-menu-reader', { method: 'POST', body: JSON.stringify(body) });
@@ -935,7 +976,7 @@ $('air_scan').onclick = async () => {
       <button class="btn" id="air_import">Import all as hidden dishes →</button>
       <div class="sub" style="margin-top:8px">Dishes will be created with a placeholder .glb and stay hidden until you attach a 3D model.</div>`;
     $('air_import').onclick = async () => {
-      $('air_import').disabled = true; $('air_import').textContent = 'Importing…';
+      $('air_import').disabled = true; $('air_import').innerHTML = '<span class="btn-spinner"></span>Importing…';
       try {
         const body2 = /\.pdf(\?|$)/i.test(url) ? { slug, pdf_url: url, insert: true } : { slug, image_url: url, insert: true };
         const r = await api('/api/admin/ai-menu-reader', { method: 'POST', body: JSON.stringify(body2) });
@@ -1138,7 +1179,7 @@ $('ars_start_over').onclick = () => arsReset();
 $('ars_another').onclick = () => arsReset();
 
 $('ars_publish').onclick = async () => {
-  const btn = $('ars_publish'); btn.disabled = true; btn.textContent = 'Publishing…';
+  const btn = $('ars_publish'); btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span>Publishing…';
   try {
     let d;
     if (ars.isUpload) {
@@ -1180,6 +1221,7 @@ $('ars_publish').onclick = async () => {
 // ===== DISHES tab (edit + resize + delete existing dishes) =====
 async function loadDishes() {
   $('dish_print').href = '/qr-print.html?r=' + slug + '&type=dishes';
+  $('dish_list').innerHTML = '<div class="sk-card"></div><div class="sk-card"></div><div class="sk-card"></div>';
   const c = await api('/api/admin/client?slug=' + slug);
   const dishes = c.dishes || [];
   if (!dishes.length) return $('dish_list').innerHTML = '<div class="empty-state" data-icon="🍽"><h3>No dishes yet</h3><p>Use AR Studio to create your first dish.</p></div>';
@@ -1227,6 +1269,7 @@ async function loadDishes() {
 
 // ===== BILLING =====
 async function loadBilling() {
+  $('b_summary').innerHTML = skRows(2);
   const { settings: s } = await api('/api/admin/settings?slug=' + slug);
   const status = s.subscription_status || 'inactive';
   $('b_summary').innerHTML = `
