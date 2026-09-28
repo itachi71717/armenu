@@ -45,6 +45,7 @@ const ROUTES = {
   'admin/push-test':          'admin/push-test',
   'admin/walkins':            'admin/walkins',
   'admin/login':              'admin/login',
+  'admin/migrate':            'admin/migrate',
 
   'staff/login':  'staff/login',
   'staff/orders': 'staff/orders',
@@ -170,7 +171,7 @@ export default async function handler(req, res) {
           }
           // Cross-restaurant admin routes are master-admin only — a scoped
           // manager token can never call them, even without a slug.
-          const MASTER_ONLY = new Set(['admin/clients', 'admin/overview', 'admin/pending', 'admin/client']);
+          const MASTER_ONLY = new Set(['admin/clients', 'admin/overview', 'admin/pending', 'admin/client', 'admin/migrate']);
           if (MASTER_ONLY.has(key)) {
             return res.status(403).json({ error: 'out_of_scope', message: 'This endpoint is master-admin only.' });
           }
@@ -200,6 +201,6 @@ export default async function handler(req, res) {
       const { captureException } = await import('./_sentry.js');
       await captureException(e, { route: key, method: req.method, ip: clientIp(req) });
     } catch {}
-    return res.status(500).json({ error: 'Handler load failed', debug: e.message });
+    return res.status(500).json({ error: 'Handler load failed' });
   }
 }

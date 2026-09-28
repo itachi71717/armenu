@@ -157,10 +157,12 @@ class Query {
       const rows = await sql(text, params);
       return this._shape(rows);
     } catch (e) {
-      // data:[] (not null) so downstream `const { data = [] }` destructures
-      // to an iterable instead of tripping on a .map/.filter of null.
-      // Callers that need the error still get it via `.error`.
-      return { data: [], error: { message: e.message, details: e.detail || null, code: e.code || null } };
+      // List queries get data:[] so `const { data = [] }` callers can still
+      // iterate. Single-row queries MUST get null — `[]` is truthy, so an
+      // `if (!row) return 404` guard would pass on a DB error and callers
+      // would carry on with row.id === undefined.
+      const error = { message: e.message, details: e.detail || null, code: e.code || null };
+      return { data: this._single ? null : [], error };
     }
   }
 
@@ -349,9 +351,14 @@ function makeClient() {
     storage: storage(),
     // Handy raw SQL escape hatch for code that wants it
     async rpc() { throw new Error('rpc() not supported by shim; write raw sql instead'); },
+    // Same { data, error } contract as the query builder — never throws.
     async raw(text, params = []) {
-      const rows = await sql(text, params);
-      return { data: rows, error: null };
+      try {
+        const rows = await sql(text, params);
+        return { data: rows, error: null };
+      } catch (e) {
+        return { data: [], error: { message: e.message, details: e.detail || null, code: e.code || null } };
+      }
     }
   };
 }
