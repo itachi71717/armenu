@@ -3,6 +3,20 @@
 Maintained by Claude across sessions. What's done, what's next, what's blocked.
 Update after every completed item.
 
+## ✅ 2026-09-28 — Batch 2 (commits 2faa68b + 5829f86 — deployed to prod, smoke 33/33)
+- Skeleton loaders (.sk-line/.sk-card/.btn-spinner) on portal/admin/staff/kitchen
+- .empty-state adopted on kitchen board (matches other surfaces)
+- Kitchen 'plated' ticks now server-side (order_items.plated_at) — synced across tablets, localStorage fallback for mid-deploy
+- manager_users.role (owner|manager|viewer) + partial unique index; transfer.js keeps manager_users in sync
+- Staff split-bill v2: per-item assignment + partial paid_cents tracking (keeps even-split MVP)
+- Staff+kitchen kiosks: ArmenuFX toasts + minimal Ctrl+K palette (skipped on touch-only)
+- XSS fix: paid_by label escapeHTML'd in split renderer
+- Audit log `has_more` bug when q-filter used → over-fetches now
+- Zero-dep lint (`scripts/lint.js`) added to `npm run check` + CI
+- 63 tests total (was 47)
+- ⚠️ Requires DB migration: `curl -X POST -H "x-admin-secret: <yours>" https://armenu.co.za/api/admin/migrate` to add order_items.plated_at/paid_by/paid_at + orders.paid_cents + manager_users.role
+- Follow-up risks flagged by verifier: (1) manager_users owner backfill re-scans on every deploy — worth a guard once restaurants table gets large; (2) kitchen plated fallback only triggers on 404/501, not on 500; (3) no server-side check that split-bill paid_cents ≤ total_cents (cosmetic only)
+
 ## ✅ 2026-09-28 — UI overhaul (commit f5ce8de — deployed to prod, smoke 33/33)
 - New `vendor/armenu-fx.{js,css}` (data-fx="spotlight|shiny|reveal|countup|magnetic|tilt", ArmenuFX.scan/toast) and `vendor/armenu-cmdk.js` (Ctrl+K palette, wired on portal + admin).
 - Guest menu/view: brand accent vars end to end, 44px tap targets, skeletons, retry on error. Marketing: lazy images + effects. Operator: Esc closes modals, typed-confirm delete.
