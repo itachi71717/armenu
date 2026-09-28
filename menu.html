@@ -234,8 +234,13 @@
 
 <script>
 const params = new URLSearchParams(location.search);
-const r = params.get('r');
-const table = params.get('t') || null;    // ?t=T-12  pinning the QR to a table
+// Vercel rewrites /m/:slug and /t/:slug/:table to this page server-side but
+// the browser URL keeps the pretty path, so location.search is empty — the
+// slug/table must be read from the path too or every QR code dead-ends.
+const _pathMatch = location.pathname.match(/^\/(m|t)\/([^/]+)(?:\/([^/]+))?\/?$/);
+const _decode = s => { try { return decodeURIComponent(s); } catch { return s; } };
+const r = params.get('r') || (_pathMatch ? _decode(_pathMatch[2]) : null);
+const table = params.get('t') || (_pathMatch && _pathMatch[1] === 't' && _pathMatch[3] ? _decode(_pathMatch[3]) : null);
 const $ = id => document.getElementById(id);
 
 const state = {

@@ -308,3 +308,8 @@ alter table restaurant_settings add column if not exists timezone text;
 -- instead of creating a duplicate.
 alter table orders add column if not exists client_order_id text;
 create index if not exists orders_client_key on orders(restaurant_id, client_order_id, created_at desc) where client_order_id is not null;
+
+-- Repoint dishes created with the old placeholder model URL (an R2 key that
+-- never existed → 404 in model-viewer) at the statically served copy.
+update dishes set glb_url = 'https://armenu.co.za/vendor/models/dish.glb'
+ where glb_url = 'https://pub-6aeed51a836145e5be4673a4c349f0a9.r2.dev/vendor/models/dish.glb';

@@ -1307,7 +1307,9 @@ Sub gluten-free bun +1200</code></div>
           toast('Saved', 'ok');
         } else {
           // Upload GLB first if provided
-          let glb_url = 'https://pub-6aeed51a836145e5be4673a4c349f0a9.r2.dev/vendor/models/dish.glb';
+          // Placeholder model for dishes created without a 3D upload. Served
+          // statically by Vercel — the old R2 key never existed (404 → broken AR).
+          let glb_url = location.origin + '/vendor/models/dish.glb';
           const file = $('dishGlb')?.files?.[0];
           if (file) {
             const up = await mgrFetch('/api/admin/upload-url', { method: 'POST', body: JSON.stringify({ filename: file.name }) });
