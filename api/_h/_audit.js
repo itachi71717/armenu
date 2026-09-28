@@ -10,8 +10,14 @@
 import { supabaseAdmin } from '../_db.js';
 import { verifyManagerToken } from './portal/manager-token.js';
 import { verifyToken as verifyStaffToken } from './staff/login.js';
+import { readAdminCookie } from './admin/login.js';
 
-function actorFor(req) {
+export function actorFor(req) {
+  // Master admin can authenticate via the signed cookie (current login flow)
+  // or the legacy x-admin-secret header. Only checking the header meant every
+  // action taken by an admin signed in through /api/admin/login (cookie-based)
+  // was mis-attributed to 'system' in the audit trail instead of 'admin'.
+  if (readAdminCookie(req)) return 'admin';
   if (req.headers['x-admin-secret'] === process.env.ADMIN_SECRET) return 'admin';
   const pt = req.headers['x-portal-token'] || req.query?.portal_token;
   if (pt) { const v = verifyManagerToken(pt); if (v) return 'manager:' + v.restaurant_id; }

@@ -1,0 +1,158 @@
+/* ARMenu FX — dependency-free effects layer. Warm dark theme.
+   Accent #ff5722 / #ffb066, gold #e8c58a, bg #0a0806.
+   Everything here is additive/opt-in via data-fx="..." — costs nothing
+   when the attribute isn't present. */
+
+/* ---------- spotlight: cursor-following radial glow ---------- */
+[data-fx="spotlight"] {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+[data-fx="spotlight"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s ease-out;
+  background: radial-gradient(
+    240px circle at var(--mx, 50%) var(--my, 50%),
+    rgba(255, 87, 34, 0.16),
+    rgba(255, 176, 102, 0.06) 45%,
+    transparent 70%
+  );
+}
+[data-fx="spotlight"]:hover::before,
+[data-fx="spotlight"].fx-active::before {
+  opacity: 1;
+}
+[data-fx="spotlight"] > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ---------- shiny: animated sheen across text ---------- */
+[data-fx="shiny"] {
+  background-image: linear-gradient(
+    100deg,
+    currentColor 40%,
+    #ffe9c7 50%,
+    currentColor 60%
+  );
+  background-size: 220% 100%;
+  background-position: 100% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: armenuFxShine 3.2s ease-in-out infinite;
+}
+@keyframes armenuFxShine {
+  0%   { background-position: 160% 0; }
+  60%, 100% { background-position: -60% 0; }
+}
+
+/* ---------- reveal: fade/slide-up on first intersect ---------- */
+[data-fx="reveal"] {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.6s cubic-bezier(0.2, 0.7, 0.3, 1),
+              transform 0.6s cubic-bezier(0.2, 0.7, 0.3, 1);
+  transition-delay: var(--fx-delay, 0ms);
+}
+[data-fx="reveal"].fx-in {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ---------- magnetic button ---------- */
+[data-fx="magnetic"] {
+  display: inline-block;
+  transition: transform 0.12s ease-out;
+  will-change: transform;
+}
+
+/* ---------- tilt ---------- */
+[data-fx="tilt"] {
+  transform-style: preserve-3d;
+  transition: transform 0.15s ease-out;
+  will-change: transform;
+}
+
+/* ---------- countup ---------- */
+[data-fx="countup"] {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- toast ---------- */
+.armenu-fx-toast-host {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  pointer-events: none;
+}
+.armenu-fx-toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 16px;
+  border-radius: 12px;
+  background: rgba(20, 15, 10, 0.92);
+  color: #f5ecd8;
+  border: 1px solid rgba(232, 197, 138, 0.25);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  max-width: min(90vw, 380px);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  opacity: 0;
+  transform: translateY(10px) scale(0.98);
+  animation: armenuFxToastIn 0.22s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+}
+.armenu-fx-toast.fx-out {
+  animation: armenuFxToastOut 0.18s ease-in forwards;
+}
+.armenu-fx-toast .fx-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex: none;
+  background: #ffb066;
+}
+.armenu-fx-toast[data-type="success"] .fx-dot { background: #7dd87d; }
+.armenu-fx-toast[data-type="error"]   .fx-dot { background: #f87171; }
+.armenu-fx-toast[data-type="warn"]    .fx-dot { background: #ffb066; }
+@keyframes armenuFxToastIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes armenuFxToastOut {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to   { opacity: 0; transform: translateY(6px) scale(0.98); }
+}
+
+/* ---------- reduced motion / coarse pointer guards ---------- */
+@media (prefers-reduced-motion: reduce) {
+  [data-fx="shiny"] { animation: none; background-position: 0 0; }
+  [data-fx="reveal"] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  [data-fx="spotlight"]::before { transition: none; }
+  [data-fx="magnetic"], [data-fx="tilt"] { transition: none; }
+  .armenu-fx-toast { animation: none; opacity: 1; transform: none; }
+}
+
+@media (pointer: coarse) {
+  [data-fx="tilt"] { transform: none !important; }
+  [data-fx="magnetic"] { transform: none !important; }
+  [data-fx="spotlight"]::before { display: none; }
+}

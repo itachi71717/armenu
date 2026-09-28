@@ -71,7 +71,7 @@ export default async function handler(req, res) {
     }
     if (!rows.length) return res.status(400).json({ error: 'no valid dishes' });
 
-    const { data: order } = await supabaseAdmin.from('orders').insert({
+    const { data: order, error: orderErr } = await supabaseAdmin.from('orders').insert({
       restaurant_id: session.restaurant_id,
       table_id, table_label,
       taken_by: session.staff_id,
@@ -80,8 +80,15 @@ export default async function handler(req, res) {
       subtotal_cents: subtotal, total_cents: subtotal,
       guest_note: String(note || '').slice(0, 500) || null
     }).select().single();
+    if (orderErr || !order) return res.status(500).json({ error: 'Could not save order' });
 
-    await supabaseAdmin.from('order_items').insert(rows.map(r => ({ ...r, order_id: order.id })));
+    const itemsRes = await supabaseAdmin.from('order_items').insert(rows.map(r => ({ ...r, order_id: order.id })));
+    if (itemsRes.error) {
+      // Roll back the parent order — otherwise the kitchen sees an empty ghost order.
+      console.error('staff order_items insert failed:', itemsRes.error);
+      await supabaseAdmin.from('orders').delete().eq('id', order.id);
+      return res.status(500).json({ error: 'Could not save order items — please try again' });
+    }
     return res.status(200).json({ ok: true, order_id: order.id });
   }
 

@@ -31,10 +31,15 @@
   .hero-title b{font-style:normal;font-family:'Inter',sans-serif;font-weight:800}
   .back{font-size:12px;color:var(--ink-dim);padding:8px 14px;border-radius:8px;background:rgba(255,239,220,.04);border:1px solid var(--line)}
 
-  .tabs{display:flex;overflow-x:auto;gap:6px;padding:12px 20px;border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(10,8,6,.9);backdrop-filter:blur(10px);z-index:5;scrollbar-width:none}
+  .tabs-wrap{position:sticky;top:0;z-index:5;background:rgba(10,8,6,.9)}
+  .tabs-wrap::before,.tabs-wrap::after{content:"";position:absolute;top:0;bottom:0;width:28px;pointer-events:none;z-index:6}
+  .tabs-wrap::before{left:0;background:linear-gradient(90deg,rgba(10,8,6,.9),transparent)}
+  .tabs-wrap::after{right:0;background:linear-gradient(270deg,rgba(10,8,6,.9),transparent)}
+  .tabs{display:flex;overflow-x:auto;gap:6px;padding:12px 20px;border-bottom:1px solid var(--line);background:transparent;backdrop-filter:blur(10px);scrollbar-width:none}
   .tabs::-webkit-scrollbar{display:none}
-  .tab{padding:10px 16px;border-radius:10px;font-size:13px;font-weight:600;color:var(--ink-dim);background:rgba(255,239,220,.02);white-space:nowrap}
+  .tab{padding:10px 16px;min-height:44px;display:inline-flex;align-items:center;border-radius:10px;font-size:13px;font-weight:600;color:var(--ink-dim);background:rgba(255,239,220,.02);white-space:nowrap}
   .tab.on{background:rgba(255,87,34,.14);color:var(--accent);border:1px solid rgba(255,87,34,.28)}
+  .btn-err{min-width:44px;min-height:44px}
 
   main{padding:24px 32px;max-width:1200px}
   @media(max-width:760px){main,header,.tabs{padding-left:16px;padding-right:16px}}
@@ -107,6 +112,9 @@
 <link rel="stylesheet" href="/vendor/armenu-a11y.css">
   <script src="/vendor/sentry-client.js" defer></script>
 <script src="/vendor/cookie-consent.js" defer></script>
+<link rel="stylesheet" href="/vendor/armenu-fx.css">
+<script defer src="/vendor/armenu-fx.js"></script>
+<script defer src="/vendor/armenu-cmdk.js"></script>
 </head>
 <body>
 
@@ -128,6 +136,7 @@
   <a class="back" href="/admin/">← All restaurants</a>
 </header>
 
+<div class="tabs-wrap">
 <nav class="tabs" id="tabs">
   <!-- Setup -->
   <button class="tab on" data-tab="settings" data-group="setup">Settings</button>
@@ -150,6 +159,7 @@
   <button class="tab" data-tab="analytics" data-group="analytics">Analytics</button>
   <button class="tab" data-tab="billing" data-group="billing" data-requires="paddle">Billing</button>
 </nav>
+</div>
 
 <script>
   // Hide tabs whose upstream integration isn't configured — no dead-ends.
@@ -1241,6 +1251,29 @@ setInterval(() => {
   const t = document.querySelector('.tab.on')?.dataset.tab;
   if (t === 'orders' || t === 'calls') load(t);
 }, 6000);
+</script>
+
+<!-- Command palette (Ctrl/Cmd+K) — jump to any tab, toggle live preview -->
+<script>
+(function () {
+  function ready(fn) { if (document.readyState !== 'loading') fn(); else document.addEventListener('DOMContentLoaded', fn); }
+  ready(function () {
+    if (!window.ArmenuCmdK) return;
+    const cmds = [];
+    document.querySelectorAll('.tab[data-tab]').forEach(function (el) {
+      if (el.style.display === 'none') return;
+      cmds.push({
+        id: 'tab-' + el.dataset.tab,
+        label: 'Go to ' + el.textContent.trim(),
+        hint: el.dataset.group || 'Tab',
+        keywords: [el.dataset.tab, el.dataset.group],
+        run: function () { el.click(); }
+      });
+    });
+    cmds.push({ id: 'toggle-preview', label: 'Toggle live preview', hint: 'Guest view', keywords: ['preview', 'guest'], run: function () { document.getElementById('previewToggle')?.click(); } });
+    ArmenuCmdK.register(cmds);
+  });
+})();
 </script>
 </body>
 </html>

@@ -22,7 +22,7 @@
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
   :root{
     --bg:#0a0806;--ink:#f5efe6;--ink-dim:#9a9388;--ink-faint:#7a7266;
-    --accent:#d4a574;--accent-2:#ffb066;--line:rgba(255,239,220,.08);
+    --accent:#d4a574;--accent-2:#ffb066;--accent-rgb:212,165,116;--line:rgba(255,239,220,.08);
     --serif:'Instrument Serif',serif;--mono:'JetBrains Mono',monospace;
   }
   html{-webkit-font-smoothing:antialiased;scroll-behavior:smooth}
@@ -35,11 +35,11 @@
     position:sticky;top:0;z-index:20;
     background:rgba(10,8,6,.85);backdrop-filter:blur(18px) saturate(1.4);
     border-bottom:1px solid var(--line);
-    padding:14px 18px;display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:14px 18px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;
   }
   .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:13px;letter-spacing:.06em;text-transform:uppercase}
-  .brand .mark{width:24px;height:24px;border-radius:7px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;box-shadow:0 4px 12px rgba(255,87,34,.4),inset 0 1px 0 rgba(255,255,255,.3)}
-  .brand .mark::after{content:"";position:absolute;inset:5px;border-radius:3px;background:#0a0806;box-shadow:inset 0 0 0 2px rgba(255,87,34,.6)}
+  .brand .mark{width:24px;height:24px;border-radius:7px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;box-shadow:0 4px 12px rgba(var(--accent-rgb),.4),inset 0 1px 0 rgba(255,255,255,.3)}
+  .brand .mark::after{content:"";position:absolute;inset:5px;border-radius:3px;background:#0a0806;box-shadow:inset 0 0 0 2px rgba(var(--accent-rgb),.6)}
   .brand img.mark{background:none;box-shadow:none;object-fit:cover}
   .brand img.mark::after{display:none}
 
@@ -50,7 +50,7 @@
   .lang-btn,.venue-pill{
     font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
     padding:6px 12px;border-radius:999px;background:rgba(255,239,220,.06);border:1px solid var(--line);
-    max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    max-width:clamp(90px,30vw,200px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   }
 
   .cover{
@@ -61,7 +61,7 @@
   .cover.has-image{animation:kenburns 40s ease-in-out infinite alternate;transform-origin:center}
   @keyframes kenburns{from{transform:scale(1)}to{transform:scale(1.08)}}
 
-  .hero{text-align:center;padding:36px 24px 22px;background:radial-gradient(ellipse 120% 80% at 50% 0%,rgba(255,87,34,.12),transparent 60%)}
+  .hero{text-align:center;padding:36px 24px 22px;background:radial-gradient(ellipse 120% 80% at 50% 0%,rgba(var(--accent-rgb),.12),transparent 60%)}
   .hero .pre{display:inline-block;font-family:var(--mono);font-size:10px;color:var(--accent);letter-spacing:.22em;text-transform:uppercase;margin-bottom:10px}
   .hero h1{
     font-family:var(--serif);font-style:italic;font-size:clamp(34px,8vw,52px);
@@ -77,14 +77,18 @@
     position:sticky;top:52px;z-index:15;background:rgba(10,8,6,.9);backdrop-filter:blur(14px);
     border-bottom:1px solid var(--line);padding:10px 12px;overflow-x:auto;display:flex;gap:6px;
     scrollbar-width:none;transition:box-shadow .2s ease;
+    mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);
+    -webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);
   }
+  .category-nav.at-end{mask-image:none;-webkit-mask-image:none}
   .category-nav.stuck{box-shadow:0 6px 18px rgba(0,0,0,.35)}
   .category-nav::-webkit-scrollbar{display:none}
   .cat-chip{
-    flex-shrink:0;padding:8px 14px;border-radius:999px;font-size:12px;font-weight:600;letter-spacing:.03em;
+    flex-shrink:0;min-height:44px;padding:12px 16px;border-radius:999px;font-size:12px;font-weight:600;letter-spacing:.03em;
     background:rgba(255,239,220,.04);border:1px solid var(--line);color:var(--ink-dim);white-space:nowrap;
+    display:inline-flex;align-items:center;
   }
-  .cat-chip.active{background:rgba(255,87,34,.14);color:var(--accent);border-color:rgba(255,87,34,.3)}
+  .cat-chip.active{background:rgba(var(--accent-rgb),.14);color:var(--accent);border-color:rgba(var(--accent-rgb),.3)}
 
   main{max-width:720px;margin:0 auto;padding:14px 16px}
   .section-label{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.22em;color:var(--ink-faint);margin:24px 6px 14px;display:flex;align-items:center;gap:12px}
@@ -97,13 +101,13 @@
     display:flex;flex-direction:column;transition:border-color .2s,transform .2s,box-shadow .2s;
     -webkit-tap-highlight-color:transparent;position:relative;
   }
-  .dish:hover{border-color:rgba(255,87,34,.3);transform:translateY(-3px);box-shadow:0 12px 28px rgba(0,0,0,.35)}
+  .dish:hover{border-color:rgba(var(--accent-rgb),.3);transform:translateY(-3px);box-shadow:0 12px 28px rgba(0,0,0,.35)}
   .dish:hover .price{transform:scale(1.06)}
   .dish:active{transform:scale(.985)}
   .dish .price{transition:transform .2s ease}
   .dish .thumb{aspect-ratio:4/3;background:#1a1410 center/cover no-repeat;position:relative;display:grid;place-items:center}
   .dish .thumb-fallback{font-family:var(--serif);font-style:italic;font-size:48px;color:var(--ink-faint)}
-  .dish .ar-tag{position:absolute;top:12px;right:12px;padding:4px 10px;border-radius:999px;font-family:var(--mono);font-size:10px;font-weight:600;background:linear-gradient(135deg,var(--accent),#c93d00);color:#fff;letter-spacing:.08em;text-transform:uppercase;box-shadow:0 4px 12px rgba(255,87,34,.4)}
+  .dish .ar-tag{position:absolute;top:12px;right:12px;padding:4px 10px;border-radius:999px;font-family:var(--mono);font-size:10px;font-weight:600;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;letter-spacing:.08em;text-transform:uppercase;box-shadow:0 4px 12px rgba(var(--accent-rgb),.4)}
   .dish .stock-tag{position:absolute;top:12px;right:12px;padding:5px 11px;border-radius:999px;font-family:var(--mono);font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;box-shadow:0 4px 14px rgba(0,0,0,.55)}
   .dish .stock-tag.sold{background:#1a1410;color:#fff;border:1.5px solid rgba(245,239,220,.4)}
   .dish .stock-tag.low{background:linear-gradient(135deg,#f0b060,#e05252);color:#fff;border:1.5px solid rgba(255,255,255,.2);text-shadow:0 1px 2px rgba(0,0,0,.35)}
@@ -123,7 +127,7 @@
   .diet-warn{font-size:10.5px;padding:3px 8px;border-radius:999px;background:rgba(255,176,102,.1);color:#f0b060;border:1px solid rgba(255,176,102,.28);letter-spacing:.02em}
   .dish .row{display:flex;gap:6px;margin-top:8px}
   .dish .row button{flex:1;padding:9px 10px;border-radius:10px;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
-  .dish .btn-ar{background:linear-gradient(135deg,var(--accent),#c93d00);color:#fff;box-shadow:0 4px 12px rgba(255,87,34,.3)}
+  .dish .btn-ar{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;box-shadow:0 4px 12px rgba(var(--accent-rgb),.3)}
   .dish .btn-add{background:rgba(255,239,220,.06);color:var(--ink);border:1px solid var(--line)}
   .dish .btn-add:active{transform:scale(.97)}
 
@@ -139,7 +143,7 @@
     flex:1;padding:14px 16px;border-radius:12px;font-size:13px;font-weight:700;letter-spacing:.03em;
     display:flex;align-items:center;justify-content:center;gap:8px;
   }
-  .btn-primary{background:linear-gradient(135deg,var(--accent),#c93d00);color:#fff;box-shadow:0 6px 18px rgba(255,87,34,.3)}
+  .btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;box-shadow:0 6px 18px rgba(var(--accent-rgb),.3)}
   .btn-secondary{background:rgba(255,239,220,.06);color:var(--ink);border:1px solid var(--line)}
   .cart-count{background:#fff;color:var(--accent);padding:2px 8px;border-radius:999px;font-size:11px;font-weight:800}
 
@@ -160,13 +164,13 @@
   .sheet .cart-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
   .sheet .cart-name{flex:1;font-weight:600;font-size:14px}
   .sheet .qty{display:flex;align-items:center;gap:8px}
-  .sheet .qty button{width:26px;height:26px;border-radius:8px;background:rgba(255,239,220,.06);border:1px solid var(--line);font-size:14px;font-weight:700}
+  .sheet .qty button{width:26px;height:26px;min-width:44px;min-height:44px;border-radius:8px;background:rgba(255,239,220,.06);border:1px solid var(--line);font-size:14px;font-weight:700;display:inline-flex;align-items:center;justify-content:center}
   .sheet .qty span{min-width:22px;text-align:center;font-weight:600}
   .sheet .cart-total{display:flex;justify-content:space-between;padding:16px 0;font-weight:700;font-size:16px}
   .sheet .field{margin:12px 0}
   .sheet label{display:block;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--ink-faint);margin-bottom:6px}
   .sheet input,.sheet textarea,.sheet select{width:100%;padding:12px;border-radius:10px;background:rgba(255,239,220,.03);border:1px solid var(--line);color:var(--ink);font-family:inherit;font-size:14px}
-  .sheet .submit{width:100%;padding:14px;border-radius:12px;background:linear-gradient(135deg,var(--accent),#c93d00);color:#fff;font-weight:700;font-size:14px;margin-top:12px}
+  .sheet .submit{width:100%;padding:14px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;font-weight:700;font-size:14px;margin-top:12px}
   .sheet .reason-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
   .sheet .reason-row button{padding:14px;border-radius:12px;background:rgba(255,239,220,.05);border:1px solid var(--line);font-weight:600}
   .sheet .stars{display:flex;justify-content:center;gap:8px;padding:14px 0}
@@ -220,6 +224,13 @@
   <div id="dietChips" style="display:flex;gap:6px;flex-wrap:wrap;overflow-x:auto"></div>
 </div>
 
+<!-- Skeleton action bar: shown only while settings are still loading, so the
+     bottom of the screen doesn't pop in abruptly once real actions arrive -->
+<div class="actionbar" id="actionbarSkeleton">
+  <div class="sk-card" style="flex:1;height:44px;margin:0"></div>
+  <div class="sk-card" style="flex:1;height:44px;margin:0"></div>
+</div>
+
 <!-- Bottom action bar: shown only when at least one action is enabled -->
 <div class="actionbar" id="actionbar" style="display:none">
   <button class="btn-secondary" id="waiterBtn" style="display:none">🛎 Call Waiter</button>
@@ -267,6 +278,22 @@ function escapeHTML(s) {
 // Format: 1 ZAR = X of target currency.
 const FX_RATES = { ZAR: 1, USD: 0.055, EUR: 0.051, GBP: 0.044, AUD: 0.083 };
 const CURRENCY_SYMBOLS = { ZAR: 'R', USD: '$', EUR: '€', GBP: '£', AUD: 'A$' };
+
+// Static UI-chrome strings (not dish content) for the handful of languages
+// ARMenu restaurants commonly pick. Falls back to English when a language
+// isn't covered here, so switching languages translates more than just
+// dish names/descriptions.
+const UI_STRINGS = {
+  en: { heroSub: 'Tap any dish to see it <em>life-size on your table</em>.', footHint: 'Point your phone at the table after tapping <em>View in AR</em>. your meal appears at real size.', poweredBy: 'Powered by' },
+  af: { heroSub: 'Tik enige gereg om dit <em>lewensgroot op jou tafel</em> te sien.', footHint: 'Rig jou foon na die tafel nadat jy <em>Bekyk in AR</em> getik het. jou maaltyd verskyn op ware grootte.', poweredBy: 'Aangedryf deur' },
+  zu: { heroSub: 'Thepha noma yiluphi ukudla ukuze ulibone <em>ngosayizi wangempela etafuleni lakho</em>.', footHint: 'Khomba ifoni yakho etafuleni ngemva kokuthepha u-<em>Buka ku-AR</em>. ukudla kwakho kuzovela ngosayizi wangempela.', poweredBy: 'Kunikwe amandla' },
+  xh: { heroSub: 'Cofa nasiphi na isidlo ukubona <em>ngobungakanani benyani kwitafile yakho</em>.', footHint: 'Jolisa ifowuni yakho kwitafile emva kokucofa u-<em>Jonga kwi-AR</em>. ukutya kwakho kuvela ngobungakanani benyani.', poweredBy: 'Kuxhaswa ngu' },
+  pt: { heroSub: 'Toque em qualquer prato para vê-lo <em>em tamanho real na sua mesa</em>.', footHint: 'Aponte o telemóvel para a mesa depois de tocar em <em>Ver em RA</em>. a sua refeição aparece em tamanho real.', poweredBy: 'Desenvolvido por' },
+  fr: { heroSub: 'Touchez un plat pour le voir <em>en taille réelle sur votre table</em>.', footHint: "Pointez votre téléphone vers la table après avoir touché <em>Voir en RA</em>. votre plat apparaît en taille réelle.", poweredBy: 'Propulsé par' },
+  de: { heroSub: 'Tippe auf ein Gericht, um es <em>in Originalgröße auf deinem Tisch</em> zu sehen.', footHint: 'Richte dein Telefon nach dem Tippen auf <em>In AR ansehen</em> auf den Tisch. dein Essen erscheint in Originalgröße.', poweredBy: 'Bereitgestellt von' },
+  es: { heroSub: 'Toca cualquier plato para verlo <em>a tamaño real en tu mesa</em>.', footHint: 'Apunta tu teléfono a la mesa después de tocar <em>Ver en RA</em>. tu plato aparece a tamaño real.', poweredBy: 'Desarrollado por' }
+};
+function ui(key) { return (UI_STRINGS[state.lang] || UI_STRINGS.en)[key] || UI_STRINGS.en[key]; }
 let _displayCcy = 'ZAR';
 try { const saved = localStorage.getItem('armenu_display_ccy'); if (saved && FX_RATES[saved]) _displayCcy = saved; } catch {}
 
@@ -279,8 +306,13 @@ function fmtPrice(cents, sym) {
   return `${symbol}${converted.toFixed(2)}`;
 }
 
-function showError(title, sub) {
-  $('content').innerHTML = `<div class="state"><h2>${title}</h2><p>${sub}</p></div>`;
+function showError(title, sub, retry) {
+  const skel = $('actionbarSkeleton'); if (skel) skel.style.display = 'none';
+  $('content').innerHTML = `<div class="empty-state" data-icon="🍽">
+    <h3>${escapeHTML(title)}</h3><p>${escapeHTML(sub)}</p>
+    ${retry ? `<button class="cta" id="retryBoot">Retry</button>` : ''}
+  </div>`;
+  if (retry) $('retryBoot').onclick = () => { $('content').innerHTML = `<div class="state"><div class="spinner"></div><p>Loading the menu…</p></div>`; boot(); };
 }
 
 async function boot() {
@@ -301,7 +333,7 @@ async function boot() {
     render();
     wireActions();
   } catch (e) {
-    showError('Could not load menu.', 'Check your internet and try again.');
+    showError('Could not load menu.', 'Check your internet and try again.', true);
   }
 }
 
@@ -347,12 +379,24 @@ function lighten(hex, amt) {
   return '#' + toHex(r2) + toHex(g2) + toHex(b2);
 }
 
+function hexToRgbStr(hex) {
+  if (!hex) return null;
+  let h = String(hex).trim().replace('#', '');
+  if (h.length === 3) h = h.split('').map(c => c + c).join('');
+  if (!/^[0-9a-fA-F]{6}$/.test(h)) return null;
+  const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+  return `${r},${g},${b}`;
+}
+
 function applyBranding() {
   const b = state.settings.branding || {};
   const primary = b.primary || '#d4a574';
   const accent2 = lighten(b.primary, 20) || '#ffb066';
   document.documentElement.style.setProperty('--accent', primary);
   document.documentElement.style.setProperty('--accent-2', accent2);
+  const primaryRgb = hexToRgbStr(primary);
+  if (primaryRgb) document.documentElement.style.setProperty('--accent-rgb', primaryRgb);
+  try { sessionStorage.setItem('armenu_branding_' + r, JSON.stringify({ primary, accent2, bg: b.bg || null })); } catch {}
   if (b.bg) document.documentElement.style.setProperty('--bg', b.bg);
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute('content', primary);
@@ -470,15 +514,20 @@ function render() {
 
   const heroSub = settings.branding.tagline
     ? escapeHTML(settings.branding.tagline)
-    : `Tap any dish to see it <em>life-size on your table</em>.`;
+    : ui('heroSub');
 
   const tableTag = table ? `<div class="table-tag">Table · ${escapeHTML(table)}</div>` : '';
+  const fxNote = _displayCcy !== 'ZAR'
+    ? `<div class="table-tag" style="border-color:rgba(255,176,102,.2);color:var(--ink-faint);background:transparent">≈ approx. ${escapeHTML(_displayCcy)}, charged in ${escapeHTML(baseCcy)}</div>`
+    : '';
   const brandBadge = settings.branding.tagline
     ? `<div class="brand-badge">${escapeHTML(settings.branding.tagline)}</div>`
     : `<div class="brand-badge">Powered by <b>ARMenu</b></div>`;
 
   if (!dishes.length) {
-    $('content').innerHTML = `${cover}<section class="hero"><div class="pre">ARMenu</div><h1>${escapeHTML(restaurant.name)}</h1><p class="sub">No dishes are live yet. <em>Check back soon.</em></p></section>`;
+    const skel = $('actionbarSkeleton'); if (skel) skel.style.display = 'none';
+    $('content').innerHTML = `${cover}<section class="hero"><div class="pre">ARMenu</div><h1>${escapeHTML(restaurant.name)}</h1></section>
+      <main><div class="empty-state" data-icon="🍽"><h3>No dishes are live yet</h3><p>Check back soon.</p></div></main>`;
     return;
   }
 
@@ -511,6 +560,7 @@ function render() {
       <h1>${escapeHTML(restaurant.name)}</h1>
       <p class="sub">${heroSub}</p>
       ${tableTag}
+      ${fxNote}
       ${brandBadge}
     </section>
     ${chipsHtml}
@@ -518,8 +568,8 @@ function render() {
       <div class="section-label">Menu · ${activeItems.length} dish${activeItems.length === 1 ? '' : 'es'}</div>
       <div class="dishes">${dishesHtml}</div>
       <div class="foot-hint">
-        Point your phone at the table after tapping <em>View in AR</em>. your meal appears at real size.
-        <div class="powered">Powered by <a href="https://armenu.co.za" target="_blank" rel="noopener">ARMenu</a></div>
+        ${ui('footHint')}
+        <div class="powered">${ui('poweredBy')} <a href="https://armenu.co.za" target="_blank" rel="noopener">ARMenu</a></div>
       </div>
     </main>`;
 
@@ -534,6 +584,7 @@ function render() {
   updateActionbar();
   wireCategoryStuck();
   wireMenuFilters();
+  try { window.ArmenuFX?.scan($('content')); } catch {}
   // Lazy-load dish thumbnails via IntersectionObserver — only load images that come into view
   if ('IntersectionObserver' in window) {
     const io = new IntersectionObserver((entries) => {
@@ -560,6 +611,17 @@ function wireCategoryStuck() {
   window.__catStuck = check;
   window.addEventListener('scroll', check, { passive: true });
   check();
+  // Hide the edge-fade mask once the chip row is scrolled to its end, or
+  // if it doesn't overflow at all, so the fade doesn't imply hidden content
+  // that isn't there.
+  const checkEnd = () => {
+    const atEnd = nav.scrollWidth - nav.clientWidth <= nav.scrollLeft + 4;
+    nav.classList.toggle('at-end', atEnd);
+  };
+  nav.removeEventListener('scroll', nav.__catEnd || (() => {}));
+  nav.__catEnd = checkEnd;
+  nav.addEventListener('scroll', checkEnd, { passive: true });
+  checkEnd();
 }
 
 // Render small "contains" chips for common allergens (nuts, dairy, gluten,
@@ -599,11 +661,13 @@ function renderDish(d) {
 
   const soldOut = d.sold_out === true;
   const lowStock = !soldOut && typeof d.stock === 'number' && d.stock > 0 && d.stock <= 3;
+  const stockStatus = soldOut ? 'sold out' : (lowStock ? `only ${d.stock} left` : 'view in AR');
+  const thumbAriaLabel = `${nameTr}, ${stockStatus}`;
   return `
-    <div class="dish${soldOut ? ' sold-out' : ''}">
-      <a href="/view.html?r=${encodeURIComponent(r)}&d=${encodeURIComponent(d.slug)}${table ? '&t=' + encodeURIComponent(table) : ''}" class="thumb-link">
-        <div class="thumb" ${d.thumb ? `data-bg="${d.thumb}"` : ''}>
-          ${d.thumb ? '' : `<span class="thumb-fallback">${escapeHTML(nameTr[0] || '?')}</span>`}
+    <div class="dish${soldOut ? ' sold-out' : ''}" data-fx="reveal">
+      <a href="/view.html?r=${encodeURIComponent(r)}&d=${encodeURIComponent(d.slug)}${table ? '&t=' + encodeURIComponent(table) : ''}" class="thumb-link" aria-label="${escapeHTML(thumbAriaLabel)}">
+        <div class="thumb" data-fx="spotlight" ${d.thumb ? `data-bg="${d.thumb}"` : ''}>
+          ${d.thumb ? '' : `<span class="thumb-fallback" aria-hidden="true">${escapeHTML(nameTr[0] || '?')}</span>`}
           ${soldOut ? '<span class="stock-tag sold">Sold out</span>' : (lowStock ? `<span class="stock-tag low">Only ${d.stock} left</span>` : '<span class="ar-tag">View in AR</span>')}
         </div>
       </a>
@@ -630,6 +694,8 @@ function renderDish(d) {
 }
 
 function updateActionbar() {
+  const skel = $('actionbarSkeleton');
+  if (skel) skel.style.display = 'none';
   const f = state.settings.features;
   const bar = $('actionbar');
   const any = f.orders || f.waiter_call || f.reviews || f.reservations !== false;
@@ -672,7 +738,7 @@ function wireMenuFilters() {
       { key: 'dairy-free', label: '🥛 Dairy-free' },
       { key: 'halal', label: '☪ Halal' }
     ];
-    chips.innerHTML = opts.map(o => `<button data-diet="${o.key}" style="flex-shrink:0;padding:5px 11px;border-radius:999px;background:rgba(255,239,220,.04);border:1px solid var(--line);color:var(--ink-dim);font-size:11.5px;font-weight:600;cursor:pointer;white-space:nowrap">${o.label}</button>`).join('');
+    chips.innerHTML = opts.map(o => `<button data-diet="${o.key}" style="flex-shrink:0;min-height:44px;padding:0 14px;border-radius:999px;background:rgba(255,239,220,.04);border:1px solid var(--line);color:var(--ink-dim);font-size:11.5px;font-weight:600;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center">${o.label}</button>`).join('');
     chips.addEventListener('click', (e) => {
       const b = e.target.closest('[data-diet]'); if (!b) return;
       const same = state.dietFilter === b.dataset.diet;
@@ -872,7 +938,7 @@ function openCart() {
     </div>`).join('');
   const tipBtns = [0, 10, 15, 20].map(p => `
     <button class="tip-btn ${_tipPct === p ? 'on' : ''}" data-tip="${p}"
-      style="flex:1;padding:10px;border-radius:9px;border:1px solid ${_tipPct === p ? 'var(--accent)' : 'var(--line)'};background:${_tipPct === p ? 'rgba(255,87,34,.14)' : 'rgba(255,239,220,.04)'};color:${_tipPct === p ? 'var(--accent)' : 'var(--ink-dim)'};font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">${p === 0 ? 'No tip' : p + '%'}</button>`).join('');
+      style="flex:1;padding:10px;border-radius:9px;border:1px solid ${_tipPct === p ? 'var(--accent)' : 'var(--line)'};background:${_tipPct === p ? 'rgba(var(--accent-rgb),.14)' : 'rgba(255,239,220,.04)'};color:${_tipPct === p ? 'var(--accent)' : 'var(--ink-dim)'};font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">${p === 0 ? 'No tip' : p + '%'}</button>`).join('');
   openSheet(`
     <h3>Your order</h3>
     <div class="sh-sub">Sent straight to the kitchen when you confirm.</div>
@@ -992,13 +1058,19 @@ function openReview() {
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error || 'Could not send');
-      closeSheet();
       if (d.google_review_url) {
         setTimeout(() => {
-          if (confirm(`Thanks! Would you share your ${picked}-star review on Google too? It helps this restaurant enormously.`)) {
-            window.open(d.google_review_url, '_blank', 'noopener');
-          }
-        }, 200);
+          openSheet(`
+            <h3>Thanks for your review!</h3>
+            <div class="sh-sub">Would you also share your ${picked}-star review on Google? It helps this restaurant enormously.</div>
+            <button class="submit" id="grYes">Share on Google →</button>
+            <button class="submit" id="grNo" style="background:rgba(255,239,220,.06);color:var(--ink);margin-top:8px">Not now</button>
+          `);
+          $('grYes').onclick = () => { window.open(d.google_review_url, '_blank', 'noopener'); closeSheet(); };
+          $('grNo').onclick = closeSheet;
+        }, 250);
+      } else {
+        closeSheet();
       }
       toast('Thanks for your review ✓', 'ok');
     } catch (e) {
@@ -1027,5 +1099,8 @@ function wireActions() {
 
 boot();
 </script>
+<link rel="stylesheet" href="/vendor/armenu-fx.css">
+<script defer src="/vendor/armenu-fx.js"></script>
+<script defer src="/vendor/armenu-cmdk.js"></script>
 </body>
 </html>

@@ -24,6 +24,7 @@
 
 <style>
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{--accent:#ff5722;--accent-2:#ffb066;--accent-3:#c93d00;--accent-rgb:255,87,34}
   html,body{height:100%}
   body{overflow:hidden}
   body{
@@ -31,14 +32,14 @@
     background:#0a0806;color:#f5efe6;
     -webkit-font-smoothing:antialiased;
   }
-  ::selection{background:#ff5722;color:#0a0806}
+  ::selection{background:var(--accent);color:#0a0806}
 
   /* Stage */
   .stage{
     position:fixed;inset:0;
     background:
-      radial-gradient(ellipse 70% 50% at 50% 30%,rgba(255,87,34,.18),transparent 60%),
-      radial-gradient(ellipse 80% 40% at 50% 90%,rgba(201,61,0,.12),transparent 60%),
+      radial-gradient(ellipse 70% 50% at 50% 30%,rgba(var(--accent-rgb),.18),transparent 60%),
+      radial-gradient(ellipse 80% 40% at 50% 90%,rgba(var(--accent-rgb),.12),transparent 60%),
       #0a0806;
   }
   model-viewer{
@@ -58,13 +59,13 @@
   }
   .brand .mark{
     width:24px;height:24px;border-radius:7px;
-    background:linear-gradient(135deg,#ff5722,#ffb066);
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));
     position:relative;
-    box-shadow:0 4px 12px rgba(255,87,34,.4),inset 0 1px 0 rgba(255,255,255,.3);
+    box-shadow:0 4px 12px rgba(var(--accent-rgb),.4),inset 0 1px 0 rgba(255,255,255,.3);
   }
   .brand .mark::after{
     content:"";position:absolute;inset:5px;border-radius:3px;background:#0a0806;
-    box-shadow:inset 0 0 0 2px rgba(255,87,34,.6);
+    box-shadow:inset 0 0 0 2px rgba(var(--accent-rgb),.6);
   }
   .brand b{font-weight:800}.brand i{font-style:normal;color:#9a9388;font-weight:500;margin-left:3px}
 
@@ -94,31 +95,31 @@
     font-size:30px;font-weight:300;letter-spacing:-.02em;line-height:1.05;
     font-family:'Instrument Serif',serif;
   }
-  .dish-price{color:#ff5722;font-size:18px;font-weight:700;letter-spacing:-.01em;white-space:nowrap}
+  .dish-price{color:var(--accent);font-size:18px;font-weight:700;letter-spacing:-.01em;white-space:nowrap}
 
   .ar-button{
     width:100%;position:relative;
     display:flex;align-items:center;justify-content:center;gap:12px;
     padding:20px;border-radius:18px;border:none;cursor:pointer;
-    background:linear-gradient(135deg,#ff5722,#c93d00);
+    background:linear-gradient(135deg,var(--accent),var(--accent-3));
     color:#fff;font-family:inherit;font-weight:700;font-size:17px;letter-spacing:.01em;
     box-shadow:
-      0 14px 32px rgba(255,87,34,.45),
+      0 14px 32px rgba(var(--accent-rgb),.45),
       inset 0 1px 0 rgba(255,255,255,.3),
-      0 0 0 1px rgba(255,87,34,.4);
+      0 0 0 1px rgba(var(--accent-rgb),.4);
     transition:transform .2s;
   }
   .ar-button:active{transform:scale(.98)}
   .ar-button svg{width:22px;height:22px;flex-shrink:0}
   .ar-button::after{
     content:"";position:absolute;inset:-4px;border-radius:22px;
-    box-shadow:0 0 0 0 rgba(255,87,34,.55);
+    box-shadow:0 0 0 0 rgba(var(--accent-rgb),.55);
     animation:pulse 2.4s ease-out infinite;pointer-events:none;
   }
   @keyframes pulse{
-    0%{box-shadow:0 0 0 0 rgba(255,87,34,.5)}
-    70%{box-shadow:0 0 0 22px rgba(255,87,34,0)}
-    100%{box-shadow:0 0 0 0 rgba(255,87,34,0)}
+    0%{box-shadow:0 0 0 0 rgba(var(--accent-rgb),.5)}
+    70%{box-shadow:0 0 0 22px rgba(var(--accent-rgb),0)}
+    100%{box-shadow:0 0 0 0 rgba(var(--accent-rgb),0)}
   }
 
   .hint{
@@ -136,7 +137,7 @@
   .spinner{
     width:42px;height:42px;border-radius:50%;
     border:2px solid rgba(255,239,220,.08);
-    border-top-color:#ff5722;
+    border-top-color:var(--accent);
     animation:spin 1s linear infinite;
     margin-bottom:18px;
   }
@@ -155,7 +156,7 @@
     background:linear-gradient(110deg,
       rgba(255,239,220,.04) 20%,
       rgba(255,239,220,.12) 40%,
-      rgba(255,87,34,.08) 55%,
+      rgba(var(--accent-rgb),.08) 55%,
       rgba(255,239,220,.04) 75%);
     background-size:220% 100%;
     animation:shimmer 1.8s linear infinite;
@@ -179,7 +180,7 @@
     opacity:0;transition:opacity .6s ease,transform .6s ease;
   }
   .scale-badge.show{opacity:1;transform:translateX(-50%) translateY(0)}
-  .scale-badge .dot{width:6px;height:6px;border-radius:50%;background:#ff5722;box-shadow:0 0 8px rgba(255,87,34,.9);animation:pulseDot 1.6s ease-in-out infinite}
+  .scale-badge .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px rgba(var(--accent-rgb),.9);animation:pulseDot 1.6s ease-in-out infinite}
   .scale-badge em{font-family:'Instrument Serif',serif;font-style:italic;color:#9a9388;font-weight:400;text-transform:none;letter-spacing:0;font-size:12px}
   @keyframes pulseDot{50%{opacity:.4}}
 
@@ -188,7 +189,7 @@
     .ar-button{position:sticky;bottom:0}
   }
   .ar-button{
-    background:linear-gradient(135deg,#ff7043 0%,#ff5722 45%,#c93d00 100%);
+    background:linear-gradient(135deg,var(--accent-2) 0%,var(--accent) 45%,var(--accent-3) 100%);
     transition:transform .18s cubic-bezier(.34,1.6,.64,1),box-shadow .2s;
     will-change:transform;
   }
@@ -204,19 +205,19 @@
   /* Retry button */
   .retry-btn{
     display:inline-flex;align-items:center;gap:8px;margin-top:18px;
-    padding:12px 22px;border-radius:12px;border:1px solid rgba(255,87,34,.5);
-    background:rgba(255,87,34,.12);color:#f5efe6;
+    padding:12px 22px;border-radius:12px;border:1px solid rgba(var(--accent-rgb),.5);
+    background:rgba(var(--accent-rgb),.12);color:#f5efe6;
     font-family:inherit;font-weight:600;font-size:14px;cursor:pointer;
     transition:background .2s;
   }
-  .retry-btn:hover{background:rgba(255,87,34,.22)}
+  .retry-btn:hover{background:rgba(var(--accent-rgb),.22)}
   .retry-btn svg{width:16px;height:16px}
 
   /* Scroll cue arrows */
   .scroll-cue{
     position:fixed;left:50%;transform:translateX(-50%);
     z-index:9;pointer-events:none;
-    color:#ff5722;opacity:0;transition:opacity .4s;
+    color:var(--accent);opacity:0;transition:opacity .4s;
   }
   .scroll-cue.show{opacity:.85;animation:bounce 1.8s ease-in-out infinite}
   .scroll-cue.top{top:56px}
@@ -271,9 +272,9 @@
   .safari-nag-card p{color:#9a9388;font-size:14px;line-height:1.65;margin-bottom:24px}
   .nag-share-btn{
     width:100%;padding:18px;border-radius:14px;border:none;cursor:pointer;
-    background:linear-gradient(135deg,#ff5722,#c93d00);
+    background:linear-gradient(135deg,var(--accent),var(--accent-3));
     color:#fff;font-family:inherit;font-weight:700;font-size:16px;
-    box-shadow:0 10px 24px rgba(255,87,34,.4),inset 0 1px 0 rgba(255,255,255,.2);
+    box-shadow:0 10px 24px rgba(var(--accent-rgb),.4),inset 0 1px 0 rgba(255,255,255,.2);
     margin-bottom:14px;
   }
   .nag-url{
@@ -413,6 +414,50 @@
       orbit:'0deg 70deg 0.4m'
     }
   };
+
+  // Match the AR viewer's accent color to the restaurant's brand so a diner
+  // coming from a branded menu.html card doesn't hit a jarring house-orange
+  // AR page. Reuses menu.html's --accent math (hex → rgb string).
+  function hexToRgbStr(hex) {
+    if (!hex) return null;
+    let h = String(hex).trim().replace('#', '');
+    if (h.length === 3) h = h.split('').map(c => c + c).join('');
+    if (!/^[0-9a-fA-F]{6}$/.test(h)) return null;
+    return `${parseInt(h.slice(0,2),16)},${parseInt(h.slice(2,4),16)},${parseInt(h.slice(4,6),16)}`;
+  }
+  function applyBrandingVars(primary, accent2) {
+    if (!primary) return;
+    const root = document.documentElement.style;
+    root.setProperty('--accent', primary);
+    if (accent2) root.setProperty('--accent-2', accent2);
+    root.setProperty('--accent-3', primary);
+    const rgb = hexToRgbStr(primary);
+    if (rgb) root.setProperty('--accent-rgb', rgb);
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', primary);
+  }
+  async function applyBranding() {
+    // Fast path: menu.html (same session/browser) already computed and
+    // stashed the brand colors when the guest tapped through from there.
+    try {
+      const cached = sessionStorage.getItem('armenu_branding_' + r);
+      if (cached) {
+        const b = JSON.parse(cached);
+        applyBrandingVars(b.primary, b.accent2);
+        return;
+      }
+    } catch {}
+    // Fallback (direct link / different tab): fetch settings ourselves.
+    try {
+      const res = await fetch(`/api/settings?r=${encodeURIComponent(r)}`);
+      if (res.ok) {
+        const settings = await res.json();
+        const primary = settings?.branding?.primary;
+        if (primary) applyBrandingVars(primary, null);
+      }
+    } catch {}
+  }
+  applyBranding();
 
   async function loadDish(){
     let meal=null;
@@ -623,7 +668,15 @@
   }
 
   mv.addEventListener('load', () => updateArSupport());
-  setTimeout(updateArSupport, 1500);
+  // Slow networks (large glb on weak 4G) can still be loading past a single
+  // fixed timeout, which would lock in a stale "no AR" label. Poll briefly
+  // instead of checking once, so a late-resolving canActivateAR still updates
+  // the button correctly.
+  let _arPollCount = 0;
+  const _arPoll = setInterval(() => {
+    updateArSupport();
+    if (mv.canActivateAR || iosArReady() || isAndroid() || ++_arPollCount >= 10) clearInterval(_arPoll);
+  }, 500);
 
   mv.addEventListener('ar-status', (e) => {
     if (e.detail.status === 'failed') {

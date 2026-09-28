@@ -3,13 +3,17 @@
 // Your private boss panel only — protected by ADMIN_SECRET header
 
 import { supabaseAdmin } from '../../_db.js';
-
-function isAdmin(req) {
-  return req.headers['x-admin-secret'] === process.env.ADMIN_SECRET;
-}
+import { requireAdmin } from '../../_auth.js';
+import { auditLog } from '../_audit.js';
 
 export default async function handler(req, res) {
-  if (!isAdmin(req)) return res.status(401).json({ error: 'Unauthorized' });
+  // NOTE: this route is master-admin only (see MASTER_ONLY in api/index.js),
+  // so requireAdmin's portal_token branch can never actually authenticate a
+  // scoped manager here — the dispatcher already rejects those before the
+  // handler runs. Using requireAdmin (instead of checking only the legacy
+  // x-admin-secret header) is what lets the signed admin-cookie login flow
+  // (/api/admin/login) work on this page, same as every other admin/* route.
+  if (!requireAdmin(req)) return res.status(401).json({ error: 'Unauthorized' });
 
   if (req.method === 'GET') {
     const { data } = await supabaseAdmin
@@ -41,6 +45,8 @@ export default async function handler(req, res) {
 
     // If this email had a pending sign-up, auto-clear it now that they're linked.
     await supabaseAdmin.from('pending_signups').delete().eq('email', email);
+
+    auditLog(req, data.id, 'restaurant.create', { target: data.slug, metadata: { name, email } }).catch(() => {});
 
     return res.status(201).json(data);
   }

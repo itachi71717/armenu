@@ -96,7 +96,7 @@
   .dish-tile .name{font-weight:600;font-size:16px;letter-spacing:-.01em;margin-bottom:4px;line-height:1.2}
   .dish-tile .lbl{font-family:var(--mono);font-size:10px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.12em}
   .dish-tile .actions-row{display:flex;border-top:1px solid var(--line)}
-  .dish-tile .qr-btn{flex:1;padding:12px;background:transparent;border:none;color:var(--accent);font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:background .15s}
+  .dish-tile .qr-btn{flex:1;padding:12px;min-height:44px;background:transparent;border:none;color:var(--accent);font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:background .15s}
   .dish-tile .qr-btn:hover{background:rgba(255,87,34,.06)}
   .dish-tile .qr-btn + .qr-btn{border-left:1px solid var(--line)}
 
@@ -247,6 +247,9 @@
 <link rel="stylesheet" href="/vendor/armenu-a11y.css">
   <script src="/vendor/sentry-client.js" defer></script>
 <script src="/vendor/cookie-consent.js" defer></script>
+<link rel="stylesheet" href="/vendor/armenu-fx.css">
+<script defer src="/vendor/armenu-fx.js"></script>
+<script defer src="/vendor/armenu-cmdk.js"></script>
 </head>
 <body>
 
@@ -358,8 +361,8 @@
         </div>
       </div>
 
-      <div class="tools-group" data-open="0">
-        <button class="tg-head"><span>▸ Team &amp; tables</span><span class="tg-hint">Staff PINs, tables, waiter assignments</span></button>
+      <div class="tools-group" data-open="1">
+        <button class="tg-head"><span>▾ Team &amp; tables</span><span class="tg-hint">Staff PINs, tables, waiter assignments</span></button>
         <div class="tg-body">
           <div class="action" id="tablesAction">
             <span class="ico">🪑</span><div><h3>Tables &amp; waiters</h3><p>Add tables, assign waiters, print QRs.</p></div>
@@ -373,8 +376,8 @@
         </div>
       </div>
 
-      <div class="tools-group" data-open="0">
-        <button class="tg-head"><span>▸ Print &amp; support</span><span class="tg-hint">QR codes and help</span></button>
+      <div class="tools-group" data-open="1">
+        <button class="tg-head"><span>▾ Print &amp; support</span><span class="tg-hint">QR codes and help</span></button>
         <div class="tg-body">
           <div class="action" id="printQrAction">
             <span class="ico">🖨</span><div><h3>Print QR codes</h3><p>Master menu, per-dish, per-table sheets.</p></div>
@@ -1267,17 +1270,23 @@ Sub gluten-free bun +1200</code></div>
       if (!confirm(`Delete "${existing.name}"? This can't be undone.`)) return;
       // Look up dish id first via /api/dish then DELETE by id.
       // Simpler: PATCH active=false so we don't lose historical order data.
+      const delBtn = $('dishDelBtn');
+      const origDelLabel = delBtn.textContent;
+      delBtn.disabled = true; delBtn.textContent = 'Deleting…';
       try {
         // We need the dish's id; portal /me only returns slug. Fetch it via admin/dishes list? There's no GET.
         // Use PATCH on /api/admin/dishes?id=<id> — but we need the id. Fall back to fetching /api/dish?r=&d=.
         const dinfo = await fetch(`/api/dish?r=${CURRENT.restaurant.slug}&d=${existing.slug}`).then(r => r.json());
         // Not enough — we need the dishes table id. Use an admin categories-style lookup would help. Fastest: POST an inactive PATCH via a helper we still need to build; for now skip delete unless we build the list endpoint. Instead, hide by setting active=false via slug lookup on the server. We'll route through a small compatibility endpoint:
         const { ok, data } = await mgrFetch(`/api/admin/dishes?slug=${CURRENT.restaurant.slug}&dish_slug=${existing.slug}`, { method: 'DELETE' });
-        if (!ok) { $('dishEditorErr').textContent = data.error || 'Failed to delete'; return; }
+        if (!ok) { $('dishEditorErr').textContent = data.error || 'Failed to delete'; delBtn.disabled = false; delBtn.textContent = origDelLabel; return; }
         toast('Dish deleted', 'ok');
         $('wizOverlay').classList.remove('on');
         loadMe();
-      } catch (e) { $('dishEditorErr').textContent = e.message; }
+      } catch (e) {
+        $('dishEditorErr').textContent = e.message;
+        delBtn.disabled = false; delBtn.textContent = origDelLabel;
+      }
     };
     $('dishSaveBtn').onclick = async () => {
       const name = $('dishName').value.trim();
@@ -2370,6 +2379,77 @@ Sub gluten-free bun +1200</code></div>
       setTimeout(offerPushOptIn, 4000);
     }
   };
+</script>
+
+<!-- Overlay a11y: Escape + backdrop-click closes whichever overlay is open,
+     without touching the per-open close handlers already wired above. -->
+<script>
+(function () {
+  function closeTopOverlay() {
+    var wiz = document.getElementById('wizOverlay');
+    var qr = document.getElementById('qrModal');
+    if (wiz && wiz.classList.contains('on')) {
+      var wc = document.getElementById('wizClose');
+      if (wc) wc.click(); else wiz.classList.remove('on');
+      return true;
+    }
+    if (qr && qr.classList.contains('show')) {
+      var qc = document.getElementById('qrClose');
+      if (qc) qc.click(); else qr.classList.remove('show');
+      return true;
+    }
+    return false;
+  }
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closeTopOverlay();
+  });
+  var wizEl = document.getElementById('wizOverlay');
+  if (wizEl) wizEl.addEventListener('mousedown', function (e) {
+    if (e.target === wizEl) closeTopOverlay();
+  });
+  var qrEl = document.getElementById('qrModal');
+  if (qrEl) qrEl.addEventListener('mousedown', function (e) {
+    if (e.target === qrEl) closeTopOverlay();
+  });
+})();
+</script>
+
+<!-- Command palette (Ctrl/Cmd+K) — reuses the existing action buttons via
+     .click() so it can never drift from what each button actually does. -->
+<script>
+(function () {
+  function ready(fn) {
+    if (document.readyState !== 'loading') fn(); else document.addEventListener('DOMContentLoaded', fn);
+  }
+  ready(function () {
+    if (!window.ArmenuCmdK) return;
+    function clickCmd(id, label, hint, keywords) {
+      return { id: id, label: label, hint: hint, keywords: keywords || [], run: function () {
+        var el = document.getElementById(id);
+        if (el) el.click();
+      } };
+    }
+    ArmenuCmdK.register([
+      clickCmd('addDishBtn', 'Add dish', 'Menu', ['new', 'create', 'item']),
+      clickCmd('kitchenAction', 'Open kitchen display', 'Live now', ['kitchen', 'tickets']),
+      clickCmd('staffAction', 'Open staff console', 'Live now', ['staff', 'waiter']),
+      clickCmd('walkinsAction', 'Walk-in queue', 'Live now', ['waitlist', 'walkin']),
+      clickCmd('reservationsAction', 'Reservations', 'Live now', ['booking', 'reserve']),
+      clickCmd('brandingAction', 'Branding & look', 'Your menu', ['logo', 'colour', 'color', 'cover']),
+      clickCmd('categoriesAction', 'Categories', 'Your menu', ['starters', 'mains', 'desserts']),
+      clickCmd('offersAction', 'Happy hour & offers', 'Your menu', ['discount', 'promo']),
+      clickCmd('schedulesAction', 'Menu scheduler', 'Your menu', ['breakfast', 'lunch', 'dinner', 'schedule']),
+      clickCmd('tablesAction', 'Tables & waiters', 'Team & tables', ['table', 'assign', 'qr']),
+      clickCmd('staffAction2', 'Staff PINs', 'Team & tables', ['pin', 'waiter', 'kitchen']),
+      clickCmd('teamAction', 'Team members', 'Team & tables', ['invite', 'manager']),
+      clickCmd('printQrAction', 'Print QR codes', 'Print & support', ['qr', 'print']),
+      clickCmd('contactAction', 'WhatsApp support', 'Print & support', ['help', 'support']),
+      clickCmd('manageAction', 'Advanced admin', 'Print & support', ['admin', 'console', 'analytics', 'billing']),
+      clickCmd('copyUrlBtn', 'Copy menu URL', 'Nav', ['url', 'link', 'share']),
+      clickCmd('reqBtn', 'Send a dish request', 'Support', ['request', 'change'])
+    ]);
+  });
+})();
 </script>
 </body>
 </html>

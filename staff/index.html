@@ -70,7 +70,7 @@
   .card ul li:last-child{border:0}
   .card .note{background:rgba(255,176,102,.06);border-left:2px solid var(--warn);padding:8px 10px;border-radius:6px;font-size:12px;color:var(--warn);margin-top:8px}
   .card .actions{display:flex;gap:6px;margin-top:12px}
-  .card .actions button{flex:1;padding:10px;border-radius:10px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+  .card .actions button{flex:1;padding:10px;min-height:44px;min-width:44px;border-radius:10px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
   .btn-primary{background:linear-gradient(135deg,var(--accent),#c93d00);color:#fff}
   .btn-ok{background:rgba(125,216,125,.14);color:var(--ok);border:1px solid rgba(125,216,125,.3)}
   .btn-ghost{background:rgba(255,239,220,.05);color:var(--ink);border:1px solid var(--line)}
@@ -99,6 +99,9 @@
   .modal h3{font-family:var(--serif);font-style:italic;font-size:22px;margin-bottom:12px}
   .modal .opt{display:flex;justify-content:space-between;padding:14px 16px;border-radius:10px;background:rgba(255,239,220,.03);border:1px solid var(--line);margin-bottom:6px;cursor:pointer}
   .modal .opt:hover{border-color:var(--accent)}
+  .modal textarea{width:100%;min-height:80px;padding:12px;border-radius:10px;background:rgba(255,239,220,.03);border:1px solid var(--line);color:var(--ink);font-family:inherit;font-size:14px;resize:vertical;margin-bottom:12px}
+  .modal .row{display:flex;gap:8px}
+  .modal .row button{flex:1;padding:12px;border-radius:10px;font-size:13px;font-weight:700;min-height:44px}
 </style>
 <script src="/vendor/armenu-errorbar.js" defer></script>
 <script src="/vendor/armenu-sounds.js" defer></script>
@@ -307,27 +310,28 @@ function renderOrders(orders) {
       ${o.guest_note ? `<div class="note">📝 ${escapeHTML(o.guest_note)}</div>` : ''}
       ${o.total_cents ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--ink-dim)">
         <span>Total <b style="color:var(--ink);font-size:14px">R${(o.total_cents/100).toFixed(2)}</b>${o.tip_cents ? ` <span style="color:var(--ok)">(+R${(o.tip_cents/100).toFixed(2)} tip)</span>` : ''}</span>
-        <button class="btn-ghost" data-split="${o.id}:${o.total_cents}" style="padding:5px 10px;font-size:11px">Split ⋯</button>
+        <button class="btn-ghost" data-split="${o.id}:${o.total_cents}" style="padding:8px 14px;min-height:44px;font-size:11px">Split ⋯</button>
       </div>` : ''}
       <div class="actions">
         ${o.status === 'new' ? `<button class="btn-primary" data-mark="${o.id}:prep">Start prep</button>` : ''}
         ${o.status === 'prep' ? `<button class="btn-primary" data-mark="${o.id}:ready">Ready</button>` : ''}
         ${o.status === 'ready' ? `<button class="btn-ok" data-mark="${o.id}:served">Served</button>` : ''}
-        <button class="btn-err" data-mark="${o.id}:cancelled">✕</button>
+        <button class="btn-err" data-mark="${o.id}:cancelled" aria-label="Cancel order" title="Cancel order">✕</button>
       </div>
     </div>`).join('')}</div>`;
   document.querySelectorAll('[data-mark]').forEach(b => b.onclick = async () => {
     const [id, status] = b.dataset.mark.split(':');
-    let reason = null;
     if (status === 'cancelled') {
-      reason = prompt('Cancel this order — reason? (e.g. guest left, out of stock, staff error)');
+      const reason = await promptCancelReason();
       if (reason === null) return; // aborted
+      try {
+        await api('/api/staff/orders?id=' + id, { method: 'PATCH', body: JSON.stringify({ status, reason }) });
+        refresh();
+      } catch (e) { toast(e.message, 'err'); }
+      return;
     }
     try {
-      await api('/api/staff/orders?id=' + id, {
-        method: 'PATCH',
-        body: JSON.stringify(reason !== null ? { status, reason } : { status })
-      });
+      await api('/api/staff/orders?id=' + id, { method: 'PATCH', body: JSON.stringify({ status }) });
       refresh();
     } catch (e) { toast(e.message, 'err'); }
   });
@@ -426,6 +430,42 @@ function openTableModal(id) {
   });
 }
 $('modal').onclick = e => { if (e.target.id === 'modal') $('modal').classList.remove('on'); };
+
+// Custom cancellation-reason modal — replaces the native prompt(), which
+// pops a system dialog inconsistent with the kiosk UI and is disabled in
+// some tablet browsers (silently breaking cancellation).
+let _cancelResolve = null;
+function promptCancelReason() {
+  return new Promise(resolve => {
+    _cancelResolve = resolve;
+    $('modalBody').innerHTML = `
+      <h3>Cancel order</h3>
+      <p style="font-size:12.5px;color:var(--ink-dim);margin-bottom:10px">Reason (e.g. guest left, out of stock, staff error)</p>
+      <textarea id="cancelReasonInput" autofocus></textarea>
+      <div class="row">
+        <button class="btn-ghost" id="cancelReasonBack" style="background:rgba(255,239,220,.05);color:var(--ink);border:1px solid var(--line)">Back</button>
+        <button class="btn-err" id="cancelReasonOk">Cancel order</button>
+      </div>`;
+    $('modal').classList.add('on');
+    setTimeout(() => $('cancelReasonInput')?.focus(), 0);
+    $('cancelReasonBack').onclick = () => finishCancelPrompt(null);
+    $('cancelReasonOk').onclick = () => finishCancelPrompt($('cancelReasonInput').value.trim());
+  });
+}
+function finishCancelPrompt(reason) {
+  $('modal').classList.remove('on');
+  if (_cancelResolve) { const r = _cancelResolve; _cancelResolve = null; r(reason); }
+}
+// Escape closes whichever overlay is open (order-cancel modal, table modal, split bill)
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  const split = document.getElementById('splitOverlay');
+  if (split) { split.remove(); return; }
+  if ($('modal').classList.contains('on')) {
+    if (_cancelResolve) finishCancelPrompt(null);
+    else $('modal').classList.remove('on');
+  }
+});
 
 function escapeHTML(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 

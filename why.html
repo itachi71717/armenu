@@ -219,7 +219,7 @@
     <span class="eyebrow" style="justify-content:center;display:flex">Ready to be the first?</span>
     <h2>Put your menu<br/><span style="font-family:var(--serif);font-style:italic;font-weight:400">on the table.</span></h2>
     <p class="lead" style="margin:32px auto 36px;text-align:center;color:var(--ink)">We're onboarding pilot restaurants across South Africa. Within a week, your most-ordered dish is in AR on every diner's table.</p>
-    <a href="/portal/" class="btn btn-primary">Restaurant login →</a>
+    <a href="/portal/" class="btn btn-primary" data-fx="magnetic">Restaurant login →</a>
   </div>
 </section>
 
@@ -250,5 +250,8 @@
   if(finalBg){(function fpx(){const r=document.querySelector('.final').getBoundingClientRect();const c=r.top+r.height/2-window.innerHeight/2;finalBg.style.transform=`translateY(${c*-.15}px) scale(1.08)`;requestAnimationFrame(fpx)})()}
 </script>
 <script src="/vendor/marketing-chrome.js" defer></script>
+<link rel="stylesheet" href="/vendor/armenu-fx.css">
+<script defer src="/vendor/armenu-fx.js"></script>
+<script defer src="/vendor/armenu-cmdk.js"></script>
 </body>
 </html>

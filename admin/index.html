@@ -40,7 +40,7 @@
   .brand b{font-weight:800}.brand i{font-style:normal;color:var(--ink-dim);font-weight:500;margin-left:3px}
 
   .nav-section{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.18em;color:var(--ink-faint);margin:22px 12px 10px}
-  .nav-item{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:10px;color:var(--ink-dim);font-size:14px;font-weight:500;cursor:pointer;margin-bottom:2px;transition:all .15s}
+  .nav-item{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:10px;color:var(--ink-dim);font-size:14px;font-weight:500;cursor:pointer;margin-bottom:2px;transition:all .15s;width:100%;text-align:left;background:none;border:none;font-family:inherit}
   .nav-item:hover{background:rgba(255,239,220,.04);color:var(--ink)}
   .nav-item.active{background:rgba(255,87,34,.1);color:var(--accent);border:1px solid rgba(255,87,34,.18)}
   .nav-item .ico{width:18px;text-align:center;font-size:14px}
@@ -158,8 +158,34 @@
 <link rel="stylesheet" href="/vendor/armenu-a11y.css">
   <script src="/vendor/sentry-client.js" defer></script>
 <script src="/vendor/cookie-consent.js" defer></script>
+<link rel="stylesheet" href="/vendor/armenu-fx.css">
+<script defer src="/vendor/armenu-fx.js"></script>
+<script defer src="/vendor/armenu-cmdk.js"></script>
+<style>
+  /* Typed-confirmation delete modal — for the single most destructive
+     control in the admin console (delete restaurant + cascades). */
+  .confirm-overlay{position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:20px}
+  .confirm-overlay.on{display:flex}
+  .confirm-card{width:min(420px,100%);background:var(--panel);border:1px solid rgba(248,113,113,.3);border-radius:18px;padding:24px}
+  .confirm-card h3{font-size:18px;margin-bottom:8px;color:#f87171}
+  .confirm-card p{font-size:13px;color:var(--ink-dim);margin-bottom:14px;line-height:1.5}
+  .confirm-card input{width:100%;padding:11px 13px;border-radius:9px;background:rgba(248,113,113,.05);border:1px solid rgba(248,113,113,.3);color:var(--ink);font-family:inherit;font-size:14px;margin-bottom:14px}
+  .confirm-card .row{display:flex;gap:10px;justify-content:flex-end}
+</style>
 </head>
 <body>
+
+<div class="confirm-overlay" id="confirmOverlay" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+  <div class="confirm-card">
+    <h3 id="confirmTitle">Delete restaurant</h3>
+    <p id="confirmMsg">This removes the restaurant record, all dishes, staff PINs, tables, orders, offers and reviews. Cannot be undone.</p>
+    <input type="text" id="confirmInput" placeholder="Type the restaurant name to confirm" autocomplete="off" />
+    <div class="row">
+      <button class="btn-ghost btn" id="confirmCancel">Cancel</button>
+      <button class="btn" id="confirmOk" style="background:linear-gradient(135deg,#f87171,#b91c1c)" disabled>Delete</button>
+    </div>
+  </div>
+</div>
 
 <!-- Login gate -->
 <div class="login-cover" id="login">
@@ -178,14 +204,14 @@
   <aside class="sidebar">
     <div class="brand"><img src="/favicon.svg" alt="ARMenu" style="width:28px;height:28px" /><b>AR</b><i>Menu</i></div>
     <div class="nav-section">Workspace</div>
-    <div class="nav-item active" data-view="dashboard"><span class="ico">⌂</span> Dashboard</div>
-    <div class="nav-item" data-view="clients"><span class="ico">◉</span> Clients</div>
-    <div class="nav-item" data-view="pending"><span class="ico">●</span> Pending sign-ups <span id="pendingBadge" style="margin-left:auto;background:rgba(255,87,34,.2);color:var(--accent);padding:2px 8px;border-radius:999px;font-family:var(--mono);font-size:10px;font-weight:600;display:none"></span></div>
-    <div class="nav-item" data-view="add-client"><span class="ico">+</span> Add restaurant</div>
-    <div class="nav-item" data-view="add-dish" id="navAddDish"><span class="ico">↑</span> Add new dish</div>
-    <div class="nav-item" data-view="audit"><span class="ico">◈</span> Audit log</div>
+    <button type="button" class="nav-item active" data-view="dashboard"><span class="ico">⌂</span> Dashboard</button>
+    <button type="button" class="nav-item" data-view="clients"><span class="ico">◉</span> Clients</button>
+    <button type="button" class="nav-item" data-view="pending"><span class="ico">●</span> Pending sign-ups <span id="pendingBadge" style="margin-left:auto;background:rgba(255,87,34,.2);color:var(--accent);padding:2px 8px;border-radius:999px;font-family:var(--mono);font-size:10px;font-weight:600;display:none"></span></button>
+    <button type="button" class="nav-item" data-view="add-client"><span class="ico">+</span> Add restaurant</button>
+    <button type="button" class="nav-item" data-view="add-dish" id="navAddDish"><span class="ico">↑</span> Add new dish</button>
+    <button type="button" class="nav-item" data-view="audit"><span class="ico">◈</span> Audit log</button>
     <div class="nav-section">Account</div>
-    <div class="nav-item" id="signOut"><span class="ico">↗</span> Sign out</div>
+    <button type="button" class="nav-item" id="signOut"><span class="ico">↗</span> Sign out</button>
   </aside>
 
   <main>
@@ -311,15 +337,15 @@
           <h1>Audit <b>log</b></h1>
           <div class="sub">Every mutation across the platform — who did what, when, from which IP.</div>
         </div>
-        <div style="display:flex;gap:8px;align-items:center">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <select id="audFilterR" style="padding:8px 12px;border-radius:8px;background:rgba(255,239,220,.04);border:1px solid var(--line);color:var(--ink);font-size:13px">
             <option value="">All restaurants</option>
           </select>
           <select id="audFilterAction" style="padding:8px 12px;border-radius:8px;background:rgba(255,239,220,.04);border:1px solid var(--line);color:var(--ink);font-size:13px">
             <option value="">All actions</option>
           </select>
-          <input id="audFilterActor" type="text" placeholder="Actor (e.g. admin, manager:xxx)" style="padding:8px 12px;border-radius:8px;background:rgba(255,239,220,.04);border:1px solid var(--line);color:var(--ink);font-size:13px;width:200px" />
-          <input id="audFilterQ" type="text" placeholder="Search target/metadata…" style="padding:8px 12px;border-radius:8px;background:rgba(255,239,220,.04);border:1px solid var(--line);color:var(--ink);font-size:13px;width:200px" />
+          <input id="audFilterActor" type="text" placeholder="Actor (e.g. admin, manager:xxx)" style="padding:8px 12px;border-radius:8px;background:rgba(255,239,220,.04);border:1px solid var(--line);color:var(--ink);font-size:13px;flex:1;min-width:140px" />
+          <input id="audFilterQ" type="text" placeholder="Search target/metadata…" style="padding:8px 12px;border-radius:8px;background:rgba(255,239,220,.04);border:1px solid var(--line);color:var(--ink);font-size:13px;flex:1;min-width:140px" />
           <button id="audRefresh" style="padding:8px 14px;border-radius:8px;background:linear-gradient(135deg,#e8c58a,#d4a574);color:#0a0806;font-weight:700;font-size:13px;border:none;cursor:pointer">↻</button>
         </div>
       </div>
@@ -591,7 +617,8 @@
     document.querySelectorAll('[data-del-slug]').forEach(btn => btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const slug = btn.dataset.delSlug, name = btn.dataset.delName;
-      if (!confirm(`Delete restaurant "${name}"?\n\nThis removes the restaurant record, all dishes, staff PINs, tables, orders, offers, reviews.\n\nCannot be undone.`)) return;
+      const confirmed = await confirmDelete(name);
+      if (!confirmed) return;
       try {
         const res = await api('/api/admin/client?slug=' + encodeURIComponent(slug), { method: 'DELETE' });
         toast('Deleted', 'ok');
@@ -705,7 +732,9 @@
 
   $('cDeleteBtn').addEventListener('click', async () => {
     if (!currentClientSlug) return;
-    if (!confirm('Delete this restaurant and ALL its dishes? This cannot be undone.')) return;
+    const heroName = $('cName').textContent.trim();
+    const confirmed = await confirmDelete(heroName || currentClientSlug);
+    if (!confirmed) return;
     try {
       await api('/api/admin/client?slug=' + encodeURIComponent(currentClientSlug), { method: 'DELETE' });
       toast('Restaurant deleted', 'ok');
@@ -993,6 +1022,81 @@
   }
 
   // (Silent auth is now handled by the /api/admin/login GET check above.)
+
+  // ===== Typed-confirmation delete modal =====
+  // Requires typing the restaurant's exact name before the Delete button
+  // enables — the single most destructive control in this console gets a
+  // real second friction step instead of a native confirm() + Enter.
+  let _confirmResolve = null;
+  function confirmDelete(name) {
+    return new Promise(resolve => {
+      _confirmResolve = resolve;
+      $('confirmMsg').textContent = `Delete restaurant "${name}"? This removes the restaurant record, all dishes, staff PINs, tables, orders, offers and reviews. Cannot be undone.`;
+      $('confirmInput').value = '';
+      $('confirmInput').placeholder = `Type "${name}" to confirm`;
+      $('confirmOk').disabled = true;
+      $('confirmOverlay').classList.add('on');
+      const trigger = document.activeElement;
+      $('confirmOverlay')._trigger = trigger;
+      setTimeout(() => $('confirmInput').focus(), 0);
+      $('confirmInput').oninput = () => { $('confirmOk').disabled = $('confirmInput').value.trim() !== name; };
+      $('confirmOk').onclick = () => finishConfirm(true);
+      $('confirmCancel').onclick = () => finishConfirm(false);
+    });
+  }
+  function finishConfirm(result) {
+    $('confirmOverlay').classList.remove('on');
+    const trigger = $('confirmOverlay')._trigger;
+    if (trigger && trigger.focus) { try { trigger.focus(); } catch {} }
+    if (_confirmResolve) { const r = _confirmResolve; _confirmResolve = null; r(result); }
+  }
+  $('confirmOverlay').addEventListener('mousedown', e => { if (e.target === $('confirmOverlay')) finishConfirm(false); });
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if ($('confirmOverlay').classList.contains('on')) finishConfirm(false);
+  });
+  // Minimal focus trap while the confirm modal is open
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Tab' || !$('confirmOverlay').classList.contains('on')) return;
+    const focusables = $('confirmOverlay').querySelectorAll('input, button:not(:disabled)');
+    if (!focusables.length) return;
+    const first = focusables[0], last = focusables[focusables.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  }, true);
+</script>
+
+<!-- Command palette (Ctrl/Cmd+K) — reuses existing nav/actions via .click() -->
+<script>
+(function () {
+  function ready(fn) { if (document.readyState !== 'loading') fn(); else document.addEventListener('DOMContentLoaded', fn); }
+  ready(function () {
+    if (!window.ArmenuCmdK) return;
+    function goCmd(id, label, hint, keywords) {
+      return { id: id, label: label, hint: hint, keywords: keywords || [], run: function () {
+        var el = document.getElementById(id);
+        if (el) el.click();
+      } };
+    }
+    ArmenuCmdK.register([
+      goCmd('signOut', 'Sign out', 'Account', ['logout']),
+    ]);
+    document.querySelectorAll('.nav-item[data-view]').forEach(function (el) {
+      var label = (el.textContent || '').trim();
+      ArmenuCmdK.register([{
+        id: 'nav-' + el.dataset.view,
+        label: 'Go to ' + label,
+        hint: 'Navigate',
+        keywords: [el.dataset.view],
+        run: function () { el.click(); }
+      }]);
+    });
+    ArmenuCmdK.register([
+      { id: 'quick-add-client', label: 'Add restaurant', hint: 'Dashboard', keywords: ['new', 'client'], run: function () { document.querySelector('[data-go="add-client"]')?.click(); } },
+      { id: 'quick-add-dish', label: 'Add new dish', hint: 'Dashboard', keywords: ['new', 'dish'], run: function () { document.querySelector('[data-go="add-dish"]')?.click(); } }
+    ]);
+  });
+})();
 </script>
 </body>
 </html>
