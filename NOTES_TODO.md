@@ -3,6 +3,12 @@
 Maintained by Claude across sessions. What's done, what's next, what's blocked.
 Update after every completed item.
 
+## ✅ 2026-09-28 — UI overhaul (commit f5ce8de, pushed; NOT yet deployed with `vercel --prod`)
+- New `vendor/armenu-fx.{js,css}` (data-fx="spotlight|shiny|reveal|countup|magnetic|tilt", ArmenuFX.scan/toast) and `vendor/armenu-cmdk.js` (Ctrl+K palette, wired on portal + admin).
+- Guest menu/view: brand accent vars end to end, 44px tap targets, skeletons, retry on error. Marketing: lazy images + effects. Operator: Esc closes modals, typed-confirm delete.
+- Backend: admin cookie accepted by admin/clients, audit actor from cookie, waiter-calls PATCH scope guard, staff order insert error handling. 47 tests pass.
+- Open follow-ups: staff + kitchen have no FX/cmdk (fine for kiosks); kitchen "plated" ticks are per-device only; portal wizard doesn't close on backdrop click; admin/audit `has_more` under-reports when `q` filter used.
+
 ## ✅ Just completed
 - **[1] R2 bucket CORS** — Policy set via Cloudflare dashboard. Origins: armenu.co.za, *.armenu.co.za, localhost:3000. Methods: GET/PUT/POST/HEAD/DELETE. Manager uploads from browser now work end-to-end.
 - **[2] Sentry error monitoring** — Server + client SDKs wired. Loader injected into 16 HTML pages. Silent no-op until Ian pastes SENTRY_DSN into Vercel env. Client filters to first-party errors only.
