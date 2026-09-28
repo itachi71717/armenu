@@ -3,6 +3,41 @@
 Maintained by Claude across sessions. What's done, what's next, what's blocked.
 Update after every completed item.
 
+## ✅ 2026-09-28 — UX batch 3 (commit 27623db — deployed, smoke 33/33)
+**Guest (menu.html):**
+- 🔄 Reorder past order — one-tap re-add from profile order-history
+- 🔥 Popular / Trending chips (score>=70 / 90) on dishes, gated on 20+ orders in 7d
+- ⏱ Live wait estimate chip on cart (median served-at minus placed-at, queue depth)
+- 👍/👎 Rate dishes 20+ minutes after order, remembered per-order in localStorage
+- New table customer_dish_ratings + /api/customer/rate-dish
+**Waiter (staff/index.html):**
+- 🗺 Floor tab — table grid color-coded (green idle / blue orders / amber called / red bill / purple >20m stale)
+- Tap table → sheet with open calls + orders + Mark bill delivered
+- Guest 💳 Bring bill button on menu.html (disabled until order placed)
+- waiter_calls.type column (backward compat: reason='bill' still works)
+**Manager (portal/index.html):**
+- Live "today" dashboard — orders/revenue/avg prep time/top dish (color-coded)
+- 🔥 Trending ticker
+- Red slow-kitchen banner when avg prep >= 30min
+- Timezone-aware via restaurant_settings.timezone (default Africa/Johannesburg)
+- Polls /api/admin/live every 45s, skips while tab hidden
+**Kitchen (kitchen/index.html + staff/orders.js):**
+- Course grouping — Starters / Mains / Desserts on each ticket (staff/orders.js attaches category since staff token can't hit admin)
+- Modifier chips — amber pills, RED PULSE for "no <x>" and allergies
+**Reliability (sw.js):**
+- Service worker: menu.html network-first, /api/dish + /api/settings SWR, vendor/* cache-first, R2 images network-first with fallback
+
+## ✅ 2026-09-28 — Kitchen multi-screen (commit 80923ee — deployed, smoke 33/33)
+- kitchen_stations table + dishes.station_id + orders.rush + order_items.recalled_at/recall_reason
+- /api/admin/kitchen-stations CRUD (scope-guarded + audit-logged)
+- Staff login accepts station_slug, encodes station_id + is_expo in token
+- Station filter on GET /staff/orders (non-expo tokens see mine:true items only)
+- Auto-rush flag when 5+ orders in 5min
+- Kitchen: station chip + EXPO pill in header, age colors (green→amber→red pulse), MM:SS live timer, bump-bar shortcuts (1-9/Enter/Esc/?), RUSH banner + faster chime, recall highlight
+- Portal: 🍳 Kitchen stations modal (Hot/Cold/Dessert/Expo seed), Station dropdown in dish editor, Print login card → QR
+- Staff: recall action on served/ready orders with reason
+- 89 tests total
+
 ## ✅ 2026-09-28 — Ops batch (commit 2473499 — deployed to prod, smoke 33/33)
 **Kitchen/staff resilience:**
 - Offline banner when SSE/poll stalls >15s (heartbeat every 5s)
