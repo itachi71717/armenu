@@ -69,7 +69,7 @@ Configured in Vercel → Project Settings → Environment Variables.
 | `ADMIN_SECRET` | Master-admin password (also HMAC-signs the admin cookie) |
 | `STAFF_SECRET` | HMAC secret for staff + portal manager tokens |
 | `CLERK_SECRET_KEY` | Clerk backend key for `requireManager()` |
-| `R2_ACCESS_KEY_ID` + `R2_SECRET_ACCESS_KEY` + `R2_ENDPOINT` + `R2_BUCKET` + `R2_PUBLIC_BASE` | Cloudflare R2 uploads |
+| `R2_ACCESS_KEY_ID` + `R2_SECRET_ACCESS_KEY` + `R2_ENDPOINT` + `R2_BUCKET` + `R2_PUBLIC_URL` | Cloudflare R2 uploads |
 | `VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY` + `VAPID_SUBJECT` | Web Push |
 | `SENTRY_DSN` *(optional)* | Server + client error reporting; silent no-op when unset |
 | `MESHY_API_KEY` *(optional)* | AI 3D-model generation |

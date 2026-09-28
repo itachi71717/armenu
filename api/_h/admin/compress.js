@@ -102,11 +102,18 @@ export default async function handler(req, res) {
     if (/^\d+\.\d+\.\d+\.\d+$/.test(u.hostname) || u.hostname.includes(':')) {
       return res.status(400).json({ error: 'glb_url host must be a domain, not an IP literal' });
     }
-    // Reject any host that isn't Supabase Storage (which is where the
-    // browser upload landed) or our own CDN.
-    const ALLOWED = [/\.supabase\.co$/i, /\.supabase\.in$/i, /armenu\.co\.za$/i];
-    if (!ALLOWED.some(rx => rx.test(u.hostname))) {
-      return res.status(400).json({ error: 'glb_url host not in allowlist (Supabase Storage / armenu.co.za only)' });
+    // Allow only the storage hosts we actually upload to. Derived from env so
+    // it tracks whatever R2 public domain is configured (pub-*.r2.dev today,
+    // a custom domain later) — a hard-coded list silently broke every upload.
+    const allowedHosts = new Set(['armenu.co.za', 'www.armenu.co.za']);
+    for (const v of [process.env.R2_PUBLIC_URL, process.env.R2_ENDPOINT, process.env.SUPABASE_URL]) {
+      try { if (v) allowedHosts.add(new URL(v).hostname.toLowerCase()); } catch {}
+    }
+    const host = u.hostname.toLowerCase();
+    const bucketHostOk = process.env.R2_ENDPOINT && process.env.R2_BUCKET &&
+      (() => { try { return host === `${process.env.R2_BUCKET}.${new URL(process.env.R2_ENDPOINT).hostname}`.toLowerCase(); } catch { return false; } })();
+    if (!allowedHosts.has(host) && !bucketHostOk) {
+      return res.status(400).json({ error: 'glb_url must point at ARMenu storage' });
     }
     if (u.port && u.port !== '80' && u.port !== '443') {
       return res.status(400).json({ error: 'glb_url port must be default (80/443)' });
