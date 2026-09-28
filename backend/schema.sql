@@ -211,6 +211,7 @@ create table if not exists waiter_calls (
   created_at    timestamptz default now(),
   closed_at     timestamptz
 );
+alter table waiter_calls add column if not exists type text default 'help';
 create index if not exists waiter_calls_open on waiter_calls(restaurant_id, status, created_at);
 
 -- Reviews (post-meal, 1-5 stars). 4-5★ can be routed to Google — the app
@@ -424,3 +425,16 @@ alter table dishes add column if not exists station_id uuid references kitchen_s
 alter table orders add column if not exists rush boolean default false;
 alter table order_items add column if not exists recalled_at timestamptz;
 alter table order_items add column if not exists recall_reason text;
+
+-- Per-dish thumbs up/down from guests
+create table if not exists customer_dish_ratings (
+  id uuid primary key default gen_random_uuid(),
+  customer_id uuid references customers(id) on delete cascade,
+  dish_id uuid references dishes(id) on delete cascade,
+  restaurant_id uuid,
+  order_id uuid references orders(id) on delete set null,
+  rating smallint check (rating in (1, -1)),
+  created_at timestamptz default now(),
+  unique(customer_id, dish_id, order_id)
+);
+create index if not exists idx_dish_ratings_dish on customer_dish_ratings(dish_id, created_at desc);

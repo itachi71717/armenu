@@ -154,8 +154,46 @@ export default async function handler(req, res) {
   };
 
   const visibleDishes = dishes.filter(dishVisible);
+
+  // Popularity (last 7d) + wait estimate: optional, run in parallel, degrade silently.
+  const popCounts = {};
+  let popMax = 0, orders7d = 0;
+  let wait_estimate = null;
+  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  await Promise.all([
+    (async () => {
+      const pc = await supabase.raw(
+        `select oi.dish_id, count(distinct o.id)::int as n
+           from order_items oi join orders o on o.id = oi.order_id
+          where o.restaurant_id = $1 and o.created_at >= $2 and o.status <> 'cancelled' and oi.dish_id is not null
+          group by oi.dish_id`, [restaurant.id, since]);
+      for (const row of (pc.data || [])) { const n = parseInt(row.n, 10) || 0; popCounts[row.dish_id] = n; if (n > popMax) popMax = n; }
+      const tc = await supabase.raw(
+        `select count(*)::int as n from orders where restaurant_id = $1 and created_at >= $2 and status <> 'cancelled'`, [restaurant.id, since]);
+      orders7d = parseInt(tc.data?.[0]?.n, 10) || 0;
+    })().catch(() => {}),
+    (async () => {
+      const [served, q] = await Promise.all([
+        supabase.raw(
+          `select extract(epoch from (updated_at - created_at)) / 60.0 as mins
+             from orders where restaurant_id = $1 and status = 'served' and updated_at is not null
+            order by updated_at desc limit 20`, [restaurant.id]),
+        supabase.raw(
+          `select count(*)::int as n from orders where restaurant_id = $1 and status in ('new', 'prep')`, [restaurant.id])
+      ]);
+      const mins = (served.data || []).map(x => Number(x.mins)).filter(n => Number.isFinite(n) && n >= 0).sort((a, b) => a - b);
+      if (mins.length) {
+        const mid = Math.floor(mins.length / 2);
+        const med = mins.length % 2 ? mins[mid] : (mins[mid - 1] + mins[mid]) / 2;
+        wait_estimate = { p50_min: Math.min(45, Math.max(1, Math.round(med))), current_queue: parseInt(q.data?.[0]?.n, 10) || 0 };
+      }
+    })().catch(() => {})
+  ]);
+
   return res.status(200).json({
     restaurant: { name: restaurant.name, slug: restaurant.slug },
+    orders_7d: orders7d,
+    wait_estimate,
     dishes: visibleDishes.map(x => {
       const off = bestOfferFor(x.id);
       let discounted_price = null, discounted_price_cents = null, discount_pct = null, offer_name = null, original_price = null, original_price_cents = null;
@@ -183,6 +221,7 @@ export default async function handler(req, res) {
         translations: x.translations || {},
         category:      x.category_id ? catById[x.category_id]?.slug || null : null,
         category_name: x.category_id ? catById[x.category_id]?.name || null : null,
+        popularity_score: popMax > 0 ? Math.round(((popCounts[x.id] || 0) / popMax) * 100) : 0,
         stock: x.stock_count == null ? null : x.stock_count,
         sold_out: x.stock_count === 0,
         modifiers: Array.isArray(x.modifiers) ? x.modifiers : []

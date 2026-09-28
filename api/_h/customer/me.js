@@ -67,11 +67,23 @@ async function buildFavourites(customerId) {
 // belongs to the winner) are applied to the winner.
 // Recent orders across every restaurant, most recent first. Item count comes
 // from a per-order subquery over order_items so we don't fetch full rows.
+function parseItemSlugs(v) {
+  let arr = v;
+  if (typeof arr === 'string') { try { arr = JSON.parse(arr); } catch { arr = []; } }
+  if (!Array.isArray(arr)) return [];
+  return arr.slice(0, 25)
+    .map(i => ({ slug: String(i?.slug || ''), qty: Math.max(1, parseInt(i?.qty, 10) || 1) }))
+    .filter(i => i.slug);
+}
+
 async function buildRecentOrders(customerId) {
   const { data: rows = [] } = await supabase.raw(
     `select o.id as order_id, o.total_cents, o.created_at as placed_at,
             r.slug as restaurant_slug, r.name as restaurant_name,
-            (select coalesce(sum(oi.qty), 0) from order_items oi where oi.order_id = o.id) as item_count
+            (select coalesce(sum(oi.qty), 0) from order_items oi where oi.order_id = o.id) as item_count,
+            (select coalesce(json_agg(json_build_object('slug', x.slug, 'qty', x.qty)), '[]'::json)
+               from (select d.slug, oi.qty from order_items oi join dishes d on d.id = oi.dish_id
+                      where oi.order_id = o.id limit 25) x) as item_slugs
        from orders o
        join restaurants r on r.id = o.restaurant_id
       where o.customer_id = $1
@@ -85,7 +97,8 @@ async function buildRecentOrders(customerId) {
     restaurant_name: row.restaurant_name,
     placed_at: row.placed_at,
     total_cents: row.total_cents,
-    item_count: parseInt(row.item_count, 10) || 0
+    item_count: parseInt(row.item_count, 10) || 0,
+    item_slugs: parseItemSlugs(row.item_slugs)
   }));
 }
 

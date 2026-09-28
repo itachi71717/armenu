@@ -15,6 +15,7 @@ const ROUTES = {
   'customer/hello':     'customer/hello',
   'customer/me':        'customer/me',
   'customer/favourite': 'customer/favourite',
+  'customer/rate-dish': 'customer/rate-dish',
 
   'push/subscribe': 'push/subscribe',
   'push/vapid-key': 'push/vapid-key',
@@ -49,6 +50,7 @@ const ROUTES = {
   'admin/audit':              'admin/audit',
   'admin/push-test':          'admin/push-test',
   'admin/walkins':            'admin/walkins',
+  'admin/live':               'admin/live',
   'admin/login':              'admin/login',
   'admin/migrate':            'admin/migrate',
 

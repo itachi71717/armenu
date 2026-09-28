@@ -85,6 +85,20 @@
   .tbl .lbl{font-family:var(--serif);font-style:italic;font-size:22px}
   .tbl .st{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim)}
 
+  .flr-legend{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px;font-size:11px;color:var(--ink-dim)}
+  .flr-legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:middle}
+  .flr{aspect-ratio:1/1;border-radius:14px;padding:12px;display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;background:rgba(125,216,125,.08);border:1px solid rgba(125,216,125,.35)}
+  .flr .lbl{font-family:var(--serif);font-style:italic;font-size:22px}
+  .flr .st{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim)}
+  .flr.kitchen{background:rgba(96,165,250,.12);border-color:rgba(96,165,250,.5);box-shadow:0 0 8px rgba(96,165,250,.25)}
+  .flr.stale{background:rgba(168,85,247,.14);border-color:rgba(168,85,247,.6);animation:flrPurple 2.4s infinite}
+  .flr.call{background:rgba(251,191,36,.14);border-color:rgba(251,191,36,.7);animation:flrAmber 1.6s infinite}
+  .flr.bill{background:rgba(248,113,113,.16);border-color:rgba(248,113,113,.85);animation:flrRed 1s infinite}
+  @keyframes flrPurple{0%,100%{box-shadow:0 0 6px rgba(168,85,247,.3)}50%{box-shadow:0 0 16px rgba(168,85,247,.6)}}
+  @keyframes flrAmber{0%,100%{box-shadow:0 0 8px rgba(251,191,36,.35)}50%{box-shadow:0 0 20px rgba(251,191,36,.75)}}
+  @keyframes flrRed{0%,100%{box-shadow:0 0 10px rgba(248,113,113,.45)}50%{box-shadow:0 0 26px rgba(248,113,113,.95)}}
+  @media (prefers-reduced-motion:reduce){.flr{animation:none!important}}
+
   .empty{padding:60px 20px;text-align:center;color:var(--ink-dim)}
   .empty h3{font-family:var(--serif);font-style:italic;font-size:22px;color:var(--ink);margin-bottom:6px}
 
@@ -140,12 +154,14 @@
   <button class="tab active" data-tab="orders">Orders <span class="badge" id="ordersBadge" style="display:none">0</span></button>
   <button class="tab" data-tab="calls">Calls <span class="badge" id="callsBadge" style="display:none">0</span></button>
   <button class="tab" data-tab="tables">Tables</button>
+  <button class="tab" data-tab="floor">🗺 Floor</button>
 </nav>
 
 <main>
   <div class="view on" id="view-orders"><div class="grid"><div class="sk-card"></div><div class="sk-card"></div><div class="sk-card"></div></div></div>
   <div class="view" id="view-calls"><div class="grid"><div class="sk-card"></div><div class="sk-card"></div></div></div>
   <div class="view" id="view-tables"><div class="sk-line"></div><div class="sk-line"></div><div class="sk-line"></div></div>
+  <div class="view" id="view-floor"><div class="sk-line"></div><div class="sk-line"></div></div>
 </main>
 
 <div class="modal-overlay" id="modal"><div class="modal" id="modalBody"></div></div>
@@ -386,9 +402,11 @@ async function refresh() {
     window.__prevOids = oIds; window.__prevCids = cIds;
     updateBadge('ordersBadge', activeOrders.length);
     updateBadge('callsBadge', openCalls.length);
+    window.__floor = { orders: activeOrders, calls: openCalls };
 
     if (active === 'orders') renderOrders(activeOrders);
     if (active === 'calls')  renderCalls(openCalls);
+    if (active === 'floor')  renderFloor((await api('/api/staff/tables')).tables || []);
     if (active === 'tables') renderTables((await api('/api/staff/tables')).tables || []);
   } catch (e) { if (e.message !== 'unauth') console.error(e); }
 }
@@ -685,6 +703,57 @@ function openTableModal(id) {
     catch (e) { toast(e.message, 'err'); }
   });
 }
+// ============ FLOOR HEATMAP ============
+const FLOOR_STALE_MS = 20 * 60 * 1000;
+const isBillCall = c => c.type === 'bill' || c.reason === 'bill';
+function floorInfo(t) {
+  const f = window.__floor || { orders: [], calls: [] };
+  const same = x => x.table_label != null && String(x.table_label) === String(t.label);
+  const orders = f.orders.filter(same);
+  const calls = f.calls.filter(same);
+  let state = 'idle';
+  if (orders.length) state = 'kitchen';
+  const last = orders.reduce((m, o) => Math.max(m, new Date(o.updated_at || o.created_at).getTime() || 0), 0);
+  if (orders.length && last && Date.now() - last > FLOOR_STALE_MS) state = 'stale';
+  if (calls.some(c => !isBillCall(c))) state = 'call';
+  if (calls.some(isBillCall)) state = 'bill';
+  return { state, orders, calls };
+}
+const FLOOR_TXT = { idle: 'Idle', kitchen: 'In kitchen', stale: 'Check in', call: 'Waiter called', bill: 'Bill requested' };
+function renderFloor(tables) {
+  if (!tables.length) return $('view-floor').innerHTML = `<div class="empty-state" data-icon="🗺"><h3>No tables yet</h3><p>The owner sets these up in the admin console.</p></div>`;
+  window.__floorTables = tables;
+  $('view-floor').innerHTML = `<div class="flr-legend">
+    <span><i style="background:#7dd87d"></i>Idle</span><span><i style="background:#60a5fa"></i>In kitchen</span>
+    <span><i style="background:#fbbf24"></i>Waiter called</span><span><i style="background:#f87171"></i>Bill</span>
+    <span><i style="background:#a855f7"></i>&gt;20 min quiet</span></div>
+    <div class="tables-grid">${tables.map(t => { const i = floorInfo(t); return `
+    <div class="flr ${i.state === 'idle' ? '' : i.state}" data-fid="${t.id}">
+      <div><div class="lbl">${escapeHTML(t.label)}</div>
+      <div class="st">${t.assigned_staff_name ? '👤 ' + escapeHTML(t.assigned_staff_name) : '&nbsp;'}</div></div>
+      <div class="st">${FLOOR_TXT[i.state]}</div>
+    </div>`; }).join('')}</div>`;
+  document.querySelectorAll('[data-fid]').forEach(el => el.onclick = () => openFloorSheet(el.dataset.fid));
+}
+function openFloorSheet(id) {
+  const t = (window.__floorTables || []).find(x => x.id === id); if (!t) return;
+  const i = floorInfo(t);
+  $('modalBody').innerHTML = `<h3>Table ${escapeHTML(t.label)}</h3>
+    <div class="meta" style="margin-bottom:10px">${FLOOR_TXT[i.state]}${t.assigned_staff_name ? ' · 👤 ' + escapeHTML(t.assigned_staff_name) : ''}</div>
+    <h4>Open calls</h4>
+    ${i.calls.length ? i.calls.map(c => `<div class="opt"><span>${isBillCall(c) ? '💳 Bill' : '🛎 ' + escapeHTML(c.reason || 'help')} · ${new Date(c.created_at).toLocaleTimeString()}</span>
+      <span><button class="btn-ok" data-fclose="${c.id}">${isBillCall(c) ? 'Mark bill delivered' : 'Done'}</button></span></div>`).join('') : '<div class="meta">None</div>'}
+    <h4 style="margin-top:12px">Recent orders</h4>
+    ${i.orders.length ? i.orders.map(o => `<div class="opt"><span>${escapeHTML(o.status)} · ${escapeHTML((o.order_items || []).map(x => (x.qty || x.quantity || 1) + '× ' + (x.name || x.item_name || '')).join(', ') || 'order')}</span><span>${new Date(o.created_at).toLocaleTimeString()}</span></div>`).join('') : '<div class="meta">No active orders</div>'}`;
+  $('modal').classList.add('on');
+  document.querySelectorAll('[data-fclose]').forEach(b => b.onclick = async (e) => {
+    e.stopPropagation(); b.disabled = true;
+    try { await api('/api/staff/calls?id=' + b.dataset.fclose, { method: 'PATCH', body: JSON.stringify({ status: 'closed' }) }); $('modal').classList.remove('on'); refresh(); }
+    catch (err) { b.disabled = false; toast(err.message, 'err'); }
+  });
+}
+setInterval(() => { if (session && !document.hidden && document.querySelector('.tab.active')?.dataset.tab === 'floor') refresh(); }, 10000);
+
 $('modal').onclick = e => { if (e.target.id === 'modal') $('modal').classList.remove('on'); };
 
 // Custom cancellation-reason modal — replaces the native prompt(), which

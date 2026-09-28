@@ -85,6 +85,13 @@
   .t-items li.done .name,.t-items li.done .qty{text-decoration:line-through}
   .t-items .qty{font-family:'JetBrains Mono',monospace;font-weight:800;color:var(--accent);font-size:18px;min-width:34px}
   .t-items .name{flex:1;font-size:16px;font-weight:600}
+  .course-group{margin-top:2px}
+  .course-group+.course-group{margin-top:8px}
+  .course-group h4{font-family:var(--mono,'JetBrains Mono',ui-monospace,monospace);font-size:10px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 5px 2px}
+  .course-group ul{list-style:none;padding:0;display:flex;flex-direction:column;gap:6px}
+  .mod-chip{display:inline-block;margin-left:6px;padding:2px 8px;border-radius:999px;background:rgba(240,176,96,.18);color:var(--warn);border:1px solid rgba(240,176,96,.45);font-family:var(--mono,'JetBrains Mono',ui-monospace,monospace);font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.04em;vertical-align:middle;line-height:1.5}
+  .mod-chip.alert{background:rgba(248,113,113,.18);color:var(--err);border-color:rgba(248,113,113,.55);animation:modPulse .8s ease-in-out 3}
+  @keyframes modPulse{0%,100%{box-shadow:0 0 0 0 rgba(248,113,113,0)}50%{box-shadow:0 0 0 5px rgba(248,113,113,.35)}}
   .t-items .note{font-size:12px;color:var(--warn);margin-top:3px;font-style:italic}
   .t-note{background:rgba(255,176,102,.06);border-left:3px solid var(--warn);padding:10px 12px;border-radius:6px;font-size:13px;color:var(--warn)}
   .t-actions{display:flex;gap:8px;margin-top:auto}
@@ -459,6 +466,13 @@ async function refresh() {
   } catch (e) { console.error(e); }
 }
 
+// Course grouping uses category_id/category_name/category_order supplied per item by
+// /api/staff/orders. Items without a category fall into one fallback group.
+function categoryFor(it) {
+  if (it.category_id == null || !it.category_name) return null;
+  return { id: String(it.category_id), name: it.category_name, order: Number(it.category_order) || 0 };
+}
+
 function render(orders) {
   if (!orders.length) { focusedOrderId = null; $('board').innerHTML = `<div class="empty-state" id="emptyState" data-icon="🎉"><h3>All caught up.</h3><p>Great work. New orders will appear here.</p></div>`; return; }
   if (!orders.some(o => o.id === focusedOrderId)) focusedOrderId = orders[0].id;
@@ -468,7 +482,7 @@ function render(orders) {
     // Station filtering applies only when the API marks items with `mine`.
     const filtered = items.some(it => 'mine' in it);
     let n = 0;
-    const lis = items.map(it => {
+    const itemHTML = it => {
       const isCtx = filtered && it.mine !== true;
       const recalled = !!it.recalled_at;
       const cls = [isPlated(it) ? 'done' : '', isCtx ? 'ctx' : (filtered ? 'mine' : ''), recalled ? 'recalled' : ''].filter(Boolean).join(' ');
@@ -478,19 +492,34 @@ function render(orders) {
         <span class="qty">×${it.qty}</span>
         <div class="name">${escapeHTML(it.dish_name)}${recalled ? '<span class="pill recall">RECALLED</span>' : ''}
           ${recalled && it.recall_reason ? `<div class="recall-reason">${escapeHTML(it.recall_reason)}</div>` : ''}
-          ${Array.isArray(it.modifiers) && it.modifiers.length ? '<ul class="mods" style="margin:4px 0 0 0;padding:0;list-style:none">' + it.modifiers.map(m => '<li style="font-size:12px;color:var(--warn);padding:2px 0">↳ ' + escapeHTML(m.name) + '</li>').join('') + '</ul>' : ''}
+          ${Array.isArray(it.modifiers) && it.modifiers.length ? '<div class="mods" style="margin:4px 0 0 0">' + it.modifiers.map(m => { const nm = String(m && m.name != null ? m.name : m); const alert = /^\s*no\b/i.test(nm) || /allergy/i.test(nm); return '<span class="mod-chip' + (alert ? ' alert' : '') + '">' + escapeHTML(nm) + '</span>'; }).join('') + '</div>' : ''}
           ${it.note ? `<div class="note">${escapeHTML(it.note)}</div>` : ''}
           ${it.complimentary ? '<div class="note" style="color:var(--ok)">(complimentary)</div>' : ''}
           ${isCtx ? '<span class="ctx-label">context — other station</span>' : ''}
         </div>
       </li>`;
-    }).join('');
+    };
+    // Course grouping (visual only): group by category, ordered like the categories list.
+    const groups = [];
+    const gIndex = new Map();
+    for (const it of items) {
+      const cat = categoryFor(it);
+      const key = cat ? cat.id : '__all';
+      if (!gIndex.has(key)) { const g = { name: cat ? cat.name : 'All items', order: cat ? cat.order : 9999, its: [] }; gIndex.set(key, g); groups.push(g); }
+      gIndex.get(key).its.push(it);
+    }
+    if (groups.length > 1) {
+      const other = gIndex.get('__all');
+      if (other) other.name = 'Other';
+      groups.sort((a, b) => a.order - b.order);
+    }
+    const lis = groups.map(g => '<div class="course-group"><h4>' + escapeHTML(g.name) + '</h4><ul>' + g.its.map(itemHTML).join('') + '</ul></div>').join('');
     return `<div class="ticket ${o.status}" data-order="${o.id}" data-status="${o.status}" data-created="${createdMs}">
       <div class="t-top">
         <div class="t-table">${o.table_label ? `<b>${escapeHTML(o.table_label)}</b>` : 'Walk-up'}${o.rush ? '<span class="pill recall">⚡ RUSH</span>' : ''}</div>
         <div class="t-age">${fmtElapsed(Date.now() - createdMs)}</div>
       </div>
-      <ul class="t-items" title="Tap items to mark plated — synced across kitchen screens">${lis}</ul>
+      <div class="t-items" title="Tap items to mark plated — synced across kitchen screens">${lis}</div>
       ${o.guest_note ? `<div class="t-note">📝 ${escapeHTML(o.guest_note)}</div>` : ''}
       <div class="t-actions">
         ${o.status === 'new' ? `<button class="btn-prep" data-mark="${o.id}:prep">Start prep</button>` : ''}

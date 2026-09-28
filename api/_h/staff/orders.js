@@ -3,7 +3,7 @@
 // PATCH /api/staff/orders?id=<id>           → { status }
 //                                            → { assignments: [{item_id, paid_by}], mark_paid? } — split-bill v2
 // Auth: Authorization: Bearer <staff-token>
-import { supabase, supabaseAdmin } from '../../_db.js';
+import { supabase, supabaseAdmin, toPgArrayLiteral } from '../../_db.js';
 import { verifyToken } from './login.js';
 import { auditLog } from '../_audit.js';
 
@@ -45,6 +45,22 @@ export default async function handler(req, res) {
       const byOrder = {};
       for (const it of items) (byOrder[it.order_id] = byOrder[it.order_id] || []).push(it);
       for (const o of orders) o.order_items = byOrder[o.id] || [];
+
+      // Course grouping (kitchen display): attach category info to each item. Best-effort.
+      try {
+        const dIds = [...new Set(items.map(i => i.dish_id).filter(Boolean))];
+        if (dIds.length) {
+          const { data: cr = [] } = await supabase.raw(
+            'select d.id as dish_id, c.id as category_id, c.name as category_name, c.sort_order as category_order from dishes d join categories c on c.id = d.category_id where d.id = any($1::uuid[])',
+            [toPgArrayLiteral(dIds)]);
+          const byDish = {};
+          for (const c of cr) byDish[c.dish_id] = c;
+          for (const it of items) {
+            const c = byDish[it.dish_id];
+            if (c) { it.category_id = c.category_id; it.category_name = c.category_name; it.category_order = Number(c.category_order) || 0; }
+          }
+        }
+      } catch { /* optional */ }
 
       // Station filtering: a station-bound (non-expo) token only sees orders
       // containing at least one of its dishes; all items are still returned,

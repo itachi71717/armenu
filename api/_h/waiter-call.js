@@ -10,6 +10,8 @@ export default async function handler(req, res) {
   let body = {};
   try { body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body; } catch {}
   const { r, table, reason } = body || {};
+  const type = (body && body.type) === 'bill' ? 'bill' : 'help';
+  const isBill = type === 'bill';
   if (!r) return res.status(400).json({ error: 'Missing r' });
 
   const { data: restaurant } = await supabase.from('restaurants').select('id').eq('slug', r).single();
@@ -32,9 +34,12 @@ export default async function handler(req, res) {
   // staff device.
   const oneMinAgo = new Date(Date.now() - 60_000).toISOString();
   if (table_label) {
-    const { data: recent = [] } = await supabase.from('waiter_calls')
+    let dq = supabase.from('waiter_calls')
       .select('id').eq('restaurant_id', restaurant.id).eq('table_label', table_label)
-      .gte('created_at', oneMinAgo).limit(1);
+      .gte('created_at', oneMinAgo);
+    // Bill requests only dedup against other bill requests (and vice versa)
+    dq = isBill ? dq.eq('reason', 'bill') : dq.neq('reason', 'bill');
+    const { data: recent = [] } = await dq.limit(1);
     if (recent.length) {
       return res.status(200).json({ ok: true, deduped: true, message: 'A waiter is already on their way to your table.' });
     }
@@ -46,14 +51,17 @@ export default async function handler(req, res) {
     return res.status(429).json({ error: 'rate_limited', message: 'Too many calls right now. A waiter is on their way.' });
   }
 
-  await supabase.from('waiter_calls').insert({
+  const row = {
     restaurant_id: restaurant.id,
     table_id, table_label,
-    reason: String(reason || 'help').slice(0, 40)
-  });
+    reason: isBill ? 'bill' : String(reason || 'help').slice(0, 40)
+  };
+  // 'type' column may not be migrated yet; retry without it rather than lose the call
+  const ins = await supabase.from('waiter_calls').insert({ ...row, type });
+  if (ins && ins.error) await supabase.from('waiter_calls').insert(row);
 
   sendPush(restaurant.id, {
-    title: 'Guest calling waiter',
+    title: isBill ? 'Bill requested' : 'Guest calling waiter',
     body: table_label ? `Table ${table_label}${reason ? ' · ' + reason : ''}` : (reason || 'Help requested'),
     url: '/staff/',
     tag: 'call-' + Math.random().toString(36).slice(2, 8)

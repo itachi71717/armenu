@@ -212,6 +212,14 @@
   .last-order-banner{display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(232,197,138,.1);border-bottom:1px solid var(--line);font-size:12.5px;color:var(--ink-dim)}
   .last-order-banner .lob-text{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .last-order-banner .lob-text b{color:var(--ink)}
+  .pop-chip{display:inline-flex;align-items:center;gap:4px;margin-top:6px;margin-right:6px;padding:3px 9px;border-radius:999px;background:var(--accent);color:#fff;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;align-self:flex-start}
+  .pop-chip.trending{box-shadow:0 0 10px rgba(var(--accent-rgb),.6)}
+  .wait-chip{display:inline-block;margin:0 0 12px;padding:6px 12px;border-radius:999px;background:rgba(var(--accent-rgb),.12);border:1px solid rgba(var(--accent-rgb),.35);color:var(--accent);font-size:12.5px;font-weight:700}
+  .lob-rate{flex-shrink:0;padding:6px 12px;border-radius:999px;background:var(--accent);color:#fff;border:0;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
+  .rate-row{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--line)}
+  .rate-row .rr-name{flex:1;font-weight:600;font-size:14px}
+  .rate-row button{min-width:44px;min-height:44px;border-radius:10px;background:rgba(255,239,220,.06);border:1px solid var(--line);font-size:20px;cursor:pointer}
+  .ohr-reorder{margin-top:6px;padding:6px 12px;min-height:32px;border-radius:999px;background:rgba(var(--accent-rgb),.12);border:1px solid rgba(var(--accent-rgb),.35);color:var(--accent);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
   .last-order-banner .lob-view{flex-shrink:0;padding:6px 12px;border-radius:999px;background:rgba(232,197,138,.18);color:var(--accent-2);border:1px solid rgba(232,197,138,.3);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
   .order-conf-panel{padding:30px 22px;text-align:center}
   .order-conf-panel .conf-check{font-size:56px;line-height:1;margin-bottom:10px}
@@ -243,12 +251,14 @@
     <button class="lang-btn" id="langBtn" style="display:none">EN</button>
     <button class="lang-btn" id="currencyBtn" title="Convert prices" style="display:none">ZAR</button>
     <button class="lang-btn" id="profileBtn" title="Your profile" aria-label="Your profile">👤</button>
+    <div class="venue-pill" id="offlineChip" role="status" style="display:none;background:rgba(255,176,102,.15);border-color:rgba(255,176,102,.5)">📶 offline mode — showing last-known menu</div>
     <div class="venue-pill" id="navVenue">Loading…</div>
   </div>
 </header>
 
 <div class="last-order-banner" id="lastOrderBanner" style="display:none">
   <div class="lob-text" id="lastOrderBannerText"></div>
+  <button type="button" class="lob-rate" id="lastOrderBannerRate" style="display:none">👍 Rate your dishes</button>
   <button type="button" class="lob-view" id="lastOrderBannerView">View</button>
 </div>
 
@@ -275,6 +285,7 @@
 <!-- Bottom action bar: shown only when at least one action is enabled -->
 <div class="actionbar" id="actionbar" style="display:none">
   <button class="btn-secondary" id="waiterBtn" style="display:none">🛎 Call Waiter</button>
+  <button class="btn-secondary" id="billBtn" style="display:none" disabled title="Order first">💳 Bring bill</button>
   <button class="btn-secondary" id="reserveBtn">🗓 Book table</button>
   <button class="btn-primary" id="cartBtn" style="display:none">Order <span class="cart-count" id="cartCount">0</span></button>
   <button class="btn-secondary" id="reviewBtn" style="display:none">★ Review</button>
@@ -330,8 +341,10 @@ function getCustomerToken() {
 }
 customerToken = getCustomerToken();
 
+let offlineMode = false;
 async function refreshCustomer() {
   if (!customerToken) return;
+  if (offlineMode || navigator.onLine === false) return; // no hello/beacons while offline
   try {
     await fetch('/api/customer/hello', {
       method: 'POST', headers: { 'content-type': 'application/json' },
@@ -389,6 +402,50 @@ function renderLastOrderBanner() {
     `Your order <b>#${escapeHTML(order.order_number)}</b> · ${escapeHTML(order.dish_summary || '')} · ${escapeHTML(fmtPrice(order.total_cents, sym) || '')} · Placed ${escapeHTML(fmtRelativeTime(order.placed_at))}`;
   banner.style.display = 'flex';
   $('lastOrderBannerView').onclick = () => openLastOrderSheet(order);
+  const rateBtn = $('lastOrderBannerRate');
+  if (rateBtn) {
+    const old = Date.now() - new Date(order.placed_at).getTime() >= 20 * 60 * 1000;
+    const pending = (Array.isArray(order.dish_slugs) ? order.dish_slugs : []).filter(d => !isDishRated(order, d.slug));
+    rateBtn.style.display = old && pending.length ? '' : 'none';
+    rateBtn.onclick = () => openRateSheet(order);
+  }
+}
+
+// ---- Rate individual dishes ----
+function ratedKey(order) { return 'armenu_rated_' + String(order.order_id || ''); }
+function ratedSet(order) {
+  try { return new Set(JSON.parse(localStorage.getItem(ratedKey(order)) || '[]')); } catch { return new Set(); }
+}
+function isDishRated(order, slug) { return ratedSet(order).has(slug); }
+function markDishRated(order, slug) {
+  const set = ratedSet(order); set.add(slug);
+  try { localStorage.setItem(ratedKey(order), JSON.stringify([...set])); } catch {}
+}
+function openRateSheet(order) {
+  const dishes = (Array.isArray(order.dish_slugs) ? order.dish_slugs : []).filter(d => !isDishRated(order, d.slug));
+  if (!dishes.length) { closeSheet(); renderLastOrderBanner(); return; }
+  openSheet(`
+    <h3>Rate your dishes</h3>
+    <div class="sh-sub">Skip any you like. Only takes a tap.</div>
+    ${dishes.map(d => `
+      <div class="rate-row">
+        <div class="rr-name">${escapeHTML(d.name || d.slug)}</div>
+        <button type="button" data-rate="1" data-rate-slug="${escapeHTML(d.slug)}" aria-label="Thumbs up ${escapeHTML(d.name || d.slug)}">👍</button>
+        <button type="button" data-rate="-1" data-rate-slug="${escapeHTML(d.slug)}" aria-label="Thumbs down ${escapeHTML(d.name || d.slug)}">👎</button>
+      </div>`).join('')}
+  `);
+  document.querySelectorAll('[data-rate-slug]').forEach(b => b.onclick = () => {
+    const slug = b.dataset.rateSlug;
+    markDishRated(order, slug);
+    try {
+      fetch('/api/customer/rate-dish', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ token: customerToken, dish_slug: slug, restaurant_slug: order.restaurant_slug || r, order_id: order.order_id, rating: +b.dataset.rate })
+      }).catch(() => {});
+    } catch {}
+    toast('Thanks!', 'ok');
+    openRateSheet(order);
+  });
 }
 
 function openLastOrderSheet(order) {
@@ -498,6 +555,43 @@ function showError(title, sub, retry) {
   if (retry) $('retryBoot').onclick = () => { $('content').innerHTML = `<div class="state"><div class="spinner"></div><p>Loading the menu…</p></div>`; boot(); };
 }
 
+// ---- Offline resilience: menu served from the service-worker cache ----
+function setOfflineChip(on) {
+  offlineMode = !!on;
+  const c = $('offlineChip'); if (c) c.style.display = on ? '' : 'none';
+}
+let revalidating = false;
+async function revalidateMenu() {
+  if (revalidating || !r) return;
+  revalidating = true;
+  if (navigator.onLine === false) setOfflineChip(true);
+  try {
+    const h = { 'X-Armenu-Fresh': '1' };
+    const [sRes, mRes] = await Promise.all([
+      fetch(`/api/settings?r=${encodeURIComponent(r)}`, { headers: h }),
+      fetch(`/api/dish?r=${encodeURIComponent(r)}`, { headers: h })
+    ]);
+    if (!mRes.ok || mRes.headers.get('X-Armenu-Cache') === '1') throw new Error('stale');
+    const settings = sRes.ok ? await sRes.json() : state.settings;
+    const menu = await mRes.json();
+    const raw = JSON.stringify([settings, menu]);
+    const wasOffline = offlineMode;
+    setOfflineChip(false);
+    if (raw !== state._raw) {
+      state.settings = settings; state.menu = menu; state._raw = raw;
+      applyBranding(); render(); wireActions(); renderLastOrderBanner();
+    }
+    if (wasOffline) refreshCustomer();
+  } catch (e) {
+    setOfflineChip(true);
+  } finally { revalidating = false; }
+}
+window.addEventListener('online', () => { if (offlineMode) revalidateMenu(); });
+window.addEventListener('offline', () => { if (state && state.menu) setOfflineChip(true); });
+try {
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+} catch {}
+
 async function boot() {
   if (!r) return showError('No restaurant specified.', 'Add ?r=restaurant-slug to the URL.');
   try {
@@ -509,13 +603,16 @@ async function boot() {
       const d = await menuRes.json().catch(() => ({}));
       return showError('Restaurant not found.', d.error || 'Check the QR with the restaurant.');
     }
+    const fromCache = menuRes.headers.get('X-Armenu-Cache') === '1';
     state.settings = settingsRes.ok ? await settingsRes.json() : { features:{}, branding:{}, locale:{currency:'ZAR',currency_symbol:'R',languages:['en'],default_lang:'en'} };
     state.menu = await menuRes.json();
+    state._raw = JSON.stringify([state.settings, state.menu]);
     state.lang = state.settings.locale.default_lang || 'en';
     applyBranding();
     render();
     wireActions();
     renderLastOrderBanner();
+    if (fromCache) revalidateMenu();
   } catch (e) {
     showError('Could not load menu.', 'Check your internet and try again.', true);
   }
@@ -842,6 +939,14 @@ function renderAllergenChips(raw) {
   return parts.length ? `<div class="diet-chips">${parts.join('')}</div>` : '';
 }
 
+function popChip(d) {
+  if (!state.menu || (state.menu.orders_7d || 0) < 20) return '';
+  const sc = Number(d.popularity_score) || 0;
+  if (sc >= 90) return '<div class="pop-chip trending">🔥 Trending</div>';
+  if (sc >= 70) return '<div class="pop-chip">🔥 Popular</div>';
+  return '';
+}
+
 function renderDish(d, idx) {
   const sym = state.settings.locale.currency_symbol || 'R';
   const price = d.price_cents ? fmtPrice(d.price_cents, sym) : (d.price || '');
@@ -884,6 +989,7 @@ function renderDish(d, idx) {
             : (price ? `<div class="price">${escapeHTML(price)}</div>` : '')}
         </div>
         ${d.discount_pct ? `<div class="offer-tag">🎉 ${escapeHTML(d.offer_name || 'Happy hour')} · -${d.discount_pct}%</div>` : ''}
+        ${popChip(d)}
         ${descTr ? `<div class="desc">${escapeHTML(descTr)}</div>` : ''}
         ${renderAllergenChips(d.allergens)}
         <div class="row">
@@ -903,6 +1009,14 @@ function updateActionbar() {
   const any = f.orders || f.waiter_call || f.reviews || f.reservations !== false;
   bar.style.display = any ? 'flex' : 'none';
   $('waiterBtn').style.display  = f.waiter_call ? 'flex' : 'none';
+  const bb = $('billBtn');
+  if (bb) {
+    bb.style.display = f.waiter_call ? 'flex' : 'none';
+    const has = !!loadLastOrder();
+    bb.disabled = !has || !!bb._busy;
+    bb.title = has ? '' : 'Order first';
+    if (!bb.dataset.wired) { bb.dataset.wired = '1'; bb.onclick = sendBillCall; }
+  }
   $('cartBtn').style.display    = f.orders ? 'flex' : 'none';
   $('reviewBtn').style.display  = f.reviews ? 'flex' : 'none';
   // Reservations button ONLY shows when guest is NOT at a table (no ?t= param).
@@ -1017,6 +1131,27 @@ function openReserve() {
   };
 }
 
+function reorderFromHistory(orderId) {
+  const o = customerRecentOrders.find(x => x.order_id === orderId);
+  if (!o || !Array.isArray(o.item_slugs)) return;
+  let total = 0, added = 0;
+  for (const it of o.item_slugs) {
+    const qty = Math.max(1, parseInt(it.qty, 10) || 1);
+    total += qty;
+    const dish = state.menu?.dishes?.find(d => d.slug === it.slug);
+    if (!dish || dish.sold_out) continue;
+    const key = dish.slug + '::';
+    const existing = state.cart.find(i => i.key === key);
+    if (existing) existing.qty += qty;
+    else state.cart.push({ key, slug: dish.slug, name: dish.name, qty, price_cents: dish.price_cents || 0, modifiers: [] });
+    added += qty;
+  }
+  saveCart();
+  updateActionbar();
+  closeSheet();
+  toast(`Added ${added} of ${total} items` + (added < total ? ` — ${total - added} unavailable` : ''), added ? 'ok' : 'err');
+}
+
 function addToCart(slug, mods) {
   const dish = state.menu.dishes.find(d => d.slug === slug);
   if (!dish) return;
@@ -1119,6 +1254,25 @@ let _tipPct = 10;
 // Preserve user-typed values across cart re-renders (tip toggle / qty +/-)
 // so a guest who typed "no peanuts, allergy" then adjusted qty doesn't lose it.
 let _cartDraft = { note: '', tableInput: '' };
+function waitChipHtml() {
+  const w = state.menu && state.menu.wait_estimate;
+  if (!w || typeof w.p50_min !== 'number') return '';
+  return `<div class="wait-chip">⏱ ~${escapeHTML(Math.round(w.p50_min))} min, ${escapeHTML(w.current_queue || 0)} ahead of you</div>`;
+}
+let _waitTimer = null;
+function startWaitRefresh() {
+  if (_waitTimer) clearInterval(_waitTimer);
+  _waitTimer = setInterval(async () => {
+    if (!$('sheet').classList.contains('on') || !$('waitChipWrap')) { clearInterval(_waitTimer); _waitTimer = null; return; }
+    try {
+      const res = await fetch(`/api/dish?r=${encodeURIComponent(r)}`);
+      if (!res.ok) return;
+      const d = await res.json();
+      if (state.menu) state.menu.wait_estimate = d.wait_estimate || null;
+      const wrap = $('waitChipWrap'); if (wrap) wrap.innerHTML = waitChipHtml();
+    } catch {}
+  }, 60000);
+}
 function openCart() {
   if (!state.cart.length) return toast('Your cart is empty', 'err');
   // Snapshot the current form values BEFORE we re-render (openSheet wipes them)
@@ -1145,6 +1299,7 @@ function openCart() {
   openSheet(`
     <h3>Your order</h3>
     <div class="sh-sub">Sent straight to the kitchen when you confirm.</div>
+    <div id="waitChipWrap">${waitChipHtml()}</div>
     ${rows}
     <div class="cart-total"><span>Subtotal</span><span>${fmtPrice(subtotal, sym)}</span></div>
     <div class="field"><label>Tip for your waiter</label>
@@ -1166,6 +1321,7 @@ function openCart() {
     openCart(); updateActionbar();
   });
   $('orderSend').onclick = submitOrder;
+  startWaitRefresh();
 }
 
 async function submitOrder() {
@@ -1205,7 +1361,8 @@ async function submitOrder() {
       dish_summary,
       total_cents,
       placed_at: new Date().toISOString(),
-      items: items_snapshot
+      items: items_snapshot,
+      dish_slugs: state.cart.map(i => ({ slug: i.slug, name: i.name }))
     };
     saveLastOrder(lastOrder);
 
@@ -1310,6 +1467,7 @@ function openProfile() {
             <div class="ohr-meta">${escapeHTML(new Date(o.placed_at).toLocaleDateString())} · ${escapeHTML(o.item_count)} item${o.item_count === 1 ? '' : 's'}</div>
           </div>
           <div class="ohr-total">${fmtPrice(o.total_cents, sym)}</div>
+          ${o.restaurant_slug === r && Array.isArray(o.item_slugs) && o.item_slugs.length ? `<button type="button" class="ohr-reorder" data-reorder="${escapeHTML(o.order_id)}">🔄 Reorder</button>` : ''}
         </div>`).join('')
     : `<div class="sh-sub">No orders yet.</div>`;
 
@@ -1339,6 +1497,8 @@ function openProfile() {
     <a href="#" class="profile-delete" id="pfDelete">Delete my profile</a>
     <div class="pf-danger-zone"><a href="#" id="pfDeleteData">Delete my data</a></div>
   `);
+
+  document.querySelectorAll('[data-reorder]').forEach(b => b.onclick = () => reorderFromHistory(b.dataset.reorder));
 
   let allergyState = allergies.slice();
   const box = $('pfAllergyBox');
@@ -1491,6 +1651,24 @@ async function sendCall(reason) {
   }
   // Reset the in-flight flag after 3s so a legitimate second call later is possible
   setTimeout(() => { _callInFlight = false; }, 3000);
+}
+
+async function sendBillCall() {
+  const bb = $('billBtn');
+  if (!bb || bb._busy || !loadLastOrder()) return;
+  bb._busy = true; bb.disabled = true; // 5s debounce
+  try {
+    const res = await fetch('/api/waiter-call', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ r, table: table || undefined, reason: 'bill', type: 'bill' })
+    });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(d.error || 'Could not send');
+    window.ArmenuFX?.toast('Waiter notified — bill on the way', { type: 'success' });
+  } catch (e) {
+    window.ArmenuFX?.toast(e.message || 'Could not send', { type: 'error' });
+  }
+  setTimeout(() => { bb._busy = false; updateActionbar(); }, 5000);
 }
 
 function openReview() {

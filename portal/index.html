@@ -329,6 +329,16 @@
       <div class="dash-tile loading"><div class="dt-lbl">Low-stock alerts</div><div class="dt-num" id="dtLowStock"><span class="sk-line" style="width:60px;margin:6px auto;display:inline-block"></span></div></div>
     </div>
 
+    <!-- Live kitchen/sales tiles — filled by loadLiveTiles() from /api/admin/live, polled every 45s. -->
+    <div id="liveSlowBanner" role="alert" style="display:none;margin-bottom:12px;padding:10px 14px;border-radius:12px;background:rgba(248,113,113,.14);border:1px solid rgba(248,113,113,.4);color:#f87171;font-weight:600;font-size:14px;text-align:center"></div>
+    <div class="dash-tiles" id="liveTiles">
+      <div class="dash-tile"><div class="dt-lbl">Orders today</div><div class="dt-num" id="ltOrders">—</div></div>
+      <div class="dash-tile"><div class="dt-lbl">Revenue today</div><div class="dt-num" id="ltRevenue">—</div></div>
+      <div class="dash-tile" id="ltPrepTile" style="cursor:pointer" title="Click for kitchen status"><div class="dt-lbl">Avg prep time</div><div class="dt-num" id="ltPrep">—</div><div class="dt-lbl" id="ltPrepSub" style="margin:4px 0 0"></div></div>
+      <div class="dash-tile"><div class="dt-lbl">Top today</div><div class="dt-num" id="ltTop" style="font-size:18px;line-height:34px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</div><div class="dt-lbl" id="ltTopSub" style="margin:4px 0 0"></div></div>
+    </div>
+    <div id="liveTicker" style="display:none;margin:-12px 0 24px;text-align:center;font-size:13px;color:#e8c58a"></div>
+
     <!-- Grouped tools — collapsible sections, max 4 buttons visible per section -->
     <div class="tools-section">
       <div class="tools-group" data-open="1">
@@ -1023,6 +1033,46 @@
       clearLoading();
       console.warn('dash tiles:', e);
     }
+  }
+
+  // Live tiles — /api/admin/live, polled every 45s. Silent on failure.
+  let _liveTimer = null, _liveStatus = 'ok', _liveAvg = null;
+  const LIVE_COLORS = { ok: '#4ade80', busy: '#f0b060', slow: '#f87171' };
+  const LIVE_DETAIL = {
+    ok: 'Kitchen running smoothly (under 20 min).',
+    busy: 'Kitchen is busy (20-30 min average prep).',
+    slow: 'Kitchen is slow (30+ min average prep) — above target.'
+  };
+  async function loadLiveTiles() {
+    try {
+      if (!CURRENT?.restaurant?.slug) return;
+      const { ok, data } = await mgrFetch(`/api/admin/live?slug=${encodeURIComponent(CURRENT.restaurant.slug)}`);
+      if (!ok || !data) return;
+      $('ltOrders').textContent = String(data.orders_today ?? 0);
+      $('ltRevenue').textContent = 'R' + Math.round((data.revenue_today_cents || 0) / 100).toLocaleString();
+      _liveStatus = data.kitchen_status || 'ok';
+      _liveAvg = data.avg_prep_min;
+      const prep = $('ltPrep');
+      prep.textContent = _liveAvg == null ? '—' : `${Math.round(_liveAvg)}min`;
+      prep.style.color = _liveAvg == null ? '' : LIVE_COLORS[_liveStatus];
+      $('ltPrepSub').textContent = _liveAvg == null ? 'not enough data' : _liveStatus;
+      const top = data.top_dishes || [];
+      $('ltTop').textContent = top[0]?.dish_name || '—';
+      $('ltTopSub').textContent = top[0] ? `${top[0].count} sold` : '';
+      const tk = $('liveTicker');
+      if (top.length) { tk.textContent = '🔥 Trending: ' + top.map(d => d.dish_name).join(', '); tk.style.display = ''; }
+      else tk.style.display = 'none';
+      const bn = $('liveSlowBanner');
+      if (_liveStatus === 'slow') { bn.textContent = `⚠ Kitchen prep time above target — ${Math.round(_liveAvg)} min avg`; bn.style.display = ''; }
+      else bn.style.display = 'none';
+    } catch (e) { /* silent */ }
+  }
+  $('ltPrepTile').addEventListener('click', () => {
+    alert(LIVE_DETAIL[_liveStatus] + (_liveAvg != null ? `\nMedian prep today: ${_liveAvg} min.` : '\nNot enough served orders yet (need 3).'));
+  });
+  function startLivePolling() {
+    loadLiveTiles();
+    if (!_liveTimer) _liveTimer = setInterval(() => { if (!document.hidden) loadLiveTiles(); }, 45000);
   }
 
   // Add help pill to DOM
@@ -2640,6 +2690,7 @@ Sub gluten-free bun +1200</code></div>
     if ($('app').classList.contains('ready')) {
       loadCreditBalance();
       loadDashTiles();
+      startLivePolling();
       setTimeout(offerPushOptIn, 4000);
     }
   };
