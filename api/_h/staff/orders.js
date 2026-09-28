@@ -26,14 +26,52 @@ export default async function handler(req, res) {
       .in('status', ['new','prep','ready'])
       .order('created_at', { ascending: true })
       .limit(100);
+    // Recent served orders (last 2h, max 10) so staff can recall them. Kept out of
+    // the main query so old served rows never crowd out active orders under limit(100).
+    try {
+      const { data: served = [] } = await supabase.from('orders')
+        .select('*')
+        .eq('restaurant_id', session.restaurant_id)
+        .eq('status', 'served')
+        .gte('updated_at', new Date(Date.now() - 2 * 3600 * 1000).toISOString())
+        .order('updated_at', { ascending: false })
+        .limit(10);
+      for (const o of served) orders.push(o);
+    } catch { /* recall list is best-effort */ }
+    let result = orders;
     if (orders.length) {
       const { data: items = [] } = await supabase.from('order_items')
         .select('*').in('order_id', orders.map(o => o.id));
       const byOrder = {};
       for (const it of items) (byOrder[it.order_id] = byOrder[it.order_id] || []).push(it);
       for (const o of orders) o.order_items = byOrder[o.id] || [];
+
+      // Station filtering: a station-bound (non-expo) token only sees orders
+      // containing at least one of its dishes; all items are still returned,
+      // with this station's flagged mine:true.
+      if (session.station_id && !session.is_expo) {
+        const dishIds = [...new Set(items.map(i => i.dish_id).filter(Boolean))];
+        let mineDishes = new Set();
+        if (dishIds.length) {
+          const { data: ds = [] } = await supabase.from('dishes')
+            .select('id, station_id').in('id', dishIds);
+          mineDishes = new Set(ds.filter(d => d.station_id === session.station_id).map(d => d.id));
+        }
+        result = filterOrdersForStation(orders, mineDishes);
+      }
     }
-    return res.status(200).json({ orders });
+
+    // Rush detection: >=5 orders in the last 5 minutes for this restaurant.
+    try {
+      const { data: cnt } = await supabase.raw(
+        "select count(*)::int as n from orders where restaurant_id = $1 and created_at > now() - interval '5 minutes'",
+        [session.restaurant_id]);
+      const rush = (cnt?.[0]?.n || 0) >= 5;
+      const toFlip = result.filter(o => o.status !== 'served' && !!o.rush !== rush).map(o => o.id);
+      if (toFlip.length) Promise.resolve(supabaseAdmin.from('orders').update({ rush }).in('id', toFlip)).catch(() => {});
+      for (const o of result) if (o.status !== 'served') o.rush = rush;
+    } catch { /* rush is best-effort */ }
+    return res.status(200).json({ orders: result });
   }
 
   if (req.method === 'POST') {
@@ -92,6 +130,12 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Could not save order items — please try again' });
     }
     return res.status(200).json({ ok: true, order_id: order.id });
+  }
+
+  if (req.method === 'PATCH') {
+    let rb = {};
+    try { rb = typeof req.body === 'string' ? JSON.parse(req.body) : req.body; } catch {}
+    if ((rb && rb.recall != null && rb.recall !== false) || req.query.recall != null) return handleRecall(req, res, session, rb || {});
   }
 
   if (req.method === 'PATCH' && req.query.item) {
@@ -201,6 +245,46 @@ async function handleSplitPatch(req, res, session, body) {
     paid_cents: (order.paid_cents || 0) + bumped,
     total_cents: order.total_cents || 0
   });
+}
+
+// Pure helper: keep orders with >=1 item in `mineDishes`; flag those items mine:true.
+export function filterOrdersForStation(orders, mineDishes) {
+  const out = [];
+  for (const o of orders) {
+    let any = false;
+    o.order_items = (o.order_items || []).map(it => {
+      const mine = mineDishes.has(it.dish_id);
+      if (mine) any = true;
+      return { ...it, mine };
+    });
+    if (any) out.push(o);
+  }
+  return out;
+}
+
+// Recall: PATCH ?id=<order_item_id>[&recall=<reason>] with body { recall: <reason string> | { reason? }, id? }
+async function handleRecall(req, res, session, body) {
+  const itemId = String(body.id || req.query.item || req.query.id || '');
+  if (!itemId) return res.status(400).json({ error: 'item id required' });
+  const { data: item } = await supabase.from('order_items')
+    .select('id, order_id').eq('id', itemId).maybeSingle();
+  if (!item) return res.status(404).json({ error: 'not found' });
+  const { data: order } = await supabase.from('orders')
+    .select('id, restaurant_id, status').eq('id', item.order_id).maybeSingle();
+  if (!order || order.restaurant_id !== session.restaurant_id) return res.status(404).json({ error: 'not found' });
+  const rc = body.recall;
+  const rawReason = (rc && typeof rc === 'object') ? rc.reason : (typeof rc === 'string' ? rc : req.query.recall);
+  const reason = String(rawReason == null || rawReason === true || rawReason === '1' ? '' : rawReason).slice(0, 500) || null;
+  // Un-plate so the kitchen sees it as outstanding again.
+  await supabaseAdmin.from('order_items').update({ recalled_at: new Date().toISOString(), recall_reason: reason, plated_at: null }).eq('id', itemId);
+  // Put a ready/served order back on the kitchen board.
+  if (order.status === 'ready' || order.status === 'served') {
+    await supabaseAdmin.from('orders').update({ status: 'prep', updated_at: new Date().toISOString() }).eq('id', order.id);
+  }
+  auditLog(req, session.restaurant_id, 'order_item.recall', {
+    target: itemId, metadata: { order_id: order.id, reason }
+  }).catch(() => {});
+  return res.status(200).json({ ok: true, item_id: itemId, recalled: true });
 }
 
 function parsePrice(str) {

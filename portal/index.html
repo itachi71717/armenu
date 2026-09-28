@@ -373,6 +373,9 @@
           <div class="action" id="tablesAction">
             <span class="ico">🪑</span><div><h3>Tables &amp; waiters</h3><p>Add tables, assign waiters, print QRs.</p></div>
           </div>
+          <div class="action" id="stationsAction">
+            <span class="ico">🍳</span><div><h3>Kitchen stations</h3><p>Hot, Cold, Dessert… route dishes to screens.</p></div>
+          </div>
           <div class="action" id="staffAction2">
             <span class="ico">👥</span><div><h3>Staff PINs</h3><p>Waiter + kitchen tablet PINs.</p></div>
           </div>
@@ -855,6 +858,7 @@
           description: btn.dataset.desc,
           stock_count: btn.dataset.stock === '' ? null : parseInt(btn.dataset.stock),
           category_id: full.category_id || null,
+          station_id: full.station_id || null,
           translations: full.translations || {}
         });
       }
@@ -1189,6 +1193,12 @@
       const cr = await mgrFetch(`/api/admin/categories?slug=${CURRENT.restaurant.slug}`);
       if (cr.ok) categories = cr.data.categories || [];
     } catch {}
+    // Kitchen stations for the routing picker (best-effort; none = hide picker)
+    let stations = [];
+    try {
+      const sr = await mgrFetch(`/api/admin/kitchen-stations?slug=${CURRENT.restaurant.slug}`);
+      if (sr.ok) stations = sr.data.stations || [];
+    } catch {}
     $('wizKicker').textContent = isEdit ? 'Edit dish' : 'New dish';
     $('wizTitle').textContent  = isEdit ? existing.name : 'Add a new dish';
     $('wizProgress').innerHTML = '';
@@ -1204,6 +1214,12 @@
             ${categories.map(c => `<option value="${c.id}" ${existing?.category_id === c.id ? 'selected' : ''}>${escapeHTML(c.name)}</option>`).join('')}
           </select>
           ${categories.length === 0 ? '<div style="font-size:11px;color:var(--ink-faint);margin-top:4px">No categories yet — add one from the Categories action.</div>' : ''}</div>
+        ${stations.length ? `<div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:4px">Station</div>
+          <select id="dishStation" style="width:100%;padding:11px 13px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:14px">
+            <option value="">— unassigned —</option>
+            ${stations.map(st => `<option value="${st.id}" ${existing?.station_id === st.id ? 'selected' : ''}>${escapeHTML(st.name)}</option>`).join('')}
+          </select>
+          <div style="font-size:11px;color:var(--ink-faint);margin-top:4px">Which kitchen screen sees this dish. Leave blank to show on every screen.</div></div>` : ''}
         <div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:4px">Description</div>
           <textarea id="dishDesc" rows="2" style="width:100%;padding:11px 13px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:14px;font-family:inherit;resize:vertical" placeholder="Aged beef patty, sharp cheddar, brioche.">${escapeHTML(existing?.description || '')}</textarea></div>
         <div>
@@ -1322,10 +1338,13 @@ Sub gluten-free bun +1200</code></div>
           if (n || d) translations[lang] = { name: n || undefined, description: d || undefined };
         }
         const category_id = $('dishCategory')?.value || null;
+        const stationEl = $('dishStation');
+        const station_id = stationEl ? (stationEl.value || null) : undefined;
         const modifiers = parseModifiersText($('dishMods')?.value || '');
         if (isEdit) {
           const stockRaw = $('dishStock')?.value.trim() || '';
           const patch = { name, price, description, translations, category_id, modifiers };
+          if (station_id !== undefined) patch.station_id = station_id;
           if (stockRaw === '') patch.stock_count = null;
           else patch.stock_count = Math.max(0, parseInt(stockRaw));
           const { ok, data } = await mgrFetch(`/api/admin/dishes?slug=${CURRENT.restaurant.slug}&dish_slug=${existing.slug}`, {
@@ -1348,7 +1367,7 @@ Sub gluten-free bun +1200</code></div>
           }
           const { ok, data } = await mgrFetch('/api/admin/dishes', {
             method: 'POST',
-            body: JSON.stringify({ restaurant_slug: CURRENT.restaurant.slug, name, price, description, glb_url, ar_source: file ? 'upload' : 'vendor', translations, category_id, modifiers })
+            body: JSON.stringify({ restaurant_slug: CURRENT.restaurant.slug, name, price, description, glb_url, ar_source: file ? 'upload' : 'vendor', translations, category_id, modifiers, ...(station_id ? { station_id } : {}) })
           });
           if (!ok) throw new Error(data.error || 'Create failed');
           toast('Dish added', 'ok');
@@ -1561,6 +1580,138 @@ Sub gluten-free bun +1200</code></div>
     }, 100);
   }
 
+  // ============= KITCHEN STATIONS =============
+  function stationSlug(name) {
+    return String(name || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  }
+  async function openStationsModal() {
+    const slug = CURRENT.restaurant.slug;
+    const api = (extra = '') => `/api/admin/kitchen-stations?slug=${encodeURIComponent(slug)}${extra}`;
+    let items = [];
+    $('wizKicker').textContent = 'Manage';
+    $('wizTitle').textContent = 'Kitchen stations';
+    $('wizProgress').innerHTML = '';
+    $('wizBody').innerHTML = `
+      <p style="color:var(--ink-dim);margin-bottom:14px">Split the kitchen into screens (Hot, Cold, Dessert…). Assign each dish a station in the dish editor; an Expo screen sees everything.</p>
+      <div id="stBody" style="max-height:44vh;overflow-y:auto;margin-bottom:16px"></div>
+      <div style="border-top:1px solid var(--line);padding-top:14px">
+        <button class="wiz-secondary" id="stAddToggle" style="width:100%">+ Add station</button>
+        <div id="stAddRow" style="display:none;margin-top:10px">
+          ${inputRow('Station name', 'stnName', 'e.g. Grill')}
+          <div style="font-size:11px;color:var(--ink-faint);font-family:var(--mono);margin:-4px 0 8px">slug: <span id="stnSlug">—</span></div>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-dim);margin-bottom:10px"><input type="checkbox" id="stnExpo" /> Expo (sees every dish)</label>
+          <button class="wiz-primary" id="stnSave" style="width:100%;padding:11px;border-radius:9px;border:none;font-weight:700;cursor:pointer">Add station</button>
+        </div>
+      </div>
+      <div id="stErr" style="color:#f87171;font-size:12.5px;min-height:16px;margin-top:8px"></div>`;
+    $('wizActions').innerHTML = `<button class="wiz-secondary" id="stClose">Close</button>`;
+    $('wizOverlay').classList.add('on');
+    $('wizClose').onclick = $('stClose').onclick = () => $('wizOverlay').classList.remove('on');
+
+    const delBtnStyle = 'background:rgba(248,113,113,.1);color:#f87171;border:1px solid rgba(248,113,113,.25);padding:6px 10px;border-radius:8px;font-size:11px;cursor:pointer';
+    const goldBtnStyle = 'background:rgba(232,197,138,.1);color:#e8c58a;border:1px solid rgba(232,197,138,.28);padding:6px 10px;border-radius:8px;font-size:11px;cursor:pointer';
+    const SEEDS = [
+      { name: 'Hot', is_expo: false }, { name: 'Cold', is_expo: false },
+      { name: 'Dessert', is_expo: false }, { name: 'Expo (all)', is_expo: true }
+    ];
+
+    async function call(path, method, body) {
+      const r = await mgrFetch(path, { method, body: body ? JSON.stringify(body) : undefined });
+      if (!r.ok) throw new Error(r.data?.error || 'Request failed');
+      return r.data;
+    }
+    async function refresh() {
+      $('stErr').textContent = '';
+      try {
+        const data = await call(api(), 'GET');
+        items = (data.stations || []).slice().sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+      } catch (e) { $('stErr').textContent = e.message; return; }
+      const box = $('stBody');
+      if (!items.length) {
+        box.innerHTML = `<div class="empty-state"><h3>No stations yet</h3><p>Only needed if your kitchen has more than one screen. Start with a common setup?</p>
+          <p style="margin-top:8px;font-family:var(--mono);font-size:12px;color:#e8c58a">${SEEDS.map(x => escapeHTML(x.name)).join(' · ')}</p>
+          <button class="wiz-primary" id="stSeed" style="margin-top:14px;padding:10px 16px;border-radius:9px;border:none;font-weight:700;cursor:pointer">Add these</button></div>`;
+        $('stSeed').onclick = async (ev) => {
+          ev.target.disabled = true;
+          try {
+            for (let i = 0; i < SEEDS.length; i++) {
+              await call(api(), 'POST', { name: SEEDS[i].name, slug: stationSlug(SEEDS[i].name), is_expo: SEEDS[i].is_expo, sort_order: i });
+            }
+            toast('Stations added', 'ok');
+          } catch (e) { $('stErr').textContent = e.message; }
+          refresh();
+        };
+        return;
+      }
+      box.innerHTML = items.map((st, i) => `<div data-st="${st.id}" style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:9px;background:rgba(245,236,216,.03);margin-bottom:6px;flex-wrap:wrap">
+        <div style="flex:1;min-width:130px"><div style="font-weight:600;font-size:14px">${escapeHTML(st.name)}</div>
+          <div style="color:var(--ink-faint);font-size:11px;font-family:var(--mono);letter-spacing:.06em">${escapeHTML(st.slug)}</div></div>
+        <label style="display:flex;align-items:center;gap:4px;font-size:11.5px;color:var(--ink-dim)"><input type="checkbox" data-expo="${st.id}" ${st.is_expo ? 'checked' : ''} /> Expo</label>
+        <button data-up="${st.id}" ${i === 0 ? 'disabled' : ''} title="Move up" style="${goldBtnStyle}">↑</button>
+        <button data-down="${st.id}" ${i === items.length - 1 ? 'disabled' : ''} title="Move down" style="${goldBtnStyle}">↓</button>
+        <button data-stprint="${escapeHTML(st.slug)}" title="Print a login card for this station's kitchen tablet" style="${goldBtnStyle}">🖨 Print login card</button>
+        <button data-stdel="${st.id}" style="${delBtnStyle}">🗑</button>
+      </div>`).join('');
+    }
+    async function swap(id, dir) {
+      const i = items.findIndex(x => String(x.id) === String(id));
+      const j = i + dir;
+      if (i < 0 || j < 0 || j >= items.length) return;
+      const order = items.map(x => x.id);
+      [order[i], order[j]] = [order[j], order[i]];
+      // Write a dense 0..n order so ties/nulls never leave rows ambiguous.
+      for (let k = 0; k < order.length; k++) {
+        const cur = items.find(x => x.id === order[k]);
+        if (cur.sort_order !== k) await call(api(`&id=${encodeURIComponent(order[k])}`), 'PATCH', { sort_order: k });
+      }
+    }
+    $('stBody').addEventListener('click', async (e) => {
+      const up = e.target.closest('[data-up]'), down = e.target.closest('[data-down]');
+      const del = e.target.closest('[data-stdel]'), pr = e.target.closest('[data-stprint]');
+      try {
+        if (pr) {
+          window.open(`/qr-print.html?type=kitchen&r=${encodeURIComponent(slug)}&station=${encodeURIComponent(pr.dataset.stprint)}`, '_blank', 'noopener');
+        } else if (up || down) {
+          const btn = up || down; btn.disabled = true;
+          await swap(btn.dataset.up || btn.dataset.down, up ? -1 : 1);
+          refresh();
+        } else if (del) {
+          if (!confirm('Delete this station? Dishes routed to it will show on every screen.')) return;
+          await call(api(`&id=${encodeURIComponent(del.dataset.stdel)}`), 'DELETE');
+          toast('Deleted', 'ok'); refresh();
+        }
+      } catch (err) { $('stErr').textContent = err.message; refresh(); }
+    });
+    $('stBody').addEventListener('change', async (e) => {
+      const cb = e.target.closest('[data-expo]');
+      if (!cb) return;
+      try {
+        await call(api(`&id=${encodeURIComponent(cb.dataset.expo)}`), 'PATCH', { is_expo: cb.checked });
+        toast(cb.checked ? 'Marked as expo' : 'Expo cleared', 'ok');
+      } catch (err) { cb.checked = !cb.checked; $('stErr').textContent = err.message; }
+    });
+    $('stAddToggle').onclick = () => {
+      const row = $('stAddRow');
+      row.style.display = row.style.display === 'none' ? 'block' : 'none';
+      if (row.style.display === 'block') $('stnName').focus();
+    };
+    $('stnName').oninput = () => { $('stnSlug').textContent = stationSlug($('stnName').value) || '—'; };
+    $('stnSave').onclick = async () => {
+      const name = $('stnName').value.trim();
+      const sl = stationSlug(name);
+      if (!name || !sl) { $('stErr').textContent = 'Name required'; return; }
+      const btn = $('stnSave'); btn.disabled = true;
+      try {
+        await call(api(), 'POST', { name, slug: sl, is_expo: $('stnExpo').checked, sort_order: items.length });
+        $('stnName').value = ''; $('stnSlug').textContent = '—'; $('stnExpo').checked = false;
+        toast('Station added', 'ok');
+        refresh();
+      } catch (e) { $('stErr').textContent = e.message; }
+      finally { btn.disabled = false; }
+    };
+    refresh();
+  }
+
   function openStaffModal() {
     const slug = CURRENT.restaurant.slug;
     openListModal({
@@ -1597,6 +1748,7 @@ Sub gluten-free bun +1200</code></div>
     if (e.target.closest('#categoriesAction'))   openCategoriesModal();
     if (e.target.closest('#tablesAction'))       openTablesModal();
     if (e.target.closest('#staffAction2'))       openStaffModal();
+    if (e.target.closest('#stationsAction'))     openStationsModal();
     if (e.target.closest('#offersAction'))       openOffersModal();
     if (e.target.closest('#reservationsAction')) openReservationsModal();
     if (e.target.closest('#schedulesAction'))    openSchedulesModal();
@@ -2562,6 +2714,7 @@ Sub gluten-free bun +1200</code></div>
       clickCmd('offersAction', 'Happy hour & offers', 'Your menu', ['discount', 'promo']),
       clickCmd('schedulesAction', 'Menu scheduler', 'Your menu', ['breakfast', 'lunch', 'dinner', 'schedule']),
       clickCmd('tablesAction', 'Tables & waiters', 'Team & tables', ['table', 'assign', 'qr']),
+      clickCmd('stationsAction', 'Kitchen stations', 'Team & tables', ['station', 'kitchen', 'expo', 'screen']),
       clickCmd('staffAction2', 'Staff PINs', 'Team & tables', ['pin', 'waiter', 'kitchen']),
       clickCmd('teamAction', 'Team members', 'Team & tables', ['invite', 'manager']),
       clickCmd('printQrAction', 'Print QR codes', 'Print & support', ['qr', 'print']),

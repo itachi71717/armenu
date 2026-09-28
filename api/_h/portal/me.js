@@ -59,7 +59,7 @@ export default async function handler(req, res) {
   const sevenAgoIso = new Date(Date.now() - 7 * 86400 * 1000).toISOString();
   const restIds = rests.map(r => r.id);
   const [dishesQ, scansQ, ordersQ, revsQ] = await Promise.all([
-    supabase.from('dishes').select('id, restaurant_id, slug, name, price, thumb_url, active, stock_count, description, category_id, translations').in('restaurant_id', restIds).eq('active', true).order('name'),
+    supabase.from('dishes').select('id, restaurant_id, slug, name, price, thumb_url, active, stock_count, description, category_id, station_id, translations').in('restaurant_id', restIds).eq('active', true).order('name'),
     supabase.from('scans').select('restaurant_id').in('restaurant_id', restIds).gte('scanned_at', sevenAgoIso),
     supabase.from('orders').select('restaurant_id, total_cents').in('restaurant_id', restIds).gte('created_at', sevenAgoIso),
     supabase.from('reviews').select('restaurant_id, rating').in('restaurant_id', restIds).gte('created_at', sevenAgoIso)

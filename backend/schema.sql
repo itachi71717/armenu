@@ -407,3 +407,20 @@ create index if not exists customer_favourites_customer_idx on customer_favourit
 
 alter table orders add column if not exists customer_id uuid references customers(id) on delete set null;
 create index if not exists orders_customer_idx on orders (customer_id) where customer_id is not null;
+
+-- Kitchen stations (multi-screen kitchen routing)
+create table if not exists kitchen_stations (
+  id            uuid primary key default gen_random_uuid(),
+  restaurant_id uuid references restaurants(id) on delete cascade,
+  name          text not null,
+  slug          text not null,
+  is_expo       boolean default false,
+  sort_order    int default 0,
+  created_at    timestamptz default now(),
+  unique(restaurant_id, slug)
+);
+create index if not exists idx_kitchen_stations_rest on kitchen_stations(restaurant_id, sort_order);
+alter table dishes add column if not exists station_id uuid references kitchen_stations(id) on delete set null;
+alter table orders add column if not exists rush boolean default false;
+alter table order_items add column if not exists recalled_at timestamptz;
+alter table order_items add column if not exists recall_reason text;

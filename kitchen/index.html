@@ -42,21 +42,45 @@
   .ticket.new{border-color:var(--accent);box-shadow:0 0 0 3px rgba(255,87,34,.15),0 12px 32px rgba(255,87,34,.15);animation:flash .8s ease}
   .ticket.prep{border-color:var(--warn)}
   .ticket.ready{border-color:var(--ok)}
-  /* Age-based whole-ticket colouring — overrides status colour after 8 min */
-  .ticket.aged-warm{border-color:#f0b060;box-shadow:0 0 0 3px rgba(240,176,96,.14),0 8px 24px rgba(240,176,96,.18)}
-  .ticket.aged-hot{border-color:#e05252;box-shadow:0 0 0 3px rgba(224,82,82,.18),0 8px 24px rgba(224,82,82,.24);animation:pulseHot 1.8s ease-in-out infinite}
-  @keyframes pulseHot{0%,100%{box-shadow:0 0 0 3px rgba(224,82,82,.14),0 8px 24px rgba(224,82,82,.2)}50%{box-shadow:0 0 0 5px rgba(224,82,82,.28),0 12px 30px rgba(224,82,82,.32)}}
+  /* Age-based whole-ticket colouring: <5m green, 5-10m default, 10-20m amber pulse, >20m red hard pulse */
+  .ticket.age-fresh{border-color:var(--ok)}
+  .ticket.age-amber{border-color:#f0b060;animation:pulseAmber 2.4s ease-in-out infinite}
+  .ticket.age-red{border-color:#e05252;animation:pulseRed 1s ease-in-out infinite}
+  @keyframes pulseAmber{0%,100%{box-shadow:0 0 0 2px rgba(240,176,96,.12),0 6px 18px rgba(240,176,96,.14)}50%{box-shadow:0 0 0 5px rgba(240,176,96,.28),0 10px 26px rgba(240,176,96,.3)}}
+  @keyframes pulseRed{0%,100%{box-shadow:0 0 0 3px rgba(224,82,82,.2),0 8px 24px rgba(224,82,82,.26)}50%{box-shadow:0 0 0 8px rgba(224,82,82,.42),0 14px 36px rgba(224,82,82,.5)}}
+  .ticket.focused{outline:3px solid var(--accent-2);outline-offset:3px}
+  @media (prefers-reduced-motion:reduce){.ticket.age-amber,.ticket.age-red{animation:none}}
   @keyframes flash{0%{background:rgba(255,87,34,.15)}100%{background:transparent}}
   .t-top{display:flex;justify-content:space-between;align-items:center}
   .t-table{font-family:'Instrument Serif',serif;font-style:italic;font-size:30px;font-weight:400}
   .t-table b{font-style:normal;font-family:'Inter';font-weight:900}
   .t-time{font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--ink-dim);font-weight:600}
   .t-age{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:4px 10px;border-radius:999px;background:rgba(255,239,220,.06);border:1px solid var(--line)}
+  .t-age{font-size:15px;font-weight:700;letter-spacing:.06em}
+  .t-age.fresh{background:rgba(125,216,125,.14);color:var(--ok);border-color:rgba(125,216,125,.3)}
   .t-age.warm{background:rgba(255,176,102,.14);color:var(--warn);border-color:rgba(255,176,102,.3)}
   .t-age.hot{background:rgba(248,113,113,.14);color:var(--err);border-color:rgba(248,113,113,.3)}
   .t-items{list-style:none;padding:0;display:flex;flex-direction:column;gap:6px}
   .t-items li{padding:10px 12px;border-radius:10px;background:rgba(255,239,220,.04);display:flex;justify-content:space-between;align-items:flex-start;gap:10px;cursor:pointer;transition:opacity .15s,background .15s}
   .t-items li:hover{background:rgba(255,239,220,.07)}
+  .t-items li.mine{min-height:60px;padding:14px 14px;align-items:center;border:1px solid rgba(255,176,102,.25)}
+  .t-items li.mine .name{font-size:18px}
+  .t-items li.ctx{opacity:.4;cursor:default;pointer-events:none}
+  .t-items li.recalled{background:rgba(248,113,113,.18);border:1px solid var(--err)}
+  .k{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;min-width:20px;height:20px;line-height:20px;text-align:center;border-radius:5px;background:rgba(255,239,220,.1);color:var(--ink-dim);flex:none}
+  .pill{display:inline-block;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:2px 8px;border-radius:999px;margin-left:6px;vertical-align:middle}
+  .pill.recall{background:var(--err);color:#0a0806}
+  .ctx-label{display:block;font-size:10px;font-family:'JetBrains Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-dim);margin-top:3px}
+  .recall-reason{font-size:12px;color:var(--err);margin-top:3px}
+  .h-left{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+  .h-chips{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .chip{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;padding:3px 10px;border-radius:999px;background:rgba(255,239,220,.06);border:1px solid var(--line);color:var(--ink-dim)}
+  .chip.expo{background:linear-gradient(135deg,#f3d27a,#d4a017);color:#0a0806;border-color:#d4a017;font-weight:700}
+  .help{position:relative;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;border:1px solid var(--line);color:var(--ink-dim);font-size:12px;cursor:help;outline:none}
+  .help .help-chip{display:none;position:absolute;top:28px;right:0;white-space:nowrap;background:#1a1611;border:1px solid var(--line);padding:8px 12px;border-radius:8px;color:var(--ink);text-transform:none;letter-spacing:.02em;z-index:5}
+  .help:hover .help-chip,.help:focus .help-chip{display:block}
+  #rushBanner{display:none;padding:12px 16px;text-align:center;background:#c81e1e;color:#fff;font-weight:800;letter-spacing:.08em;text-transform:uppercase;font-size:14px}
+  #rushBanner.show{display:block}
   .t-items li.done{opacity:.35;background:rgba(125,216,125,.06)}
   .t-items li.done .name,.t-items li.done .qty{text-decoration:line-through}
   .t-items .qty{font-family:'JetBrains Mono',monospace;font-weight:800;color:var(--accent);font-size:18px;min-width:34px}
@@ -90,6 +114,8 @@
 
 <div id="offlineBanner">⚠ Offline — orders may not appear</div>
 
+<div id="rushBanner">⚡ RUSH — kitchen busy</div>
+
 <div class="login" id="login">
   <div class="login-card">
     <img src="/favicon.svg" alt="ARMenu" style="width:60px;height:60px;filter:drop-shadow(0 10px 24px rgba(212,165,116,.4))" />
@@ -97,14 +123,19 @@
     <p>Sign in with a manager PIN.</p>
     <input id="loginSlug" class="slug" placeholder="restaurant-slug" autocomplete="off" />
     <input id="loginPin" class="pin" inputmode="numeric" maxlength="6" placeholder="••••" autocomplete="off" />
+    <input id="loginStation" class="slug" placeholder="e.g. hot, cold, expo — leave blank to see all" autocomplete="off" />
     <div class="err" id="loginErr"></div>
     <button class="btn" id="loginBtn">Enter kitchen →</button>
   </div>
 </div>
 
 <header>
-  <div class="h-title"><b>Kitchen</b> · <span id="whoRestaurant">—</span></div>
-  <div class="h-meta"><span class="live-dot"></span> Live · <span id="clock">--:--</span> · <span id="orderCount">0 orders</span></div>
+  <div class="h-left">
+    <div class="h-title"><b>Kitchen</b> · <span id="whoRestaurant">—</span></div>
+    <div class="h-chips" id="stationChips"></div>
+  </div>
+  <div class="h-meta"><span class="live-dot"></span> Live · <span id="clock">--:--</span> · <span id="orderCount">0 orders</span>
+    <span class="help" tabindex="0" id="helpIcon" aria-label="Keyboard shortcuts">?<span class="help-chip">1-9: mark item · Enter: ready · Esc: next</span></span></div>
   <button class="signout" id="signout">Sign out</button>
 </header>
 
@@ -122,9 +153,17 @@ try { session = JSON.parse(localStorage.getItem('armenu_kitchen_session') || 'nu
 // Manager hand-off: /kitchen/?r=<slug>&portal_token=<...> → auto-login
 (() => {
   const q = new URLSearchParams(location.search);
-  const r = q.get('r'); const pt = q.get('portal_token');
+  const r = q.get('r'); const pt = q.get('portal_token'); const st = (q.get('station') || '').trim().toLowerCase();
+  // Pre-fill the login form from ?r=<slug>&station=<station-slug> (station QR / login card)
+  if (r && !pt) {
+    const rEl = document.getElementById('loginSlug'), sEl = document.getElementById('loginStation');
+    if (rEl && !rEl.value) rEl.value = r.trim().toLowerCase();
+    if (sEl && st) sEl.value = st;
+    const pinEl = document.getElementById('loginPin');
+    if (pinEl && !session) setTimeout(() => { try { pinEl.focus(); } catch {} }, 0);
+  }
   if (r && pt) {
-    fetch('/api/staff/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ r, portal_token: pt }) })
+    fetch('/api/staff/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(st ? { r, portal_token: pt, station_slug: st } : { r, portal_token: pt }) })
       .then(res => res.json())
       .then(data => {
         if (data.token) {
@@ -138,6 +177,14 @@ try { session = JSON.parse(localStorage.getItem('armenu_kitchen_session') || 'nu
 })();
 let poll = null, es = null, tickTimer = null;
 let previousIds = new Set();
+// Station / multi-screen state
+let stationName = '', isExpo = false;
+// Board state
+let lastOrders = [], focusedOrderId = null;
+let rushOrderTimes = [];            // created_at ms of rush orders currently on the board
+let recallSeen = new Set(), recallSeeded = false;
+let _tickCount = 0;
+const RUSH_WINDOW_MS = 3 * 60 * 1000;
 
 // ---- Heartbeat / offline detection ----
 // lastTickAt is bumped on every successful poll or SSE event. If 15s pass
@@ -164,6 +211,13 @@ function fireOrderNotification(count) {
   try {
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
     new Notification(count > 1 ? `${count} new orders` : 'New order', { body: 'New order in the kitchen queue', tag: 'armenu-kitchen-order' });
+  } catch {}
+}
+
+function fireRecallNotification(count) {
+  try {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    new Notification(count > 1 ? `${count} items recalled` : 'Item recalled', { body: 'An item was sent back to the kitchen', tag: 'armenu-kitchen-recall' });
   } catch {}
 }
 
@@ -223,10 +277,15 @@ $('loginBtn').onclick = async () => {
   btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span>Entering…';
   ensureNotifyPermission(); // first user interaction — safe point to ask
   try {
-    const res = await fetch('/api/staff/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ r, pin }) });
-    const data = await res.json();
+    const stationTyped = $('loginStation').value.trim();
+    const loginBody = { r, pin };
+    if (stationTyped) loginBody.station_slug = stationTyped.toLowerCase();
+    const res = await fetch('/api/staff/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(loginBody) });
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || 'Login failed');
     session = data;
+    session.station_name = data.station?.name || data.station_name || (stationTyped ? (data.station_slug || stationTyped) : '');
+    session.is_expo = !!(data.is_expo || data.station?.is_expo);
     localStorage.setItem('armenu_kitchen_session', JSON.stringify(session));
     onIn();
   } catch (e) {
@@ -235,6 +294,7 @@ $('loginBtn').onclick = async () => {
   }
 };
 $('loginPin').onkeydown = e => { if (e.key === 'Enter') $('loginBtn').click(); };
+$('loginStation').onkeydown = e => { if (e.key === 'Enter') $('loginBtn').click(); };
 
 function signOut() {
   localStorage.removeItem('armenu_kitchen_session');
@@ -244,6 +304,10 @@ function signOut() {
   try { es?.close(); } catch {}
   hideOfflineBanner();
   resetUnreadOrders();
+  stationName = ''; isExpo = false; lastOrders = []; focusedOrderId = null; rushOrderTimes = [];
+  recallSeen = new Set(); recallSeeded = false; previousIds = new Set();
+  renderStationChips(); updateRushBanner();
+  $('loginBtn').disabled = false; $('loginBtn').textContent = 'Enter kitchen →';
   $('login').style.display = 'grid';
 }
 $('signout').onclick = signOut;
@@ -261,6 +325,9 @@ setInterval(() => {
 function onIn() {
   $('login').style.display = 'none';
   $('whoRestaurant').textContent = session.restaurant.name;
+  stationName = session.station_name || session.station?.name || '';
+  isExpo = !!(session.is_expo || session.station?.is_expo);
+  renderStationChips();
   // Idempotent: clear any prior timers/SSE from a previous onIn() before
   // arming new ones. Without this, every SSE reconnect stacks another
   // 12s poll and 1Hz tick until the tab is a hundred timers deep.
@@ -306,21 +373,62 @@ function tick() {
   const d = new Date(); $('clock').textContent = d.toTimeString().slice(0, 5);
   // Live-tick ticket ages between polls so a table waiting 14 minutes doesn't
   // look like it's been 8 minutes for four seconds after the last refresh.
+  // One shared 1s interval drives every ticket's MM:SS timer; age colours
+  // are re-evaluated every 15th tick (applyAges also runs after each render).
+  _tickCount++;
+  const doAges = _tickCount % 15 === 0;
   document.querySelectorAll('.ticket[data-created]').forEach(el => {
     const created = parseInt(el.dataset.created, 10);
     if (!created) return;
-    const ageMs = Date.now() - created;
-    const ageMin = Math.round(ageMs / 60000);
-    const ageSec = Math.round(ageMs / 1000);
     const badge = el.querySelector('.t-age');
-    if (badge) {
-      badge.textContent = ageMin < 1 ? ageSec + 's' : ageMin + 'm';
-      badge.classList.toggle('hot',  ageMin >= 15);
-      badge.classList.toggle('warm', ageMin >= 8 && ageMin < 15);
-    }
-    el.classList.toggle('aged-hot',  ageMin >= 15);
-    el.classList.toggle('aged-warm', ageMin >= 8 && ageMin < 15);
+    if (badge) badge.textContent = fmtElapsed(Date.now() - created);
+    if (doAges) applyAge(el);
   });
+  if (doAges) updateRushBanner();
+}
+
+function fmtElapsed(ms) {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+}
+// <5m green, 5-10m default, 10-20m amber pulse, >20m red hard pulse.
+function ageBucket(ms) {
+  const m = ms / 60000;
+  return m < 5 ? 'fresh' : m < 10 ? '' : m < 20 ? 'amber' : 'red';
+}
+function applyAge(el) {
+  const created = parseInt(el.dataset.created, 10);
+  if (!created) return;
+  const b = ageBucket(Date.now() - created);
+  el.classList.toggle('age-fresh', b === 'fresh');
+  el.classList.toggle('age-amber', b === 'amber');
+  el.classList.toggle('age-red', b === 'red');
+  const badge = el.querySelector('.t-age');
+  if (badge) {
+    badge.classList.toggle('fresh', b === 'fresh');
+    badge.classList.toggle('warm', b === 'amber');
+    badge.classList.toggle('hot', b === 'red');
+  }
+}
+
+function renderStationChips() {
+  const box = $('stationChips'); if (!box) return;
+  box.innerHTML = '';
+  if (stationName) {
+    const c = document.createElement('span'); c.className = 'chip'; c.textContent = 'Station: ' + stationName; box.appendChild(c);
+  }
+  if (isExpo) {
+    const p = document.createElement('span'); p.className = 'chip expo'; p.textContent = 'EXPO — all orders'; box.appendChild(p);
+  }
+}
+
+// Rush mode: active while any rush order was created within the last 3 minutes.
+function rushActive() {
+  const now = Date.now();
+  return rushOrderTimes.some(t => now - t < RUSH_WINDOW_MS);
+}
+function updateRushBanner() {
+  $('rushBanner')?.classList.toggle('show', !!session && rushActive());
 }
 
 async function refresh() {
@@ -329,39 +437,60 @@ async function refresh() {
     markTick();
     const kitchen = (orders || []).filter(o => ['new','prep','ready'].includes(o.status));
     $('orderCount').textContent = `${kitchen.length} order${kitchen.length === 1 ? '' : 's'}`;
+    lastOrders = kitchen;
+    rushOrderTimes = kitchen.filter(o => o.rush === true).map(o => new Date(o.created_at).getTime()).filter(Boolean);
     render(kitchen);
+    updateRushBanner();
     // Ding for new orders
     const currIds = new Set(kitchen.map(o => o.id));
     let newCount = 0;
-    for (const id of currIds) if (!previousIds.has(id)) { beep(); newCount++; }
-    if (newCount > 0) { fireOrderNotification(newCount); bumpUnreadOrders(newCount); }
+    for (const id of currIds) if (!previousIds.has(id)) newCount++;
+    if (newCount > 0) { beep(rushActive()); fireOrderNotification(newCount); bumpUnreadOrders(newCount); }
     previousIds = currIds;
+    // Recalled items: chime + notification once per recall event (silent on first load)
+    let newRecalls = 0;
+    for (const o of kitchen) for (const it of (o.order_items || [])) {
+      if (!it.recalled_at) continue;
+      const key = it.id + ':' + it.recalled_at;
+      if (!recallSeen.has(key)) { recallSeen.add(key); if (recallSeeded) newRecalls++; }
+    }
+    recallSeeded = true;
+    if (newRecalls > 0) { beep(true); fireRecallNotification(newRecalls); bumpUnreadOrders(newRecalls); }
   } catch (e) { console.error(e); }
 }
 
 function render(orders) {
-  if (!orders.length) { $('board').innerHTML = `<div class="empty-state" id="emptyState" data-icon="🎉"><h3>All caught up.</h3><p>Great work. New orders will appear here.</p></div>`; return; }
+  if (!orders.length) { focusedOrderId = null; $('board').innerHTML = `<div class="empty-state" id="emptyState" data-icon="🎉"><h3>All caught up.</h3><p>Great work. New orders will appear here.</p></div>`; return; }
+  if (!orders.some(o => o.id === focusedOrderId)) focusedOrderId = orders[0].id;
   $('board').innerHTML = orders.map(o => {
-    const ageMs = Date.now() - new Date(o.created_at).getTime();
-    const ageSec = Math.round(ageMs / 1000);
-    const ageMin = Math.round(ageMs / 60000);
-    // Seconds display for <60s tickets, minutes above
-    const ageDisplay = ageMin < 1 ? ageSec + 's' : ageMin + 'm';
-    const ageClass = ageMin >= 15 ? 'hot' : ageMin >= 8 ? 'warm' : '';
-    const ticketAgeClass = ageMin >= 15 ? 'aged-hot' : ageMin >= 8 ? 'aged-warm' : '';
-    return `<div class="ticket ${o.status} ${ticketAgeClass}" data-created="${new Date(o.created_at).getTime()}">
-      <div class="t-top">
-        <div class="t-table">${o.table_label ? `<b>${escapeHTML(o.table_label)}</b>` : 'Walk-up'}</div>
-        <div class="t-age ${ageClass}">${ageDisplay}</div>
-      </div>
-      <ul class="t-items" title="Tap items to mark plated — synced across kitchen screens">${(o.order_items || []).map(it => `<li data-item="${o.id}:${it.id}" class="${isPlated(it) ? 'done' : ''}">
+    const createdMs = new Date(o.created_at).getTime();
+    const items = o.order_items || [];
+    // Station filtering applies only when the API marks items with `mine`.
+    const filtered = items.some(it => 'mine' in it);
+    let n = 0;
+    const lis = items.map(it => {
+      const isCtx = filtered && it.mine !== true;
+      const recalled = !!it.recalled_at;
+      const cls = [isPlated(it) ? 'done' : '', isCtx ? 'ctx' : (filtered ? 'mine' : ''), recalled ? 'recalled' : ''].filter(Boolean).join(' ');
+      const idx = isCtx ? 0 : ++n;
+      return `<li data-item="${o.id}:${it.id}" class="${cls}">
+        ${idx && idx <= 9 ? `<span class="k" aria-hidden="true">${idx}</span>` : ''}
         <span class="qty">×${it.qty}</span>
-        <div class="name">${escapeHTML(it.dish_name)}
+        <div class="name">${escapeHTML(it.dish_name)}${recalled ? '<span class="pill recall">RECALLED</span>' : ''}
+          ${recalled && it.recall_reason ? `<div class="recall-reason">${escapeHTML(it.recall_reason)}</div>` : ''}
           ${Array.isArray(it.modifiers) && it.modifiers.length ? '<ul class="mods" style="margin:4px 0 0 0;padding:0;list-style:none">' + it.modifiers.map(m => '<li style="font-size:12px;color:var(--warn);padding:2px 0">↳ ' + escapeHTML(m.name) + '</li>').join('') + '</ul>' : ''}
           ${it.note ? `<div class="note">${escapeHTML(it.note)}</div>` : ''}
           ${it.complimentary ? '<div class="note" style="color:var(--ok)">(complimentary)</div>' : ''}
+          ${isCtx ? '<span class="ctx-label">context — other station</span>' : ''}
         </div>
-      </li>`).join('')}</ul>
+      </li>`;
+    }).join('');
+    return `<div class="ticket ${o.status}" data-order="${o.id}" data-status="${o.status}" data-created="${createdMs}">
+      <div class="t-top">
+        <div class="t-table">${o.table_label ? `<b>${escapeHTML(o.table_label)}</b>` : 'Walk-up'}${o.rush ? '<span class="pill recall">⚡ RUSH</span>' : ''}</div>
+        <div class="t-age">${fmtElapsed(Date.now() - createdMs)}</div>
+      </div>
+      <ul class="t-items" title="Tap items to mark plated — synced across kitchen screens">${lis}</ul>
       ${o.guest_note ? `<div class="t-note">📝 ${escapeHTML(o.guest_note)}</div>` : ''}
       <div class="t-actions">
         ${o.status === 'new' ? `<button class="btn-prep" data-mark="${o.id}:prep">Start prep</button>` : ''}
@@ -379,7 +508,43 @@ function render(orders) {
   // Tap a line-item to mark it done inside the ticket (client-side only —
   // no schema change; kitchen-local ephemeral state).
   document.querySelectorAll('.t-items li[data-item]').forEach(li => li.onclick = () => togglePlated(li));
+  // Clicking anywhere on a ticket focuses it for bump-bar shortcuts.
+  document.querySelectorAll('.ticket[data-order]').forEach(el => el.addEventListener('click', () => setFocus(el.dataset.order)));
+  document.querySelectorAll('.ticket[data-created]').forEach(applyAge);
+  applyFocus();
 }
+
+// ---- Bump-bar (keyboard) ----
+function applyFocus() {
+  document.querySelectorAll('.ticket[data-order]').forEach(el => el.classList.toggle('focused', el.dataset.order === String(focusedOrderId)));
+}
+function setFocus(id) { focusedOrderId = id; applyFocus(); }
+function focusNext() {
+  if (!lastOrders.length) return;
+  const i = lastOrders.findIndex(o => String(o.id) === String(focusedOrderId));
+  setFocus(lastOrders[(i + 1) % lastOrders.length].id);
+  document.querySelector('.ticket.focused')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+document.addEventListener('keydown', async e => {
+  if (!session || e.ctrlKey || e.metaKey || e.altKey) return;
+  const t = e.target;
+  if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+  if (getComputedStyle($('login')).display !== 'none') return;
+  const order = lastOrders.find(o => String(o.id) === String(focusedOrderId));
+  if (e.key === 'Escape') { e.preventDefault(); focusNext(); return; }
+  if (!order) return;
+  if (/^[1-9]$/.test(e.key)) {
+    const el = document.querySelector('.ticket[data-order="' + CSS.escape(String(order.id)) + '"]');
+    const li = el && el.querySelectorAll('.t-items li[data-item]:not(.ctx)')[parseInt(e.key, 10) - 1];
+    if (li) { e.preventDefault(); togglePlated(li); }
+  } else if (e.key === 'Enter') {
+    if (t && t.tagName === 'BUTTON') return; // let a focused button handle its own Enter
+    if (order.status === 'ready' || order.status === 'served') return;
+    e.preventDefault();
+    try { await api('/api/staff/orders?id=' + order.id, { method: 'PATCH', body: JSON.stringify({ status: 'ready' }) }); refresh(); }
+    catch (err) { toast(err.message); }
+  }
+});
 
 // "Plated" ticks are server-driven (order_items.plated_at) so every kitchen
 // tablet on the restaurant sees the same state in real time. If the API
@@ -431,23 +596,26 @@ function toggleItemDone(orderId, itemId) {
 
 // Reused AudioContext — some browsers throttle after too many one-off ctxs.
 let _kbeepCtx = null;
-function beep() {
+function beep(rush) {
   if (window.ArMenuSound?.muted?.()) return;
   try {
     if (!_kbeepCtx) _kbeepCtx = new (window.AudioContext || window.webkitAudioContext)();
     // Inactive tabs suspend the AudioContext — check and resume on every attempt.
     if (_kbeepCtx.state === 'suspended') _kbeepCtx.resume?.();
     const now = _kbeepCtx.currentTime;
-    // Two-tone chirp (E5 → A5) with a soft envelope so it's noticeable not annoying
-    [[659.25, 0], [880, 0.13]].forEach(([freq, t]) => {
+    // Two-tone chirp (E5 -> A5) with a soft envelope so it's noticeable not annoying.
+    // Rush mode: higher pitch (B5/E6 x2) and a faster cadence.
+    const tones = rush ? [[987.77, 0], [1318.5, 0.09], [987.77, 0.24], [1318.5, 0.33]] : [[659.25, 0], [880, 0.13]];
+    const len = rush ? 0.08 : 0.16;
+    tones.forEach(([freq, t]) => {
       const o = _kbeepCtx.createOscillator();
       const g = _kbeepCtx.createGain();
       o.type = 'sine'; o.frequency.value = freq;
       g.gain.value = 0.0001;
       g.gain.exponentialRampToValueAtTime(0.18, now + t + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001, now + t + 0.16);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + t + len);
       o.connect(g); g.connect(_kbeepCtx.destination);
-      o.start(now + t); o.stop(now + t + 0.17);
+      o.start(now + t); o.stop(now + t + len + 0.01);
     });
   } catch {}
 }

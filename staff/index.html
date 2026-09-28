@@ -130,6 +130,7 @@
 <header>
   <div class="brand"><img src="/favicon.svg" alt="ARMenu" style="width:24px;height:24px" /><b>AR</b><span style="color:var(--ink-dim);font-weight:500;margin-left:3px">Menu · Staff</span></div>
   <div style="display:flex;align-items:center;gap:12px">
+    <button class="signout" id="rushPill" style="display:none;color:var(--warn);border-color:var(--warn)" aria-label="Rush order waiting - jump to oldest new order">⚡ RUSH</button>
     <span class="whoami" id="whoami"></span>
     <button class="signout" id="signout">Sign out</button>
   </div>
@@ -369,6 +370,9 @@ async function refresh() {
     ]);
     markTick();
     const activeOrders = (oResp.orders || []).filter(o => o.status !== 'served');
+    window.__servedOrders = (oResp.orders || []).filter(o => o.status === 'served')
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 10);
+    updateRushPill(activeOrders);
     const openCalls = (cResp.calls || []).filter(c => c.status !== 'closed');
     // Play sounds on NEW items only (compare against previous snapshots)
     const oIds = new Set(activeOrders.map(o => o.id));
@@ -394,16 +398,46 @@ function updateBadge(id, n) {
   if (!n) { el.style.display = 'none'; } else { el.style.display = 'inline-block'; el.textContent = n; }
 }
 
+function updateRushPill(orders) {
+  const pill = $('rushPill'); if (!pill) return;
+  pill.style.display = (orders || []).some(o => o.rush === true) ? '' : 'none';
+}
+$('rushPill').onclick = () => {
+  const news = Array.from(document.querySelectorAll('#view-orders .card.new'));
+  const el = news.sort((a, b) => Number(a.dataset.created) - Number(b.dataset.created))[0];
+  if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.style.outline = '2px solid var(--warn)'; setTimeout(() => { el.style.outline = ''; }, 2000); }
+};
+
+function itemAllergens(it) {
+  const a = it.allergens ?? it.dish?.allergens ?? it.dishes?.allergens;
+  const list = Array.isArray(a) ? a : (typeof a === 'string' ? a.split(',') : []);
+  return list.map(x => String(x).trim()).filter(Boolean);
+}
+
 function renderOrders(orders) {
-  if (!orders.length) return $('view-orders').innerHTML = `<div class="empty-state" data-icon="📋"><h3>No active orders</h3><p>New orders appear here the moment a guest places one.</p></div>`;
-  window.__ordersById = Object.fromEntries(orders.map(o => [o.id, o])); // for openSplitBill lookup
+  const served = window.__servedOrders || [];
+  window.__ordersById = Object.fromEntries(orders.concat(served).map(o => [o.id, o])); // for openSplitBill + recall lookup
   const sym = 'R';
+  const recallBtn = o => (o.status === 'ready' || o.status === 'served') ? `<button class="btn-ghost" data-recall="${o.id}" style="min-height:44px;font-size:12px">↶ Recall to kitchen</button>` : '';
+  const servedHTML = served.length ? `<h3 style="margin:22px 0 8px;font-size:13px;color:var(--ink-dim)">Recent · Served</h3><div class="grid">${served.map(o => `
+    <div class="card served">
+      <h4><span class="status-dot served"></span>${o.table_label ? `Table ${escapeHTML(o.table_label)}` : 'Walk-up'}</h4>
+      <div class="meta">${new Date(o.created_at).toLocaleTimeString()}</div>
+      <ul>${(o.order_items || []).map(it => `<li><span>${it.qty}× ${escapeHTML(it.dish_name)}</span></li>`).join('')}</ul>
+      <div class="actions">${recallBtn(o)}</div>
+    </div>`).join('')}</div>` : '';
+  if (!orders.length) {
+    $('view-orders').innerHTML = `<div class="empty-state" data-icon="📋"><h3>No active orders</h3><p>New orders appear here the moment a guest places one.</p></div>` + servedHTML;
+    bindRecall();
+    return;
+  }
   $('view-orders').innerHTML = `<div class="grid">${orders.map(o => `
-    <div class="card ${o.status}">
+    <div class="card ${o.status}" data-created="${new Date(o.created_at).getTime()}">
       <h4><span class="status-dot ${o.status}"></span>${o.table_label ? `Table ${escapeHTML(o.table_label)}` : 'Walk-up'}</h4>
       <div class="meta">${new Date(o.created_at).toLocaleTimeString()} · ${o.source === 'staff' ? 'Staff-taken' : 'Guest self-order'}</div>
       <ul>${(o.order_items || []).map(it => `<li>
         <span>${it.qty}× ${escapeHTML(it.dish_name)}${it.note ? ` <em style="color:var(--warn);font-style:normal">· ${escapeHTML(it.note)}</em>` : ''}${it.complimentary ? ' <span style="color:var(--ok)">(comp)</span>' : ''}
+        ${itemAllergens(it).length ? `<div class="allergen-chip" style="margin:3px 0 0 20px;font-size:11.5px;color:var(--warn);font-weight:600">⚠ allergens: ${escapeHTML(itemAllergens(it).join(', '))}</div>` : ''}
         ${Array.isArray(it.modifiers) && it.modifiers.length ? '<div style="margin-left:20px;font-size:11.5px;color:var(--warn)">' + it.modifiers.map(m => '↳ ' + escapeHTML(m.name)).join('<br>') + '</div>' : ''}
         </span>
         <span>${it.price_cents ? sym + (it.price_cents * it.qty / 100).toFixed(2) : ''}</span>
@@ -417,9 +451,11 @@ function renderOrders(orders) {
         ${o.status === 'new' ? `<button class="btn-primary" data-mark="${o.id}:prep">Start prep</button>` : ''}
         ${o.status === 'prep' ? `<button class="btn-primary" data-mark="${o.id}:ready">Ready</button>` : ''}
         ${o.status === 'ready' ? `<button class="btn-ok" data-mark="${o.id}:served">Served</button>` : ''}
+        ${recallBtn(o)}
         <button class="btn-err" data-mark="${o.id}:cancelled" aria-label="Cancel order" title="Cancel order">✕</button>
       </div>
-    </div>`).join('')}</div>`;
+    </div>`).join('')}</div>` + servedHTML;
+  bindRecall();
   document.querySelectorAll('[data-mark]').forEach(b => b.onclick = async () => {
     const [id, status] = b.dataset.mark.split(':');
     if (status === 'cancelled') {
@@ -438,6 +474,24 @@ function renderOrders(orders) {
   });
   document.querySelectorAll('[data-split]').forEach(b => b.onclick = () => {
     openSplitBill(window.__ordersById?.[b.dataset.split]);
+  });
+}
+
+function bindRecall() {
+  document.querySelectorAll('[data-recall]').forEach(b => b.onclick = async () => {
+    const order = window.__ordersById?.[b.dataset.recall];
+    if (!order || b.disabled) return;
+    const reason = await promptRecallReason();
+    if (reason === null) return;
+    b.disabled = true;
+    try {
+      for (const it of (order.order_items || [])) {
+        await api('/api/staff/orders?id=' + encodeURIComponent(it.id) + '&recall=' + encodeURIComponent(reason), { method: 'PATCH', body: JSON.stringify({ recall: reason }) });
+      }
+      toast('Recalled to kitchen');
+    } catch (e) { if (e.message !== 'unauth') toast(e.message, 'err'); }
+    b.disabled = false;
+    refresh();
   });
 }
 
@@ -652,6 +706,23 @@ function promptCancelReason() {
     setTimeout(() => $('cancelReasonInput')?.focus(), 0);
     $('cancelReasonBack').onclick = () => finishCancelPrompt(null);
     $('cancelReasonOk').onclick = () => finishCancelPrompt($('cancelReasonInput').value.trim());
+  });
+}
+function promptRecallReason() {
+  return new Promise(resolve => {
+    _cancelResolve = resolve; // shares Escape handling with the cancel modal
+    $('modalBody').innerHTML = `
+      <h3>Recall to kitchen</h3>
+      <p style="font-size:12.5px;color:var(--ink-dim);margin-bottom:10px">Why is this being recalled? (optional)</p>
+      <textarea id="recallReasonInput" maxlength="200"></textarea>
+      <div class="row">
+        <button class="btn-ghost" id="recallBack" style="background:rgba(255,239,220,.05);color:var(--ink);border:1px solid var(--line)">Cancel</button>
+        <button class="btn-primary" id="recallOk">Confirm</button>
+      </div>`;
+    $('modal').classList.add('on');
+    setTimeout(() => $('recallReasonInput')?.focus(), 0);
+    $('recallBack').onclick = () => finishCancelPrompt(null);
+    $('recallOk').onclick = () => finishCancelPrompt($('recallReasonInput').value.trim().slice(0, 200));
   });
 }
 function finishCancelPrompt(reason) {

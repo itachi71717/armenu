@@ -25,6 +25,7 @@ const ROUTES = {
   'admin/settings':      'admin/settings',
   'admin/categories':    'admin/categories',
   'admin/tables':        'admin/tables',
+  'admin/kitchen-stations': 'admin/kitchen-stations',
   'admin/staff':         'admin/staff',
   'admin/orders':        'admin/orders',
   'admin/waiter-calls':  'admin/waiter-calls',

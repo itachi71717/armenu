@@ -58,7 +58,8 @@
 <script>
 const params = new URLSearchParams(location.search);
 const slug = params.get('r');
-const type = params.get('type') || 'tables';  // tables | dishes | menu
+const type = params.get('type') || 'tables';  // tables | dishes | menu | kitchen
+const stationParam = (params.get('station') || '').trim().toLowerCase();
 // Admin auth is cookie-based. If the cookie isn't already set, prompt once
 // and call /api/admin/login to set it. Password is never stashed client-side.
 try { sessionStorage.removeItem('armenu_admin_secret'); } catch {}
@@ -106,6 +107,16 @@ async function load() {
         url: `${location.origin}/t/${slug}/${encodeURIComponent(x.label)}`,
         code: x.label
       }));
+    } else if (type === 'kitchen') {
+      const ks = await api('/api/admin/kitchen-stations?slug=' + encodeURIComponent(slug));
+      cachedItems = (ks.stations || [])
+        .filter(x => !stationParam || x.slug === stationParam)
+        .map(x => ({
+          title: x.name + (x.is_expo ? ' (Expo)' : ''),
+          subtitle: 'Kitchen screen login',
+          url: `${location.origin}/kitchen/?r=${encodeURIComponent(slug)}&station=${encodeURIComponent(x.slug)}`,
+          code: x.slug, cta: 'Scan · <em>Open kitchen screen</em>', tagline: 'Scan on the kitchen tablet, then enter your PIN'
+        }));
     } else if (type === 'dishes') {
       cachedItems = (client.dishes || []).map(x => ({
         title: x.name,
@@ -146,8 +157,8 @@ function render(items) {
         </div>
         <div class="qr-holder"><canvas data-qr="${escapeHTML(it.url)}"></canvas></div>
         <div>
-          <div class="cta">Scan · <em>See in AR</em></div>
-          <div class="tagline">Scan to see the menu in AR</div>
+          <div class="cta">${it.cta || 'Scan · <em>See in AR</em>'}</div>
+          <div class="tagline">${escapeHTML(it.tagline || 'Scan to see the menu in AR')}</div>
           <div class="foot">${escapeHTML(it.url.replace(/^https?:\/\//, ''))}</div>
         </div>
       </div>`).join('')}</div>`;

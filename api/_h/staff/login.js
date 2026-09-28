@@ -21,9 +21,12 @@ function clientIp(req) {
 }
 const hashPin = (pin, rid) => crypto.createHash('sha256').update(String(pin) + ':' + rid).digest('hex');
 
-export function issueToken(staff_id, restaurant_id, hours = 12) {
+export function issueToken(staff_id, restaurant_id, hours = 12, station = null) {
   const exp = Date.now() + hours * 3600 * 1000;
-  const payload = `${staff_id}:${restaurant_id}:${exp}`;
+  // Legacy payload has 3 parts; station-scoped tokens append station_id + is_expo (0/1).
+  const payload = station && station.station_id
+    ? `${staff_id}:${restaurant_id}:${exp}:${station.station_id}:${station.is_expo ? 1 : 0}`
+    : `${staff_id}:${restaurant_id}:${exp}`;
   const sig = crypto.createHash('sha256').update(payload + SECRET).digest('hex');
   return Buffer.from(payload + ':' + sig).toString('base64url');
 }
@@ -31,12 +34,22 @@ export function issueToken(staff_id, restaurant_id, hours = 12) {
 export function verifyToken(token) {
   try {
     const raw = Buffer.from(String(token), 'base64url').toString();
-    const [sid, rid, exp, sig] = raw.split(':');
+    const parts = raw.split(':');
+    if (parts.length !== 4 && parts.length !== 6) return null;
+    const sig = parts[parts.length - 1];
+    const [sid, rid, exp] = parts;
     if (!sid || !rid || !exp || !sig) return null;
     if (parseInt(exp) < Date.now()) return null;
-    const expected = crypto.createHash('sha256').update(`${sid}:${rid}:${exp}` + SECRET).digest('hex');
+    const payload = parts.slice(0, -1).join(':');
+    const expected = crypto.createHash('sha256').update(payload + SECRET).digest('hex');
     if (expected !== sig) return null;
-    return { staff_id: sid, restaurant_id: rid };
+    const out = { staff_id: sid, restaurant_id: rid };
+    if (parts.length === 6) {
+      if (!parts[3]) return null;
+      out.station_id = parts[3];
+      out.is_expo = parts[4] === '1';
+    }
+    return out;
   } catch { return null; }
 }
 
@@ -44,11 +57,20 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
   let body = {};
   try { body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body; } catch {}
-  const { r, pin, portal_token } = body || {};
+  const { r, pin, portal_token, station_slug } = body || {};
   if (!r || (!pin && !portal_token)) return res.status(400).json({ error: 'restaurant slug + pin (or portal_token) required' });
 
   const { data: rest } = await supabase.from('restaurants').select('id, name').eq('slug', r).single();
   if (!rest) return res.status(404).json({ error: 'restaurant not found' });
+
+  // Optional kitchen-station binding (absent = legacy "see everything").
+  let station = null;
+  if (station_slug) {
+    const { data: st } = await supabase.from('kitchen_stations')
+      .select('id, name, slug, is_expo').eq('restaurant_id', rest.id).eq('slug', String(station_slug)).maybeSingle();
+    if (!st) return res.status(400).json({ error: 'unknown station' });
+    station = { station_id: st.id, is_expo: !!st.is_expo, name: st.name, slug: st.slug };
+  }
 
   let staff;
   if (portal_token) {
@@ -57,7 +79,7 @@ export default async function handler(req, res) {
     const v = verifyManagerToken(portal_token);
     if (!v || v.restaurant_id !== rest.id) return res.status(401).json({ error: 'invalid portal token' });
     staff = { id: 'manager-' + rest.id, name: 'Manager', role: 'manager', active: true };
-    const token = issueToken(staff.id, rest.id);
+    const token = issueToken(staff.id, rest.id, 12, station);
     return res.status(200).json({ token, staff, restaurant: { id: rest.id, slug: r, name: rest.name } });
   }
   // Brute-force guard: PIN is only 4-6 digits, so 10k-1M candidate space.
@@ -97,10 +119,11 @@ export default async function handler(req, res) {
   staff = pinStaff;
 
   await supabaseAdmin.from('staff').update({ last_login_at: new Date().toISOString() }).eq('id', staff.id);
-  const token = issueToken(staff.id, rest.id);
+  const token = issueToken(staff.id, rest.id, 12, station);
   return res.status(200).json({
     token,
     staff: { id: staff.id, name: staff.name, role: staff.role },
-    restaurant: { id: rest.id, slug: r, name: rest.name }
+    restaurant: { id: rest.id, slug: r, name: rest.name },
+    ...(station ? { station: { id: station.station_id, is_expo: station.is_expo, name: station.name, slug: station.slug } } : {})
   });
 }

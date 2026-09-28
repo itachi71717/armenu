@@ -18,11 +18,19 @@ export default async function handler(req, res) {
   if (req.method === 'POST') {
     let body = {};
     try { body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body; } catch {}
-    const { restaurant_slug, name, price, glb_url, usdz_url, thumb_url, camera_orbit, description, scale, ar_source, stock_count, modifiers, translations, category_id } = body;
+    const { restaurant_slug, name, price, glb_url, usdz_url, thumb_url, camera_orbit, description, scale, ar_source, stock_count, modifiers, translations, category_id, station_id } = body;
     if (!restaurant_slug || !name || !glb_url) return res.status(400).json({ error: 'restaurant_slug, name, and glb_url required' });
 
     const { data: restaurant } = await supabase.from('restaurants').select('id').eq('slug', restaurant_slug).single();
     if (!restaurant) return res.status(404).json({ error: 'Restaurant not found' });
+
+    // Kitchen station must belong to the same restaurant (never trust a client-supplied id).
+    let stationId = null;
+    if (station_id) {
+      const { data: st } = await supabase.from('kitchen_stations').select('id, restaurant_id').eq('id', station_id).maybeSingle();
+      if (!st || st.restaurant_id !== restaurant.id) return res.status(400).json({ error: 'invalid station_id' });
+      stationId = st.id;
+    }
 
     const { data, error } = await supabaseAdmin.from('dishes').insert({
       restaurant_id: restaurant.id,
@@ -38,6 +46,7 @@ export default async function handler(req, res) {
       modifiers: Array.isArray(modifiers) ? modifiers : [],
       translations: translations && typeof translations === 'object' ? translations : {},
       category_id: category_id || null,
+      station_id: stationId,
       active: true
     }).select().single();
     if (error) return res.status(400).json({ error: error.message });
@@ -72,6 +81,13 @@ export default async function handler(req, res) {
     const patch = {};
     for (const k of ['name','price','description','glb_url','usdz_url','thumb_url','camera_orbit','active','category_id','allergens','stock_count','modifiers','translations','sort_order']) {
       if (k in body) patch[k] = body[k];
+    }
+    if ('station_id' in body) {
+      if (body.station_id) {
+        const { data: st } = await supabase.from('kitchen_stations').select('id, restaurant_id').eq('id', body.station_id).maybeSingle();
+        if (!st || st.restaurant_id !== dishRow.restaurant_id) return res.status(400).json({ error: 'invalid station_id' });
+        patch.station_id = st.id;
+      } else patch.station_id = null;
     }
     if ('price' in body) patch.price_cents = parseCents(body.price);
     if ('scale' in body) patch.scale = Math.max(0.1, Math.min(5, parseFloat(body.scale) || 1));
