@@ -52,6 +52,19 @@
   .whoami{font-family:var(--mono);font-size:11px;color:var(--ink-dim);letter-spacing:.08em;text-transform:uppercase}
   .signout{background:none;color:var(--ink-dim);font-size:12px;padding:6px 10px;border-radius:8px}
 
+  .chat-list{display:flex;flex-direction:column;gap:8px}
+  .chat-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px;border-radius:12px;border:1px solid var(--line);background:rgba(255,239,220,.03);cursor:pointer;text-align:left;color:inherit;font:inherit;width:100%}
+  .chat-row .ct{font-weight:700;font-size:14px}
+  .chat-row .cl{font-size:12px;color:var(--ink-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60vw}
+  .chat-conv{display:flex;flex-direction:column;gap:10px}
+  .chat-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .chat-msgs{display:flex;flex-direction:column;gap:6px;max-height:55vh;overflow-y:auto;padding:4px 0}
+  .chat-msg{max-width:80%;padding:8px 12px;border-radius:12px;font-size:14px;line-height:1.4;word-break:break-word;background:rgba(255,239,220,.07);align-self:flex-start}
+  .chat-msg.staff{align-self:flex-end;background:rgba(255,87,34,.18)}
+  .chat-msg small{display:block;font-size:10px;color:var(--ink-dim);margin-bottom:2px}
+  .chat-form{display:flex;gap:8px}
+  .chat-form input{flex:1;min-width:0;padding:12px;border-radius:10px;border:1px solid var(--line);background:rgba(255,239,220,.04);color:inherit;font:inherit}
+  .chat-form button,.chat-head button{padding:10px 16px;border-radius:10px;border:1px solid var(--line);background:rgba(255,87,34,.18);color:inherit;font:inherit;font-weight:700;cursor:pointer}
   .tabs{display:flex;padding:8px 12px;gap:6px;border-bottom:1px solid var(--line);background:rgba(10,8,6,.6);position:sticky;top:52px;z-index:9}
   .tab{padding:10px 16px;border-radius:10px;font-size:13px;font-weight:600;color:var(--ink-dim);background:rgba(255,239,220,.02)}
   .tab.active{background:rgba(255,87,34,.14);color:var(--accent);border:1px solid rgba(255,87,34,.28)}
@@ -162,6 +175,7 @@
   <button class="tab" data-tab="calls">Calls <span class="badge" id="callsBadge" style="display:none">0</span></button>
   <button class="tab" data-tab="tables">Tables</button>
   <button class="tab" data-tab="floor">🗺 Floor</button>
+  <button class="tab" data-tab="chats">💬 Chats <span class="badge" id="chatsBadge" style="display:none">0</span></button>
 </nav>
 
 <main>
@@ -169,6 +183,7 @@
   <div class="view" id="view-calls"><div class="grid"><div class="sk-card"></div><div class="sk-card"></div></div></div>
   <div class="view" id="view-tables"><div class="sk-line"></div><div class="sk-line"></div><div class="sk-line"></div></div>
   <div class="view" id="view-floor"><div class="sk-line"></div><div class="sk-line"></div></div>
+  <div class="view" id="view-chats"><div class="empty-state" data-icon="💬"><h3>No open chats</h3><p>Guest messages from the menu appear here.</p></div></div>
 </main>
 
 <div class="modal-overlay" id="modal"><div class="modal" id="modalBody" role="dialog" aria-modal="true" aria-label="Dialog"></div></div>
@@ -439,6 +454,89 @@ async function refresh() {
     if (active === 'tables') renderTables((await api('/api/staff/tables')).tables || []);
   } catch (e) { if (e.message !== 'unauth') console.error(e); }
 }
+
+// ============ GUEST CHAT ============
+let chatOpenId = null, chatPrevUnread = null, chatBusy = false;
+function chatFmt(t) { try { return new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); } catch { return ''; } }
+async function chatPoll() {
+  if (!session || chatBusy) return;
+  chatBusy = true;
+  try {
+    const tabOn = document.querySelector('.tab.active')?.dataset.tab === 'chats';
+    if (chatOpenId && tabOn) {
+      const c = await api('/api/staff/chat?thread=' + encodeURIComponent(chatOpenId));
+      renderChatConv(c.thread, c.messages || [], true);
+    }
+    const d = await api('/api/staff/chat?open=1');
+    const threads = d.threads || [];
+    const total = threads.reduce((n, t) => n + (t.unread_by_staff || 0), 0);
+    const viewing = tabOn ? chatOpenId : null;
+    const others = threads.filter(t => t.id !== viewing).reduce((n, t) => n + (t.unread_by_staff || 0), 0);
+    if (chatPrevUnread !== null && others > chatPrevUnread) {
+      try { window.ArMenuSound?.play('chime'); } catch (_) {}
+      fireStaffNotification('Guest message', 'A guest sent a new chat message');
+      try { bumpUnreadStaff(1); } catch (_) {}
+    }
+    chatPrevUnread = others;
+    updateBadge('chatsBadge', others);
+    if (tabOn && !chatOpenId) renderChatList(threads);
+  } catch (e) { if (e.message !== 'unauth') console.error(e); }
+  chatBusy = false;
+}
+function renderChatList(threads) {
+  if (!threads.length) { $('view-chats').innerHTML = `<div class="empty-state" data-icon="💬"><h3>No open chats</h3><p>Guest messages from the menu appear here.</p></div>`; return; }
+  $('view-chats').innerHTML = `<div class="chat-list">${threads.map(t => `
+    <button class="chat-row" data-thread="${escapeHTML(t.id)}">
+      <div><div class="ct">${t.table_slug ? 'Table ' + escapeHTML(t.table_slug) : 'Guest'}</div><div class="cl">${escapeHTML(t.last_body || '')}</div></div>
+      ${t.unread_by_staff ? `<span class="badge">${escapeHTML(t.unread_by_staff)}</span>` : ''}
+    </button>`).join('')}</div>`;
+  document.querySelectorAll('[data-thread]').forEach(el => el.onclick = () => openChat(el.dataset.thread));
+}
+async function openChat(id) {
+  chatOpenId = id;
+  try {
+    const d = await api('/api/staff/chat?thread=' + encodeURIComponent(id));
+    renderChatConv(d.thread, d.messages || [], false);
+  } catch (e) { chatOpenId = null; if (e.message !== 'unauth') toast(e.message, 'err'); }
+}
+function renderChatConv(thread, msgs, keepDraft) {
+  const box = $('view-chats');
+  const prev = box.querySelector('.chat-msgs');
+  const lastId = String(msgs[msgs.length - 1]?.id || '');
+  if (keepDraft && prev && prev.dataset.n === String(msgs.length) && prev.dataset.id === lastId) return;
+  const draft = keepDraft ? ($('chatInput')?.value || '') : '';
+  const hadFocus = keepDraft && document.activeElement === $('chatInput');
+  const atBottom = !prev || prev.scrollTop + prev.clientHeight >= prev.scrollHeight - 30;
+  box.innerHTML = `<div class="chat-conv">
+    <div class="chat-head"><button id="chatBack">← Back</button><strong>${thread.table_slug ? 'Table ' + escapeHTML(thread.table_slug) : 'Guest'}</strong><button id="chatClose">Close chat</button></div>
+    <div class="chat-msgs" data-n="${msgs.length}" data-id="${escapeHTML(lastId)}">${msgs.map(m => `<div class="chat-msg ${m.from_role === 'staff' ? 'staff' : 'guest'}"><small>${escapeHTML(m.from_name || m.from_role)} · ${escapeHTML(chatFmt(m.created_at))}</small>${escapeHTML(m.body)}</div>`).join('')}</div>
+    <form class="chat-form" id="chatForm"><input id="chatInput" maxlength="500" placeholder="Reply to guest" autocomplete="off" aria-label="Reply"><button type="submit">Send</button></form>
+  </div>`;
+  const list = box.querySelector('.chat-msgs');
+  if (atBottom) list.scrollTop = list.scrollHeight;
+  $('chatInput').value = draft;
+  if (hadFocus) $('chatInput').focus();
+  $('chatBack').onclick = () => { chatOpenId = null; chatPoll(); };
+  $('chatClose').onclick = async () => {
+    try { await api('/api/staff/chat?thread=' + encodeURIComponent(thread.id), { method: 'PATCH', body: JSON.stringify({ status: 'closed' }) }); chatOpenId = null; chatPoll(); }
+    catch (e) { if (e.message !== 'unauth') toast(e.message, 'err'); }
+  };
+  $('chatForm').onsubmit = async ev => {
+    ev.preventDefault();
+    const inp = $('chatInput'); const text = inp.value.trim();
+    if (!text) return;
+    inp.disabled = true;
+    try {
+      await api('/api/staff/chat?thread=' + encodeURIComponent(thread.id), { method: 'POST', body: JSON.stringify({ body: text, from_name: session?.staff?.name || 'Staff' }) });
+      const d = await api('/api/staff/chat?thread=' + encodeURIComponent(thread.id));
+      renderChatConv(d.thread, d.messages || [], false);
+      $('chatInput').focus();
+    } catch (e) { inp.disabled = false; if (e.message !== 'unauth') toast(e.message, 'err'); }
+  };
+}
+document.querySelector('.tab[data-tab="chats"]').addEventListener('click', () => { chatOpenId = null; chatPoll(); });
+setInterval(chatPoll, 5000);
+setTimeout(chatPoll, 1500);
 
 function updateBadge(id, n) {
   const el = $(id);

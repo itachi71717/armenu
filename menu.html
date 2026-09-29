@@ -228,6 +228,14 @@
   .last-order-banner .lob-text{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .last-order-banner .lob-text b{color:var(--ink)}
   .pop-chip{display:inline-flex;align-items:center;gap:4px;margin-top:6px;margin-right:6px;padding:3px 9px;border-radius:999px;background:var(--accent);color:#fff;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;align-self:flex-start}
+  .photo-chip{display:inline-flex;align-items:center;gap:4px;margin-top:6px;margin-right:6px;padding:3px 9px;border-radius:999px;border:1px solid var(--line);background:rgba(255,239,220,.06);color:var(--ink);font-size:11px;font-weight:600;cursor:pointer;align-self:flex-start}
+  .photo-lb{position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px}
+  .photo-lb img{max-width:100%;max-height:78vh;border-radius:12px;object-fit:contain}
+  .photo-lb .lb-bar{display:flex;gap:10px;margin-top:14px;align-items:center;color:#fff;font-size:13px}
+  .photo-lb button{background:rgba(255,255,255,.14);color:#fff;border:0;border-radius:999px;padding:8px 16px;font-size:14px;cursor:pointer}
+  .photo-pick{display:flex;flex-direction:column;gap:10px;margin-top:6px}
+  .photo-pick label.btn-photo{display:block;text-align:center;padding:13px;border-radius:12px;background:var(--accent);color:#fff;font-weight:700;cursor:pointer}
+  .photo-pick button{padding:12px;border-radius:12px;border:1px solid var(--line);background:transparent;color:var(--ink-dim);font-size:14px;cursor:pointer}
   .pop-chip.trending{box-shadow:0 0 10px rgba(var(--accent-rgb),.6)}
   .wait-chip{display:inline-block;margin:0 0 12px;padding:6px 12px;border-radius:999px;background:rgba(var(--accent-rgb),.12);border:1px solid rgba(var(--accent-rgb),.35);color:var(--accent);font-size:12.5px;font-weight:700}
   .lob-rate{flex-shrink:0;padding:6px 12px;border-radius:999px;background:var(--accent);color:#fff;border:0;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
@@ -345,6 +353,24 @@
   .combo-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:auto}
   .combo-price{font-weight:800;color:var(--accent);font-size:16px}
   .combo-add{padding:8px 14px;border-radius:9px;border:1px solid var(--line);background:rgba(255,239,220,.08);color:var(--ink);font-family:inherit;font-weight:700;font-size:13px;cursor:pointer}
+  /* Guest <-> staff chat widget */
+  .chat-fab{position:fixed;right:16px;bottom:96px;z-index:35;width:52px;height:52px;border-radius:999px;border:1px solid var(--line);background:#13100c;color:#f5efe6;font-size:22px;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center}
+  .chat-fab .chat-dot{position:absolute;top:8px;right:8px;width:12px;height:12px;border-radius:999px;background:#ef4444;border:2px solid #13100c;display:none}
+  .chat-fab.unread .chat-dot{display:block}
+  .chat-sheet{position:fixed;right:0;left:0;bottom:0;z-index:42;display:none;flex-direction:column;max-height:70vh;height:460px;background:#13100c;border-top:1px solid var(--line);border-radius:18px 18px 0 0;box-shadow:0 -12px 40px rgba(0,0,0,.6)}
+  .chat-sheet.on{display:flex}
+  @media (min-width:600px){.chat-sheet{left:auto;right:16px;bottom:16px;width:360px;border-radius:18px;border:1px solid var(--line)}}
+  .chat-sheet-head{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);font-weight:700}
+  .chat-sheet-head button{background:none;border:0;color:inherit;font-size:20px;cursor:pointer;padding:4px 8px}
+  .chat-sheet-msgs{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:6px}
+  .chat-sheet-empty{color:var(--ink-dim);font-size:13px;text-align:center;margin:auto;padding:0 12px}
+  .cw-msg{max-width:82%;padding:8px 12px;border-radius:12px;font-size:14px;line-height:1.4;word-break:break-word;background:rgba(255,239,220,.08);align-self:flex-start}
+  .cw-msg.guest{align-self:flex-end;background:rgba(255,87,34,.2)}
+  .cw-msg small{display:block;font-size:10px;opacity:.6;margin-bottom:2px}
+  .chat-sheet-form{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line)}
+  .chat-sheet-form input{flex:1;min-width:0;padding:12px;border-radius:10px;border:1px solid var(--line);background:rgba(255,239,220,.05);color:inherit;font:inherit}
+  .chat-sheet-form button{padding:10px 16px;border-radius:10px;border:0;background:var(--accent);color:#fff;font:inherit;font-weight:700;cursor:pointer}
+  .chat-sheet-note{font-size:11px;color:var(--ink-dim);padding:0 16px 8px}
 </style>
 <script src="/vendor/armenu-errorbar.js" defer></script>
 <script src="/vendor/armenu-sounds.js" defer></script>
@@ -816,15 +842,73 @@ function openRateSheet(order) {
   document.querySelectorAll('[data-rate-slug]').forEach(b => b.onclick = () => {
     const slug = b.dataset.rateSlug;
     markDishRated(order, slug);
+    let ratePromise = Promise.resolve();
     try {
-      fetch('/api/customer/rate-dish', {
+      ratePromise = fetch('/api/customer/rate-dish', {
         method: 'POST', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ token: customerToken, dish_slug: slug, restaurant_slug: order.restaurant_slug || r, order_id: order.order_id, rating: +b.dataset.rate })
       }).catch(() => {});
     } catch {}
     toast('Thanks!', 'ok');
-    openRateSheet(order);
+    if (+b.dataset.rate === 1 && customerToken) {
+      const dn = ((Array.isArray(order.dish_slugs) ? order.dish_slugs : []).find(d => d.slug === slug) || {}).name || slug;
+      openPhotoPrompt(order, slug, dn, ratePromise);
+    } else openRateSheet(order);
   });
+}
+
+// ---- Optional photo after a thumbs-up (silent-skip on ANY failure) ----
+const PHOTO_MAX_BYTES = 200 * 1024;
+async function downscaleToBlob(file) {
+  const bmp = await (window.createImageBitmap ? createImageBitmap(file) : new Promise((ok, no) => {
+    const im = new Image(); im.onload = () => ok(im); im.onerror = no; im.src = URL.createObjectURL(file);
+  }));
+  const bw = bmp.width || bmp.naturalWidth, bh = bmp.height || bmp.naturalHeight;
+  let dim = 1024;
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const sc = Math.min(1, dim / Math.max(bw, bh));
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(bw * sc)); c.height = Math.max(1, Math.round(bh * sc));
+    c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+    for (const q of [0.72, 0.55, 0.4]) {
+      const blob = await new Promise(ok => c.toBlob(ok, 'image/webp', q));
+      const b2 = blob && blob.type === 'image/webp' ? blob : await new Promise(ok => c.toBlob(ok, 'image/jpeg', q)); // Safari has no webp encoder
+      if (b2 && b2.size <= PHOTO_MAX_BYTES) return b2;
+    }
+    dim = Math.round(dim * 0.75);
+  }
+  return null;
+}
+function blobToBase64(blob) {
+  return new Promise((ok, no) => { const fr = new FileReader(); fr.onload = () => ok(String(fr.result).split(',')[1] || ''); fr.onerror = no; fr.readAsDataURL(blob); });
+}
+function openPhotoPrompt(order, slug, dishName, ratePromise) {
+  openSheet(`
+    <h3>Add a photo? 📸 <span style="font-size:14px;color:var(--ink-dim)">(optional)</span></h3>
+    <div class="sh-sub">Show off your ${escapeHTML(dishName)}. Photos are reviewed before they appear.</div>
+    <div class="photo-pick">
+      <label class="btn-photo" for="photoPickInput">Choose from gallery</label>
+      <input type="file" id="photoPickInput" accept="image/*" style="position:absolute;left:-9999px" aria-label="Choose a photo">
+      <button type="button" id="photoSkip">No thanks</button>
+    </div>`);
+  const next = () => openRateSheet(order);
+  $('photoSkip').onclick = next;
+  $('photoPickInput').onchange = async (ev) => {
+    const file = ev.target.files && ev.target.files[0];
+    next();
+    if (!file) return;
+    try {
+      const blob = await downscaleToBlob(file);
+      if (!blob) return;
+      const image_base64 = await blobToBase64(blob);
+      await ratePromise; // the rating row must exist before the photo attaches to it
+      const res = await fetch('/api/customer/dish-photo', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ token: customerToken, dish_slug: slug, restaurant_slug: order.restaurant_slug || r, order_id: order.order_id, image_base64 })
+      });
+      if (res.ok) toast('Photo sent for review 📸', 'ok');
+    } catch {}
+  };
 }
 
 function openLastOrderSheet(order) {
@@ -1262,6 +1346,7 @@ async function boot() {
     wireActions();
     renderLastOrderBanner();
     initWaitlist();
+    loadDishPhotos();
     if (fromCache) revalidateMenu();
   } catch (e) {
     showError('Could not load menu.', 'Check your internet and try again.', true);
@@ -1734,6 +1819,52 @@ function renderAllergenChips(raw) {
   return parts.length ? `<div class="diet-chips">${parts.join('')}</div>` : '';
 }
 
+// ---- Approved guest photos (chip + lightbox) ----
+state.dishPhotos = { counts: {}, photos: {} };
+function photoChip(slug) {
+  const n = state.dishPhotos.counts[slug] || 0;
+  return n ? `<button type="button" class="photo-chip" data-photos="${escapeHTML(slug)}">📸 ${n} photo${n === 1 ? '' : 's'}</button>` : '';
+}
+async function loadDishPhotos() {
+  try {
+    const res = await fetch('/api/customer/dish-photo?restaurant_slug=' + encodeURIComponent(r));
+    if (!res.ok) return;
+    const j = await res.json();
+    if (!j || !j.counts || !Object.keys(j.counts).length) return;
+    state.dishPhotos = { counts: j.counts, photos: j.photos || {} };
+    document.querySelectorAll('.dish[id^="dish-"]').forEach(el => {
+      const slug = el.id.slice(5);
+      if (!state.dishPhotos.counts[slug] || el.querySelector('.photo-chip')) return;
+      const anchor = el.querySelector('.desc') || el.querySelector('.row');
+      if (anchor) anchor.insertAdjacentHTML('beforebegin', photoChip(slug));
+    });
+  } catch {}
+}
+function openPhotoLightbox(slug, start) {
+  const list = (state.dishPhotos.photos[slug] || []).filter(u => /^https?:/i.test(u));
+  if (!list.length) return;
+  let i = start || 0;
+  const lb = document.createElement('div');
+  lb.className = 'photo-lb'; lb.setAttribute('role', 'dialog'); lb.setAttribute('aria-label', 'Guest photos');
+  const close = () => { lb.remove(); document.removeEventListener('keydown', onKey); };
+  const show = () => {
+    lb.innerHTML = `<img alt="Guest photo ${i + 1} of ${list.length}" src="${escapeHTML(list[i])}">
+      <div class="lb-bar"><button type="button" data-lb="prev" aria-label="Previous">‹</button><span>${i + 1} / ${list.length}</span><button type="button" data-lb="next" aria-label="Next">›</button><button type="button" data-lb="close">Close</button></div>`;
+  };
+  const onKey = e => { if (e.key === 'Escape') close(); else if (e.key === 'ArrowRight') { i = (i + 1) % list.length; show(); } else if (e.key === 'ArrowLeft') { i = (i - 1 + list.length) % list.length; show(); } };
+  lb.addEventListener('click', e => {
+    const b = e.target.closest('[data-lb]');
+    if (b) { if (b.dataset.lb === 'next') { i = (i + 1) % list.length; show(); } else if (b.dataset.lb === 'prev') { i = (i - 1 + list.length) % list.length; show(); } else close(); }
+    else if (e.target === lb) close();
+  });
+  document.addEventListener('keydown', onKey);
+  show(); document.body.appendChild(lb);
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest && e.target.closest('[data-photos]');
+  if (b) { e.preventDefault(); openPhotoLightbox(b.dataset.photos, 0); }
+});
+
 function popChip(d) {
   if (!state.menu || (state.menu.orders_7d || 0) < 20) return '';
   const sc = Number(d.popularity_score) || 0;
@@ -1752,7 +1883,37 @@ function dishMatchesSearch(d, q) {
   const tr = d.translations && typeof d.translations === 'object'
     ? Object.values(d.translations).map(t => (t && (t.name || '') + ' ' + (t && t.description || ''))).join(' ') : '';
   const hay = ((d.name || '') + ' ' + (d.description || '') + ' ' + tr + ' ' + dishTagText(d).replace(/[,;_]+/g, ' ')).toLowerCase();
-  return q.split(/\s+/).filter(Boolean).every(t => hay.includes(t));
+  const terms = q.split(/\s+/).filter(Boolean);
+  if (terms.every(t => hay.includes(t))) return true; // exact substring behaviour first
+  // Fuzzy fallback, per term: substring OR a word within Damerau-Levenshtein tolerance.
+  let words = d._hw;
+  if (!words || d._hwSrc !== hay) { words = d._hw = hay.split(/[^a-z0-9\u00c0-\uffff]+/).filter(Boolean); d._hwSrc = hay; }
+  return terms.every(t => hay.includes(t) || fuzzyHasWord(words, t));
+}
+// Optimal-string-alignment Damerau-Levenshtein (insert/delete/substitute/transpose), early exit past `max`.
+function damerauLev(a, b, max) {
+  const n = a.length, m = b.length;
+  if (Math.abs(n - m) > max) return max + 1;
+  let p2 = null, p1 = Array.from({ length: m + 1 }, (_, j) => j);
+  for (let i = 1; i <= n; i++) {
+    const cur = [i]; let rowMin = i;
+    for (let j = 1; j <= m; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      let v = Math.min(p1[j] + 1, cur[j - 1] + 1, p1[j - 1] + cost);
+      if (p2 && i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) v = Math.min(v, p2[j - 2] + 1);
+      cur[j] = v; if (v < rowMin) rowMin = v;
+    }
+    if (rowMin > max) return max + 1;
+    p2 = p1; p1 = cur;
+  }
+  return p1[m];
+}
+const collapseDoubles = w => w.replace(/(.)\1+/g, '$1'); // spagetti/spageti, mozarella/mozzarella
+// Terms >= 3 chars tolerate up to 2 edits (short 3-4 char terms: 1, to avoid matching everything).
+function fuzzyHasWord(words, t) {
+  if (t.length < 3) return false;
+  const max = t.length <= 4 ? 1 : 2, tc = collapseDoubles(t);
+  return words.some(w => w.length >= 3 && (damerauLev(t, w, max) <= max || damerauLev(tc, collapseDoubles(w), max) <= max));
 }
 const RE_MEAT = /\b(beef|pork|bacon|ham|chicken|fish|meat|lamb|prawns?|shrimp|salmon|tuna|steak|turkey|duck|anchov\w*)\b/;
 const RE_ANIMAL = /\b(dairy|egg|eggs|cheese|milk|butter|honey|cream|yogh?urt|mayo|mayonnaise)\b/;
@@ -1929,7 +2090,7 @@ function renderDish(d, idx) {
             : (price ? `<div class="price">${escapeHTML(price)}</div>` : '')}
         </div>
         ${d.discount_pct ? `<div class="offer-tag">🎉 ${escapeHTML(d.offer_name || 'Happy hour')} · -${d.discount_pct}%</div>` : ''}
-        ${popChip(d)}
+        ${popChip(d)}${photoChip(d.slug)}
         ${descTr ? `<div class="desc">${escapeHTML(descTr)}</div>` : ''}
         ${renderAllergenChips(d.allergens)}
         <div class="row">
@@ -3173,6 +3334,78 @@ boot();
 <script defer src="/vendor/armenu-fx.js"></script>
 <script defer src="/vendor/armenu-cmdk.js"></script>
 
+<button type="button" class="chat-fab" id="chatFab" aria-label="Chat with staff" hidden>💬<span class="chat-dot" id="chatDot"></span></button>
+<div class="chat-sheet" id="chatSheet" role="dialog" aria-modal="false" aria-label="Chat with staff">
+  <div class="chat-sheet-head"><span>Chat with staff</span><button type="button" id="chatSheetClose" aria-label="Close chat">&times;</button></div>
+  <div class="chat-sheet-msgs" id="chatMsgs" aria-live="polite"></div>
+  <div class="chat-sheet-note" id="chatNote"></div>
+  <form class="chat-sheet-form" id="chatSheetForm"><input id="chatSheetInput" maxlength="500" placeholder="Type a message" autocomplete="off" aria-label="Message"><button type="submit">Send</button></form>
+</div>
+<script>
+(function () {
+  var fab = document.getElementById('chatFab'), sheet = document.getElementById('chatSheet');
+  if (!fab || !sheet || !r) return;
+  var msgsEl = document.getElementById('chatMsgs'), inp = document.getElementById('chatSheetInput'), note = document.getElementById('chatNote');
+  var timer = null, lastKey = '', open = false, busy = false, hasThread = false;
+  try { hasThread = localStorage.getItem('armenu_chat_' + r) === '1'; } catch (e) {}
+  fab.hidden = false;
+  function tok() { return customerToken || getCustomerToken(); }
+  function fmt(t) { try { return new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } }
+  function render(d) {
+    var ms = d.messages || [];
+    var key = ms.length + ':' + (ms.length ? ms[ms.length - 1].id : '') + ':' + d.status;
+    if (key === lastKey) return;
+    lastKey = key;
+    if (!ms.length) { msgsEl.innerHTML = '<div class="chat-sheet-empty">Ask us anything — vegan options, wait time, etc.</div>'; }
+    else {
+      var atBottom = msgsEl.scrollTop + msgsEl.clientHeight >= msgsEl.scrollHeight - 40;
+      msgsEl.innerHTML = ms.map(function (m) {
+        return '<div class="cw-msg ' + (m.from_role === 'guest' ? 'guest' : 'staff') + '"><small>' + escapeHTML(m.from_role === 'guest' ? 'You' : (m.from_name || 'Staff')) + ' · ' + escapeHTML(fmt(m.created_at)) + '</small>' + escapeHTML(m.body) + '</div>';
+      }).join('');
+      if (atBottom || !msgsEl.dataset.init) msgsEl.scrollTop = msgsEl.scrollHeight;
+      msgsEl.dataset.init = '1';
+    }
+    note.textContent = d.status === 'closed' ? 'This chat was closed. Send a message to start a new one.' : '';
+  }
+  function base() { return '/api/chat?token=' + encodeURIComponent(tok()) + '&restaurant_slug=' + encodeURIComponent(r); }
+  async function load(peek) {
+    if (busy) return; busy = true;
+    try {
+      var res = await fetch(base() + (peek ? '&peek=1' : ''), { cache: 'no-store' });
+      if (!res.ok) return;
+      var d = await res.json();
+      if (d.thread_id) { hasThread = true; try { localStorage.setItem('armenu_chat_' + r, '1'); } catch (e) {} }
+      if (peek) { fab.classList.toggle('unread', (d.unread_by_guest || 0) > 0); return; }
+      render(d);
+      fab.classList.remove('unread');
+    } catch (e) {} finally { busy = false; }
+  }
+  function start() { clearInterval(timer); timer = setInterval(function () { if (!document.hidden && (open || hasThread)) load(!open); }, open ? 5000 : 20000); }
+  fab.onclick = function () {
+    open = true; sheet.classList.add('on'); fab.style.display = 'none';
+    if (!msgsEl.innerHTML) msgsEl.innerHTML = '<div class="chat-sheet-empty">Ask us anything — vegan options, wait time, etc.</div>';
+    load(false); start(); setTimeout(function () { inp.focus(); }, 60);
+  };
+  document.getElementById('chatSheetClose').onclick = function () {
+    open = false; sheet.classList.remove('on'); fab.style.display = ''; start(); fab.focus();
+  };
+  document.getElementById('chatSheetForm').onsubmit = async function (ev) {
+    ev.preventDefault();
+    var text = inp.value.trim(); if (!text) return;
+    inp.disabled = true;
+    try {
+      var res = await fetch('/api/chat', { method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ token: tok(), restaurant_slug: r, table_slug: table || undefined, body: text }) });
+      var d = await res.json().catch(function () { return {}; });
+      if (res.ok) { inp.value = ''; lastKey = ''; await load(false); }
+      else note.textContent = d.message || (res.status === 429 ? 'Slow down a little — try again in a minute.' : 'Could not send. Please try again.');
+    } catch (e) { note.textContent = 'Could not send. Check your connection.'; }
+    inp.disabled = false; inp.focus();
+  };
+  if (hasThread) { load(true); }
+  start();
+})();
+</script>
 <script>
 /* a11y: dialog focus management — focus in on open, trap Tab, restore focus on close */
 (function () {

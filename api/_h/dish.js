@@ -38,6 +38,55 @@ export function computeOpenState(hours, timezone, now = new Date()) {
   return { is_open: false, next_open: null };
 }
 
+// ---- Time-of-day menu slots -------------------------------------------------
+// menu_slots: {starts_time, ends_time, days_of_week, active}. A dish whose
+// menu_slot_id points at a slot is only served while that slot is open in the
+// restaurant's local time (restaurant_settings.timezone, fallback
+// Africa/Johannesburg). menu_slot_id = null => always shown. A slot flagged
+// active=false is paused: it stops restricting its dishes (they show always),
+// mirroring how paused menu_schedules behave. An end <= start spans midnight and
+// belongs to the day it STARTED on (Fri 22:00-02:00 is still open Sat 01:00).
+const DEFAULT_TZ = 'Africa/Johannesburg';
+export function localDayMinutes(timezone, now = new Date()) {
+  for (const tz of [timezone, DEFAULT_TZ]) {
+    if (!tz) continue;
+    try {
+      const parts = new Intl.DateTimeFormat('en-US', { timeZone: tz, weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(now);
+      const get = t => parts.find(p => p.type === t)?.value;
+      const wd = DAY_KEYS.indexOf(String(get('weekday')).toLowerCase().slice(0, 3));
+      const mins = (parseInt(get('hour'), 10) % 24) * 60 + parseInt(get('minute'), 10);
+      if (wd >= 0 && Number.isFinite(mins)) return { wd, mins };
+    } catch { /* invalid tz name - try the fallback */ }
+  }
+  const sa = new Date(now.getTime() + 2 * 3600 * 1000);
+  return { wd: sa.getUTCDay(), mins: sa.getUTCHours() * 60 + sa.getUTCMinutes() };
+}
+export function isSlotOpen(slot, wd, mins) {
+  if (!slot || slot.active === false) return true;   // paused slot => no restriction
+  const days = Array.isArray(slot.days_of_week) && slot.days_of_week.length ? slot.days_of_week.map(Number) : [0, 1, 2, 3, 4, 5, 6];
+  const st = toMinutes(slot.starts_time), en = toMinutes(slot.ends_time);
+  if (st === en) return days.includes(wd);            // same start/end = all day
+  if (st < en) return days.includes(wd) && mins >= st && mins < en;
+  return (days.includes(wd) && mins >= st) || (days.includes((wd + 6) % 7) && mins < en);
+}
+// Set of dish slugs hidden RIGHT NOW by a menu slot. Degrades to "nothing hidden"
+// when the menu_slots table / dishes.menu_slot_id column is not migrated yet.
+export async function hiddenBySlot(restaurantId, now = new Date()) {
+  const hidden = new Set();
+  try {
+    const sl = await supabase.from('menu_slots').select('id, starts_time, ends_time, days_of_week, active').eq('restaurant_id', restaurantId);
+    if (sl.error || !(sl.data || []).length) return hidden;
+    const st = await supabase.from('restaurant_settings').select('timezone').eq('restaurant_id', restaurantId).maybeSingle();
+    const { wd, mins } = localDayMinutes(st?.data?.timezone, now);
+    const closed = new Set(sl.data.filter(s => !isSlotOpen(s, wd, mins)).map(s => String(s.id)));
+    if (!closed.size) return hidden;
+    const dq = await supabase.from('dishes').select('slug, menu_slot_id').eq('restaurant_id', restaurantId);
+    if (dq.error) return hidden;
+    for (const d of (dq.data || [])) if (d.menu_slot_id && closed.has(String(d.menu_slot_id))) hidden.add(d.slug);
+  } catch { /* optional feature - never break the menu */ }
+  return hidden;
+}
+
 export default async function handler(req, res) {
   const { r, d } = req.query;
   if (!r) return res.status(400).json({ error: 'Missing r param' });
@@ -77,6 +126,10 @@ export default async function handler(req, res) {
     if (q.error && q.error.code !== 'PGRST116') return res.status(502).json({ error: 'Backend temporarily unavailable' });
     if (!q.data) return res.status(404).json({ error: 'Dish not found' });
     const x = q.data;
+    // Time-of-day menu slot: a dish outside its slot is not orderable (managers previewing still see it).
+    if (!preview && (await hiddenBySlot(restaurant.id)).has(x.slug || d)) {
+      return res.status(404).json({ error: 'Dish not available right now' });
+    }
     return res.status(200).json({
       dish: x.name, venue: restaurant.name,
       price: x.price,
@@ -202,7 +255,8 @@ export default async function handler(req, res) {
     return `R ${rand.toFixed(0)}`;
   };
 
-  const visibleDishes = preview ? dishes : dishes.filter(dishVisible);
+  const slotHidden = preview ? new Set() : await hiddenBySlot(restaurant.id);
+  const visibleDishes = preview ? dishes : dishes.filter(x => dishVisible(x) && !slotHidden.has(x.slug));
 
   // Popularity (last 7d) + wait estimate: optional, run in parallel, degrade silently.
   const popCounts = {};

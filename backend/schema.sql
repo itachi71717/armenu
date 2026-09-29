@@ -551,3 +551,105 @@ alter table dishes alter column inventory_enabled set default false;
 
 -- Reservation capacity preview (guest-facing live slot availability). OFF by default.
 alter table restaurant_settings add column if not exists capacity_preview_enabled boolean default false;
+
+-- Group ordering: one guest starts, invites the table via link, everyone adds
+-- to a shared cart (pending order_items rows with order_id null + group_order_id),
+-- the host places ONE order to the kitchen.
+create table if not exists group_orders (
+  id               uuid primary key default gen_random_uuid(),
+  restaurant_id    uuid references restaurants(id) on delete cascade,
+  table_slug       text,
+  host_customer_id uuid references customers(id) on delete set null,
+  status           text default 'open' check (status in ('open','placed','cancelled')),
+  created_at       timestamptz default now(),
+  placed_at        timestamptz,
+  invite_code      text unique
+);
+create table if not exists group_order_participants (
+  id             uuid primary key default gen_random_uuid(),
+  group_order_id uuid references group_orders(id) on delete cascade,
+  customer_id    uuid references customers(id) on delete cascade,
+  display_name   text,
+  joined_at      timestamptz default now(),
+  unique (group_order_id, customer_id)
+);
+alter table order_items add column if not exists modifiers jsonb;
+alter table order_items add column if not exists added_by_customer_id uuid references customers(id) on delete set null;
+alter table order_items add column if not exists group_order_id uuid references group_orders(id) on delete cascade;
+alter table orders add column if not exists group_order_id uuid references group_orders(id) on delete set null;
+create index if not exists idx_group_participants on group_order_participants(group_order_id);
+create index if not exists idx_order_items_group on order_items(group_order_id) where group_order_id is not null;
+
+-- Group ordering: one guest starts, invites the table via link, everyone adds
+-- to a shared cart (pending order_items rows with order_id null + group_order_id),
+-- the host places ONE order to the kitchen.
+create table if not exists group_orders (
+  id               uuid primary key default gen_random_uuid(),
+  restaurant_id    uuid references restaurants(id) on delete cascade,
+  table_slug       text,
+  host_customer_id uuid references customers(id) on delete set null,
+  status           text default 'open' check (status in ('open','placed','cancelled')),
+  created_at       timestamptz default now(),
+  placed_at        timestamptz,
+  invite_code      text unique
+);
+create table if not exists group_order_participants (
+  id             uuid primary key default gen_random_uuid(),
+  group_order_id uuid references group_orders(id) on delete cascade,
+  customer_id    uuid references customers(id) on delete cascade,
+  display_name   text,
+  joined_at      timestamptz default now(),
+  unique (group_order_id, customer_id)
+);
+alter table order_items add column if not exists added_by_customer_id uuid references customers(id) on delete set null;
+alter table order_items add column if not exists group_order_id uuid references group_orders(id) on delete cascade;
+alter table orders add column if not exists group_order_id uuid references group_orders(id) on delete set null;
+create index if not exists idx_group_participants on group_order_participants(group_order_id);
+create index if not exists idx_order_items_group on order_items(group_order_id) where group_order_id is not null;
+
+-- Guest <-> staff live chat.
+create table if not exists chat_threads (
+  id                uuid primary key default gen_random_uuid(),
+  restaurant_id     uuid references restaurants(id) on delete cascade,
+  customer_id       uuid references customers(id) on delete cascade,
+  table_slug        text,
+  status            text default 'open' check (status in ('open','closed')),
+  unread_by_staff   int default 0,
+  unread_by_guest   int default 0,
+  created_at        timestamptz default now(),
+  last_message_at   timestamptz
+);
+create table if not exists chat_messages (
+  id          uuid primary key default gen_random_uuid(),
+  thread_id   uuid references chat_threads(id) on delete cascade,
+  from_role   text check (from_role in ('guest','staff')),
+  from_name   text,
+  body        text,
+  created_at  timestamptz default now()
+);
+create index if not exists idx_threads_rest_open on chat_threads(restaurant_id, status, last_message_at desc);
+create index if not exists idx_messages_thread on chat_messages(thread_id, created_at);
+
+-- Time-of-day menu rotation (menu slots). A dish with menu_slot_id set is only
+-- shown to guests while that slot is active (restaurant local time + weekday).
+-- menu_slot_id null = always visible. Times are local wall-clock; a slot whose
+-- end <= start spans midnight. days_of_week: 0=Sun..6=Sat.
+create table if not exists menu_slots (
+  id            uuid primary key default gen_random_uuid(),
+  restaurant_id uuid references restaurants(id) on delete cascade,
+  name          text not null,                      -- 'Breakfast', 'Lunch', 'Dinner'
+  starts_time   time not null,
+  ends_time     time not null,
+  days_of_week  int[] default array[0,1,2,3,4,5,6],
+  active        boolean default true,
+  created_at    timestamptz default now()
+);
+create index if not exists idx_menu_slots_rest on menu_slots(restaurant_id, active);
+alter table dishes add column if not exists menu_slot_id uuid references menu_slots(id) on delete set null;
+create index if not exists idx_dishes_menu_slot on dishes(menu_slot_id) where menu_slot_id is not null;
+
+-- Guest dish photo reviews: compressed webp on R2 (reviews/<YYYY-MM>/<rating_id>.webp).
+-- photo_approved: NULL = pending moderation, true = approved, false = rejected.
+alter table customer_dish_ratings add column if not exists photo_url text;
+alter table customer_dish_ratings add column if not exists photo_approved boolean default null;
+create index if not exists idx_dish_ratings_photo_pending on customer_dish_ratings(restaurant_id) where photo_url is not null and photo_approved is null;
