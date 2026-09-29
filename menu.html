@@ -374,6 +374,7 @@
 </style>
 <script src="/vendor/armenu-errorbar.js" defer></script>
 <script src="/vendor/armenu-sounds.js" defer></script>
+<script src="/vendor/qrcode.min.js" defer></script>
 <link rel="stylesheet" href="/vendor/armenu-a11y.css">
   <script src="/vendor/sentry-client.js" defer></script>
 <script src="/vendor/cookie-consent.js" defer></script>
@@ -864,15 +865,14 @@ async function downscaleToBlob(file) {
     const im = new Image(); im.onload = () => ok(im); im.onerror = no; im.src = URL.createObjectURL(file);
   }));
   const bw = bmp.width || bmp.naturalWidth, bh = bmp.height || bmp.naturalHeight;
-  let dim = 1024;
+  let dim = 800;
   for (let attempt = 0; attempt < 6; attempt++) {
     const sc = Math.min(1, dim / Math.max(bw, bh));
     const c = document.createElement('canvas');
     c.width = Math.max(1, Math.round(bw * sc)); c.height = Math.max(1, Math.round(bh * sc));
     c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
-    for (const q of [0.72, 0.55, 0.4]) {
-      const blob = await new Promise(ok => c.toBlob(ok, 'image/webp', q));
-      const b2 = blob && blob.type === 'image/webp' ? blob : await new Promise(ok => c.toBlob(ok, 'image/jpeg', q)); // Safari has no webp encoder
+    for (const q of [0.72, 0.55]) {
+      const b2 = await new Promise(ok => c.toBlob(ok, 'image/jpeg', q));
       if (b2 && b2.size <= PHOTO_MAX_BYTES) return b2;
     }
     dim = Math.round(dim * 0.75);
@@ -887,13 +887,15 @@ function openPhotoPrompt(order, slug, dishName, ratePromise) {
     <h3>Add a photo? 📸 <span style="font-size:14px;color:var(--ink-dim)">(optional)</span></h3>
     <div class="sh-sub">Show off your ${escapeHTML(dishName)}. Photos are reviewed before they appear.</div>
     <div class="photo-pick">
-      <label class="btn-photo" for="photoPickInput">Choose from gallery</label>
+      <label class="btn-photo" for="photoCamInput">Take a photo 📷</label>
+      <input type="file" id="photoCamInput" accept="image/*" capture="environment" style="position:absolute;left:-9999px" aria-label="Take a photo">
+      <label class="btn-photo" for="photoPickInput" style="background:transparent;border:1px solid var(--line);color:var(--ink)">Choose from gallery</label>
       <input type="file" id="photoPickInput" accept="image/*" style="position:absolute;left:-9999px" aria-label="Choose a photo">
       <button type="button" id="photoSkip">No thanks</button>
     </div>`);
   const next = () => openRateSheet(order);
   $('photoSkip').onclick = next;
-  $('photoPickInput').onchange = async (ev) => {
+  $('photoCamInput').onchange = $('photoPickInput').onchange = async (ev) => {
     const file = ev.target.files && ev.target.files[0];
     next();
     if (!file) return;
@@ -906,7 +908,7 @@ function openPhotoPrompt(order, slug, dishName, ratePromise) {
         method: 'POST', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ token: customerToken, dish_slug: slug, restaurant_slug: order.restaurant_slug || r, order_id: order.order_id, image_base64 })
       });
-      if (res.ok) toast('Photo sent for review 📸', 'ok');
+      if (res.ok) toast('Thanks — awaiting review', 'ok');
     } catch {}
   };
 }
@@ -2037,6 +2039,7 @@ function renderCombos() {
 function addComboToCart(id) {
   const c = (state.menu.combos || []).find(x => x.id === id);
   if (!c) return;
+  if (_grp.code) return toast('Combos are not available in a group order yet', 'err');
   const key = 'combo::' + c.id;
   const existing = state.cart.find(i => i.key === key);
   if (existing) existing.qty++;
@@ -2123,7 +2126,7 @@ function updateActionbar() {
   // Reservations button ONLY shows when guest is NOT at a table (no ?t= param).
   // If they scanned a table QR, they're already there — booking is nonsense.
   $('reserveBtn').style.display = (f.reservations !== false && !table) ? 'flex' : 'none';
-  $('cartCount').textContent = state.cart.reduce((s, i) => s + i.qty, 0);
+  $('cartCount').textContent = (_grp.code && _grp.data ? _grp.data.items : state.cart).reduce((s, i) => s + i.qty, 0);
   // Make Order button primary (full-width when it's the only cart action)
   const cartOnlyPrimary = f.orders && !f.waiter_call && !f.reviews;
   $('cartBtn').style.flex = cartOnlyPrimary ? '2' : '1';
@@ -2404,6 +2407,7 @@ function addToCart(slug, mods) {
   const dishMods = Array.isArray(dish.modifiers) ? dish.modifiers : [];
   if (dishMods.length && !mods) return openModifierPicker(dish);
   const picked = Array.isArray(mods) ? mods : [];
+  if (_grp.code) { groupAddItem(slug, picked, 1); return; }
   const key = slug + '::' + picked.map(m => m.id).sort().join('|');
   const existing = state.cart.find(i => i.key === key);
   if (existing) existing.qty++;
@@ -2566,8 +2570,291 @@ function startWaitRefresh() {
     } catch {}
   }, 60000);
 }
+// ============ GROUP ORDER (shared table cart — /api/group-order) ============
+// One guest hosts, others join via ?join=<code>. In group mode the cart lives on the server
+// (order_items with group_order_id), so local state.cart is left untouched.
+const GRP_API = '/api/group-order';
+const GRP_KEY = 'armenu_group_' + r + (table ? '_' + table : '');
+const _grp = { code: null, name: '', data: null, timer: null, sig: '', seenItems: null, seenParts: 0, busy: false };
+let _gDraft = { name: '', phone: '', email: '', table: '' };
+function groupMode() { return !!_grp.code; }
+function groupPersist() {
+  try {
+    if (_grp.code) sessionStorage.setItem(GRP_KEY, JSON.stringify({ code: _grp.code, name: _grp.name }));
+    else sessionStorage.removeItem(GRP_KEY);
+  } catch {}
+}
+function groupClear() {
+  _grp.code = null; _grp.data = null; _grp.sig = ''; _grp.seenItems = null; _grp.seenParts = 0;
+  groupStopPoll();
+  groupPersist();
+  if (state.settings) updateActionbar();
+}
+function groupStopPoll() { if (_grp.timer) { clearInterval(_grp.timer); _grp.timer = null; } }
+function groupInviteUrl() {
+  return location.origin + '/m/' + encodeURIComponent(r) + '?join=' + encodeURIComponent(_grp.code) + (table ? '&t=' + encodeURIComponent(table) : '');
+}
+async function groupCall(method, query, body) {
+  const res = await fetch(GRP_API + query, {
+    method, headers: { 'content-type': 'application/json' },
+    body: body ? JSON.stringify({ token: customerToken, ...body }) : undefined
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) { const e = new Error(data.message || data.error || 'Group order error'); e.code = data.error; e.status = res.status; throw e; }
+  return data;
+}
+// Apply a fresh group state; chime when SOMEONE ELSE added an item or joined (polls only).
+function groupApply(d, announce) {
+  if (!d || !Array.isArray(d.items)) return;
+  const ids = new Set(d.items.map(i => i.id));
+  if (announce && _grp.seenItems) {
+    const newItem = d.items.some(i => !_grp.seenItems.has(i.id) && !i.mine);
+    const newPerson = (d.participants || []).length > _grp.seenParts;
+    if (newItem || newPerson) window.ArMenuSound?.play('chime');
+  }
+  _grp.seenItems = ids;
+  _grp.seenParts = (d.participants || []).length;
+  _grp.data = d;
+  if (state.settings) updateActionbar();
+}
+async function groupRefresh(announce) {
+  if (!_grp.code) return null;
+  try {
+    const d = await groupCall('GET', '?code=' + encodeURIComponent(_grp.code) + '&token=' + encodeURIComponent(customerToken || ''));
+    if (d.status && d.status !== 'open') {
+      const wasOpen = $('groupCartRoot');
+      groupClear();
+      if (wasOpen) { closeSheet(); toast(d.status === 'placed' ? 'The host placed the group order' : 'This group order has closed', 'ok'); }
+      return null;
+    }
+    groupApply(d, announce);
+    return d;
+  } catch (e) {
+    if (e.status === 404) { groupClear(); if ($('groupCartRoot')) closeSheet(); toast('This group order is gone', 'err'); }
+    return null;
+  }
+}
+function groupStartPoll() {
+  groupStopPoll();
+  _grp.timer = setInterval(async () => {
+    if (!_grp.code || !$('sheet').classList.contains('on') || !$('groupCartRoot')) { groupStopPoll(); return; }
+    const d = await groupRefresh(true);
+    if (d && $('groupCartRoot')) {
+      const sig = JSON.stringify([d.items.map(i => [i.id, i.qty]), d.participants.map(p => p.display_name)]);
+      if (sig !== _grp.sig) renderGroupCart();
+    }
+  }, 3000);
+}
+function groupPromptName(title, sub, cta, onGo) {
+  const prev = _grp.name || (customer && customer.name) || '';
+  openSheet(`
+    <h3>${escapeHTML(title)}</h3>
+    <div class="sh-sub">${escapeHTML(sub)}</div>
+    <div class="field"><label>Your name</label><input id="grpName" maxlength="40" autocomplete="given-name" placeholder="e.g. Sam" value="${escapeHTML(prev)}" /></div>
+    <button class="submit" id="grpGo">${escapeHTML(cta)}</button>`);
+  const go = $('grpGo'), inp = $('grpName');
+  const run = async () => {
+    const nm = inp.value.trim();
+    if (!nm) { toast('Enter your name', 'err'); inp.focus(); return; }
+    if (_grp.busy) return;
+    _grp.busy = true; go.disabled = true;
+    try { await onGo(nm); } catch (e) { toast(e.message, 'err'); go.disabled = false; }
+    finally { _grp.busy = false; }
+  };
+  go.onclick = run;
+  inp.onkeydown = (e) => { if (e.key === 'Enter') run(); };
+  setTimeout(() => { try { inp.focus(); } catch {} }, 60);
+}
+function openGroupStart() {
+  groupPromptName('Order as a group', 'Everyone adds their own dishes to one shared cart. You place the order.', 'Start group →', async (nm) => {
+    const d = await groupCall('POST', '', { restaurant_slug: r, table_slug: table || undefined, display_name: nm });
+    _grp.code = d.invite_code; _grp.name = nm; groupPersist();
+    await groupRefresh(false);
+    toast('Group started. Invite your table', 'ok');
+    openGroupInvite();
+  });
+}
+function openGroupJoin(code) {
+  groupPromptName('Join the group order', 'Enter your name so the table knows who added what.', 'Join group →', async (nm) => {
+    const d = await groupCall('POST', '?code=' + encodeURIComponent(code) + '&join=1', { display_name: nm });
+    _grp.code = code; _grp.name = nm; groupPersist();
+    groupApply(d, false);
+    closeSheet();
+    try { const u = new URL(location.href); u.searchParams.delete('join'); history.replaceState(null, '', u.pathname + u.search + u.hash); } catch {}
+    toast('Joined the group', 'ok');
+    openGroupCart();
+  });
+}
+function groupShare() {
+  const url = groupInviteUrl();
+  try { if (navigator.clipboard) navigator.clipboard.writeText(url).then(() => toast('Invite link copied', 'ok'), () => {}); } catch {}
+  if (navigator.share) { navigator.share({ title: 'Join our table order', url }).catch(() => {}); }
+  else if (!navigator.clipboard) toast(url, 'ok');
+}
+function openGroupInvite() {
+  if (!_grp.code) return;
+  openSheet(`
+    <h3>Invite your table</h3>
+    <div class="sh-sub">Friends scan this or open the link, add their dishes, and you place one order.</div>
+    <div style="display:flex;justify-content:center;margin:12px 0"><canvas id="grpQr" width="180" height="180" style="border-radius:10px;background:#fff"></canvas></div>
+    <div style="text-align:center;font-size:12px;color:var(--ink-dim);word-break:break-all;margin-bottom:12px">${escapeHTML(groupInviteUrl())}</div>
+    <button class="submit" id="grpShare">Share invite link</button>
+    <button type="button" class="ohr-reorder" id="grpToCart" style="width:100%;margin-top:10px">Open group cart</button>`);
+  try { if (window.QRCode) QRCode.toCanvas($('grpQr'), groupInviteUrl(), { width: 180, margin: 1, color: { dark: '#0a0806', light: '#ffffff' } }); } catch {}
+  $('grpShare').onclick = groupShare;
+  $('grpToCart').onclick = openGroupCart;
+}
+async function groupAddItem(slug, mods, qty) {
+  try {
+    const d = await groupCall('POST', '?code=' + encodeURIComponent(_grp.code) + '&item=1', { dish_slug: slug, qty: qty || 1, modifiers: mods && mods.length ? mods : undefined });
+    groupApply(d, false);
+    window.ArMenuSound?.play('pop');
+    const dish = state.menu && state.menu.dishes.find(x => x.slug === slug);
+    toast('Added ' + (dish ? dish.name : 'item') + ' to the group cart', 'ok');
+    if (dish) checkAllergyNudge(dish);
+  } catch (e) {
+    if (e.status === 409 && e.code === 'group_closed') groupClear();
+    toast(e.message, 'err');
+  }
+}
+async function groupRemoveItem(id) {
+  try {
+    const d = await groupCall('DELETE', '?code=' + encodeURIComponent(_grp.code) + '&item=' + encodeURIComponent(id), {});
+    groupApply(d, false);
+    renderGroupCart();
+  } catch (e) { toast(e.message, 'err'); }
+}
+function openGroupCart() {
+  if (!_grp.code) return openCart();
+  renderGroupCart();
+  groupRefresh(false).then(d => { if (d && $('groupCartRoot')) renderGroupCart(); });
+  groupStartPoll();
+}
+function renderGroupCart() {
+  const d = _grp.data;
+  if (!d) { openSheet('<div id="groupCartRoot"><h3>Group cart</h3><div class="sh-sub">Loading…</div></div>'); return; }
+  // Keep whatever the host typed across re-renders (the poll re-renders on changes).
+  const v = id => { const el = $(id); return el ? el.value : null; };
+  if (v('grpPName') != null) _gDraft.name = v('grpPName');
+  if (v('grpPPhone') != null) _gDraft.phone = v('grpPPhone');
+  if (v('grpPEmail') != null) _gDraft.email = v('grpPEmail');
+  if (v('grpPTable') != null) _gDraft.table = v('grpPTable');
+  const sym = curSym();
+  const n = (d.participants || []).length;
+  const subtotal = d.subtotal_cents || 0;
+  const tipCents = Math.round(subtotal * (_tipPct / 100));
+  const byName = new Map();
+  d.items.forEach(i => { const k = i.added_by_name || 'Guest'; if (!byName.has(k)) byName.set(k, []); byName.get(k).push(i); });
+  const canRemove = i => d.is_host || i.mine;
+  const rows = [...byName.entries()].map(([nm, list]) => `
+    <div style="margin-top:14px;font-size:12px;font-weight:800;letter-spacing:.04em;color:var(--accent-2);text-transform:uppercase">Added by ${escapeHTML(nm)}</div>
+    ${list.map(it => `
+      <div class="cart-row">
+        <div class="cart-name">
+          ${escapeHTML(it.qty)}× ${escapeHTML(it.dish_name)}
+          ${(it.modifiers || []).length ? '<div style="font-size:11px;color:var(--ink-faint);margin-top:2px">' + it.modifiers.map(m => escapeHTML(m.name)).join(', ') + '</div>' : ''}
+          <br><span style="font-size:12px;color:var(--ink-dim)">${escapeHTML(fmtPrice(it.price_cents * it.qty, sym) || '')}</span>
+        </div>
+        ${canRemove(it) ? `<div class="qty"><button data-grm="${escapeHTML(it.id)}" aria-label="Remove ${escapeHTML(it.dish_name)}">✕</button></div>` : ''}
+      </div>`).join('')}`).join('');
+  const tipBtns = [0, 10, 15, 20].map(p => `
+    <button class="tip-btn ${_tipPct === p ? 'on' : ''}" data-gtip="${p}"
+      style="flex:1;padding:10px;border-radius:9px;border:1px solid ${_tipPct === p ? 'var(--accent)' : 'var(--line)'};background:${_tipPct === p ? 'rgba(var(--accent-rgb),.14)' : 'rgba(255,239,220,.04)'};color:${_tipPct === p ? 'var(--accent)' : 'var(--ink-dim)'};font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">${p === 0 ? 'No tip' : p + '%'}</button>`).join('');
+  const hostForm = `
+    <div class="cart-total"><span>Subtotal</span><span>${escapeHTML(fmtPrice(subtotal, sym))}</span></div>
+    <div class="field"><label>Tip for your waiter</label><div style="display:flex;gap:6px">${tipBtns}</div></div>
+    ${tipCents > 0 ? `<div class="cart-total" style="padding-top:6px;font-weight:500;color:var(--ink-dim)"><span>Tip (${_tipPct}%)</span><span>${escapeHTML(fmtPrice(tipCents, sym))}</span></div>` : ''}
+    <div class="cart-total" style="border-top:1px solid var(--line);padding-top:12px;font-size:18px"><span>Total</span><span style="color:var(--accent)">${escapeHTML(fmtPrice(subtotal + tipCents, sym))}</span></div>
+    <div class="field"><label>Your name</label><input id="grpPName" maxlength="40" value="${escapeHTML(_gDraft.name || _grp.name || (customer && customer.name) || '')}" /></div>
+    <div class="field"><label>Phone (optional)</label><input id="grpPPhone" type="tel" value="${escapeHTML(_gDraft.phone || (customer && customer.phone) || '')}" /></div>
+    <div class="field"><label>Email (optional)</label><input id="grpPEmail" type="email" value="${escapeHTML(_gDraft.email || (customer && customer.email) || '')}" /></div>
+    ${!table ? `<div class="field"><label>Your table number (optional)</label><input id="grpPTable" placeholder="e.g. 12" value="${escapeHTML(_gDraft.table)}" /></div>` : ''}
+    <button class="submit" id="groupPlace"${d.items.length ? '' : ' disabled'}>Place group order →</button>`;
+  const guestNote = `
+    <div class="cart-total"><span>Subtotal</span><span>${escapeHTML(fmtPrice(subtotal, sym))}</span></div>
+    <div class="sh-sub" id="groupWaiting" style="text-align:center;margin:14px 0">Waiting for host to place order</div>`;
+  openSheet(`<div id="groupCartRoot">
+    <h3>Group cart with ${escapeHTML(n)} ${n === 1 ? 'person' : 'people'}</h3>
+    <div class="sh-sub">${escapeHTML((d.participants || []).map(p => p.display_name + (p.is_host ? ' (host)' : '')).join(', '))}</div>
+    ${d.items.length ? rows : '<div class="sh-sub" style="margin:14px 0">Nobody has added anything yet. Close this and tap + on a dish.</div>'}
+    ${d.is_host ? hostForm : guestNote}
+    <button type="button" class="ohr-reorder" id="groupShare" style="width:100%;margin-top:10px">📨 Share invite</button>
+    <button type="button" class="ohr-reorder" id="groupQrBtn" style="width:100%;margin-top:10px">Show invite QR</button>
+    <button type="button" class="ohr-reorder" id="groupLeave" style="width:100%;margin-top:10px">Leave group</button>
+  </div>`);
+  _grp.sig = JSON.stringify([d.items.map(i => [i.id, i.qty]), d.participants.map(p => p.display_name)]);
+  document.querySelectorAll('[data-grm]').forEach(b => b.onclick = () => groupRemoveItem(b.dataset.grm));
+  document.querySelectorAll('[data-gtip]').forEach(b => b.onclick = () => { _tipPct = +b.dataset.gtip; renderGroupCart(); });
+  $('groupShare').onclick = groupShare;
+  $('groupQrBtn').onclick = () => { groupStopPoll(); openGroupInvite(); };
+  $('groupLeave').onclick = () => { groupClear(); closeSheet(); toast('You left the group', 'ok'); };
+  const gp = $('groupPlace'); if (gp) gp.onclick = groupPlaceOrder;
+}
+async function groupPlaceOrder() {
+  if (_orderInFlight || !_grp.code || !_grp.data) return;
+  _orderInFlight = true;
+  const btn = $('groupPlace'); if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+  const d = _grp.data;
+  const tip_cents = Math.round((d.subtotal_cents || 0) * (_tipPct / 100));
+  const tbl = table || $('grpPTable')?.value.trim() || undefined;
+  const nm = $('grpPName')?.value.trim() || _grp.name || '';
+  try {
+    const res = await groupCall('POST', '?code=' + encodeURIComponent(_grp.code) + '&place=1', {
+      name: nm, phone: $('grpPPhone')?.value.trim() || '', email: $('grpPEmail')?.value.trim() || '',
+      tip_cents, table: tbl
+    });
+    if (!res.order_id) throw new Error('Could not confirm your order. Please tap Place again.');
+    const items_snapshot = d.items.map(i => ({ name: i.dish_name, qty: i.qty, price_cents: i.price_cents * i.qty }));
+    let dish_summary = d.items.map(i => `${i.qty}x ${i.dish_name}`).join(', ');
+    if (dish_summary.length > 60) dish_summary = dish_summary.slice(0, 57) + '…';
+    const lastOrder = {
+      order_id: res.order_id,
+      order_number: String(res.order_id).replace(/-/g, '').slice(-6).toUpperCase() || '------',
+      restaurant_slug: r, table: tbl || null, dish_summary,
+      total_cents: typeof res.total_cents === 'number' ? res.total_cents : (d.subtotal_cents || 0) + tip_cents,
+      placed_at: new Date().toISOString(), items: items_snapshot, dish_slugs: []
+    };
+    saveLastOrder(lastOrder);
+    groupClear();
+    _gDraft = { name: '', phone: '', email: '', table: '' };
+    window.ArMenuSound?.play('chime');
+    toast('Group order sent. kitchen has it ✓', 'ok');
+    renderLastOrderBanner();
+    startOrderPolling();
+    showOrderConfirmation(lastOrder);
+    enableOrderReadyPush();
+  } catch (e) {
+    if (e.code === 'already_placed' || e.code === 'group_closed') { groupClear(); closeSheet(); }
+    toast(e instanceof TypeError ? 'No connection. Tap Place again to retry.' : e.message, 'err');
+    const b2 = $('groupPlace'); if (b2) { b2.disabled = false; b2.textContent = 'Place group order →'; }
+  } finally { _orderInFlight = false; }
+}
+// Restore a group after a tab refresh, or prompt to join from an invite link.
+function initGroupOrder() {
+  let saved = null;
+  try { saved = JSON.parse(sessionStorage.getItem(GRP_KEY) || 'null'); } catch {}
+  const joinCode = (params.get('join') || '').trim();
+  if (joinCode && /^[A-Za-z0-9]{4,12}$/.test(joinCode) && !(saved && saved.code && saved.code.toUpperCase() === joinCode.toUpperCase())) {
+    openGroupJoin(joinCode.toUpperCase());
+    return;
+  }
+  if (saved && saved.code) {
+    _grp.code = saved.code; _grp.name = saved.name || '';
+    groupRefresh(false);
+  }
+}
+setTimeout(initGroupOrder, 400);
+
 function openCart() {
-  if (!state.cart.length) return toast('Your cart is empty', 'err');
+  if (_grp.code) return openGroupCart();
+  if (!state.cart.length) {
+    toast('Your cart is empty', 'err');
+    if (state.settings && state.settings.features && state.settings.features.orders) {
+      openSheet('<h3>Your cart is empty</h3><div class="sh-sub">Add dishes, or start a shared cart for the whole table.</div><button type="button" class="ohr-reorder" id="groupStart" style="width:100%;margin-top:10px">👥 Order as a group</button>');
+      $('groupStart').onclick = openGroupStart;
+    }
+    return;
+  }
   // Snapshot the current form values BEFORE we re-render (openSheet wipes them)
   const prevNote = $('orderNote')?.value; if (prevNote != null) _cartDraft.note = prevNote;
   const prevTbl  = $('orderTable')?.value; if (prevTbl != null) _cartDraft.tableInput = prevTbl;
@@ -2608,7 +2895,9 @@ function openCart() {
     ${!table ? `<div class="field"><label>Your table number (optional)</label><input id="orderTable" placeholder="e.g. 12" value="${escapeHTML(_cartDraft.tableInput)}" /></div>` : ''}
     <button class="submit" id="orderSend">Send to kitchen →</button>
     <button type="button" class="ohr-reorder" id="saveUsual" style="width:100%;margin-top:10px">🥡 Save as usual</button>
+    <button type="button" class="ohr-reorder" id="groupStart" style="width:100%;margin-top:10px">👥 Order as a group</button>
   `);
+  $('groupStart').onclick = openGroupStart;
   document.querySelectorAll('[data-tip]').forEach(b => b.onclick = () => { _tipPct = +b.dataset.tip; openCart(); });
   document.querySelectorAll('[data-inc]').forEach(b => b.onclick = () => { state.cart[b.dataset.inc].qty++; saveCart(); openCart(); updateActionbar(); });
   document.querySelectorAll('[data-dec]').forEach(b => b.onclick = () => {

@@ -667,7 +667,7 @@
       <td>${c.dishes}</td>
       <td>${c.scans_30d.toLocaleString()}</td>
       <td><span class="status">live</span></td>
-      <td><button class="row-del" aria-label="Delete restaurant" data-del-slug="${escapeHTML(c.slug)}" data-del-name="${escapeHTML(c.name)}" title="Delete restaurant" style="background:rgba(248,113,113,.1);color:#f87171;border:1px solid rgba(248,113,113,.25);padding:4px 8px;border-radius:6px;font-size:11px;cursor:pointer">🗑</button></td>
+      <td style="white-space:nowrap"><button class="row-dup" aria-label="Duplicate restaurant" data-dup-slug="${escapeHTML(c.slug)}" data-dup-name="${escapeHTML(c.name)}" title="Duplicate restaurant (copies menu, settings and slots)" style="background:rgba(232,197,138,.1);color:#e8c58a;border:1px solid rgba(232,197,138,.25);padding:4px 8px;border-radius:6px;font-size:11px;cursor:pointer;margin-right:6px">🔁 Duplicate</button><button class="row-del" aria-label="Delete restaurant" data-del-slug="${escapeHTML(c.slug)}" data-del-name="${escapeHTML(c.name)}" title="Delete restaurant" style="background:rgba(248,113,113,.1);color:#f87171;border:1px solid rgba(248,113,113,.25);padding:4px 8px;border-radius:6px;font-size:11px;cursor:pointer">🗑</button></td>
     </tr>`;
   }
   function tableShell(rows) {
@@ -714,7 +714,7 @@
     $('dashClientsWrap').innerHTML = html;
     $('clientsWrap').innerHTML = html;
     document.querySelectorAll('tr[data-slug]').forEach(tr => tr.addEventListener('click', (e) => {
-      if (e.target.closest('.row-del')) return;
+      if (e.target.closest('.row-del') || e.target.closest('.row-dup')) return;
       openClient(tr.dataset.slug);
     }));
     // Sort header clicks
@@ -722,6 +722,34 @@
       const key = th.dataset.sort;
       if (_sortKey === key) _sortAsc = !_sortAsc; else { _sortKey = key; _sortAsc = true; }
       renderClients();
+    }));
+    // Duplicate restaurant (master admin; the server refuses scoped tokens with 403)
+    document.querySelectorAll('[data-dup-slug]').forEach(btn => btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const src = btn.dataset.dupSlug;
+      const new_name = (prompt('Name for the new restaurant?', btn.dataset.dupName + ' (copy)') || '').trim();
+      if (!new_name) return;
+      const slugify = t => t.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
+      const new_slug = (prompt('URL slug for the new restaurant (lowercase letters, numbers, dashes)?', slugify(new_name)) || '').trim().toLowerCase();
+      if (!new_slug) return;
+      const new_email = (prompt('Manager email for the new restaurant?') || '').trim();
+      if (!new_email) return;
+      if (!confirm('Duplicate "' + src + '" as "' + new_name + '" (/r/' + new_slug + ')?\n\nThis copies the menu, settings and menu slots, and assigns ' + new_email + ' as manager.')) return;
+      btn.disabled = true;
+      try {
+        const out = await api('/api/admin/duplicate-restaurant', { method: 'POST', body: JSON.stringify({ source_slug: src, new_name, new_slug, new_email }) });
+        const r = out.restaurant || { slug: new_slug, name: new_name };
+        toast('Duplicated as ' + r.name, 'ok');
+        const note = document.createElement('div');
+        note.setAttribute('role', 'status');
+        note.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:9999;background:#1b1712;color:#f5ecd8;border:1px solid rgba(232,197,138,.4);padding:12px 16px;border-radius:10px;font-size:13px;box-shadow:0 8px 30px rgba(0,0,0,.5)';
+        note.innerHTML = 'Created <b>' + escapeHTML(r.name) + '</b> (/r/' + escapeHTML(r.slug) + ') &nbsp;<a href="#" data-open-new style="color:#e8c58a">Open it &rarr;</a> &nbsp;<a href="#" data-dismiss style="color:#9a8f7a">dismiss</a>';
+        document.body.appendChild(note);
+        note.querySelector('[data-open-new]').onclick = ev => { ev.preventDefault(); note.remove(); openClient(r.slug); };
+        note.querySelector('[data-dismiss]').onclick = ev => { ev.preventDefault(); note.remove(); };
+        setTimeout(() => note.remove(), 20000);
+        loadOverview();
+      } catch (err) { if (err.message !== 'unauth') toast(err.message, 'err'); btn.disabled = false; }
     }));
     // Delete restaurant with confirm
     document.querySelectorAll('[data-del-slug]').forEach(btn => btn.addEventListener('click', async (e) => {

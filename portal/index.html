@@ -444,6 +444,12 @@
           <div class="action" id="schedulesAction">
             <span class="ico">⏰</span><div><h3>Menu scheduler</h3><p>Auto-switch breakfast / lunch / dinner.</p></div>
           </div>
+          <div class="action" id="menuSlotsAction">
+            <span class="ico">🕐</span><div><h3>Menu slots</h3><p>Breakfast / lunch / dinner windows for dishes.</p></div>
+          </div>
+          <div class="action" id="photoReviewsAction">
+            <span class="ico">🖼</span><div><h3>Photo reviews</h3><p>Approve or reject guest dish photos.</p></div>
+          </div>
         </div>
       </div>
 
@@ -485,6 +491,9 @@
           </div>
           <div class="action" id="staffAction2">
             <span class="ico">👥</span><div><h3>Staff PINs</h3><p>Waiter + kitchen tablet PINs.</p></div>
+          </div>
+          <div class="action" id="bulkStaffAction" title="Format: Name,Role,PIN&#10;Example: Thandi Nkosi,waiter,4821&#10;PIN is optional - auto-generated if empty">
+            <span class="ico">👥</span><div><h3>Bulk staff import</h3><p>Paste a CSV: Name,Role,PIN (PIN optional).</p></div>
           </div>
           <div class="action" id="teamAction">
             <span class="ico">✉</span><div><h3>Team members</h3><p>Invite co-managers to access this portal.</p></div>
@@ -995,6 +1004,7 @@
           stock_count: btn.dataset.stock === '' ? null : parseInt(btn.dataset.stock),
           category_id: full.category_id || null,
           station_id: full.station_id || null,
+          id: full.id || null,
           translations: full.translations || {}
         });
       }
@@ -1388,6 +1398,7 @@
     return groups;
   }
 
+  const DOW_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   async function openDishEditor(existing) {
     // Reuse the wizard overlay chrome for a familiar modal look
     const isEdit = !!existing;
@@ -1402,6 +1413,15 @@
     try {
       const sr = await mgrFetch(`/api/admin/kitchen-stations?slug=${CURRENT.restaurant.slug}`);
       if (sr.ok) stations = sr.data.stations || [];
+    } catch {}
+    // Menu slots for the "Available during" picker (best-effort; none = hide picker)
+    let menuSlots = [], currentSlotId = '';
+    try {
+      const mr = await mgrFetch(`/api/admin/menu-slots?slug=${encodeURIComponent(CURRENT.restaurant.slug)}`);
+      if (mr.ok) {
+        menuSlots = mr.data.slots || [];
+        if (existing && existing.id) currentSlotId = (mr.data.dish_slots || {})[existing.id] || '';
+      }
     } catch {}
     $('wizKicker').textContent = isEdit ? 'Edit dish' : 'New dish';
     $('wizTitle').textContent  = isEdit ? existing.name : 'Add a new dish';
@@ -1424,6 +1444,11 @@
             ${stations.map(st => `<option value="${st.id}" ${existing?.station_id === st.id ? 'selected' : ''}>${escapeHTML(st.name)}</option>`).join('')}
           </select>
           <div style="font-size:11px;color:var(--ink-faint);margin-top:4px">Which kitchen screen sees this dish. Leave blank to show on every screen.</div></div>` : ''}
+        ${menuSlots.length ? `<div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:4px">Available during</div>
+          <select id="dishMenuSlot" style="width:100%;padding:11px 13px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:14px">
+            <option value="">Always</option>
+            ${menuSlots.map(sl => `<option value="${escapeHTML(sl.id)}" ${currentSlotId === sl.id ? 'selected' : ''}>${escapeHTML(sl.name)} (${escapeHTML(sl.starts_time)}-${escapeHTML(sl.ends_time)})</option>`).join('')}
+          </select></div>` : ''}
         <div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:4px">Description</div>
           <textarea id="dishDesc" rows="2" style="width:100%;padding:11px 13px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:14px;font-family:inherit;resize:vertical" placeholder="Aged beef patty, sharp cheddar, brioche.">${escapeHTML(existing?.description || '')}</textarea></div>
         <div>
@@ -1527,6 +1552,18 @@ Sub gluten-free bun +1200</code></div>
         delBtn.disabled = false; delBtn.textContent = origDelLabel;
       }
     };
+    // dishes.js does not accept menu_slot_id; the menu-slots "assign" action is the write path.
+    // Only called when the picker is shown AND the choice changed.
+    async function assignDishSlot(target, before) {
+      const el = $('dishMenuSlot');
+      if (!el) return;
+      const val = el.value || '';
+      if (val === before) return;
+      const r = await mgrFetch(`/api/admin/menu-slots?slug=${encodeURIComponent(CURRENT.restaurant.slug)}`, {
+        method: 'POST', body: JSON.stringify({ action: 'assign', ...target, menu_slot_id: val || null })
+      });
+      if (!r.ok) throw new Error(r.data.error || 'Could not set "Available during"');
+    }
     $('dishSaveBtn').onclick = async () => {
       const name = $('dishName').value.trim();
       const price = $('dishPrice').value.trim();
@@ -1557,6 +1594,7 @@ Sub gluten-free bun +1200</code></div>
             method: 'PATCH', body: JSON.stringify(patch)
           });
           if (!ok) throw new Error(data.error || 'Save failed');
+          await assignDishSlot({ dish_slug: existing.slug }, currentSlotId);
           toast('Saved', 'ok');
         } else {
           // Upload GLB first if provided
@@ -1576,6 +1614,7 @@ Sub gluten-free bun +1200</code></div>
             body: JSON.stringify({ restaurant_slug: CURRENT.restaurant.slug, name, price, description, glb_url, ar_source: file ? 'upload' : 'vendor', translations, category_id, modifiers, ...(station_id ? { station_id } : {}) })
           });
           if (!ok) throw new Error(data.error || 'Create failed');
+          await assignDishSlot({ dish_id: data && data.id, dish_slug: data && data.slug }, '');
           toast('Dish added', 'ok');
         }
         $('wizOverlay').classList.remove('on');
@@ -1786,6 +1825,49 @@ Sub gluten-free bun +1200</code></div>
     }, 100);
   }
 
+  // ============= GUEST PHOTO REVIEWS =============
+  async function openPhotoReviewsModal() {
+    const slug = CURRENT.restaurant.slug;
+    const api = `/api/admin/dish-photos?slug=${encodeURIComponent(slug)}`;
+    $('wizKicker').textContent = 'Menu';
+    $('wizTitle').textContent = 'Photo reviews';
+    $('wizProgress').innerHTML = '';
+    $('wizBody').innerHTML = `<p style="color:var(--ink-dim);margin-bottom:14px">Guest photos wait here until you approve them. Approved photos show on the menu; rejected ones are deleted.</p>
+      <div id="prBody" style="max-height:52vh;overflow-y:auto"></div>
+      <div id="prErr" style="color:#f87171;font-size:12.5px;min-height:16px;margin-top:8px"></div>`;
+    $('wizActions').innerHTML = `<button class="wiz-secondary" id="prClose">Close</button>`;
+    $('wizOverlay').classList.add('on');
+    $('wizClose').onclick = $('prClose').onclick = () => $('wizOverlay').classList.remove('on');
+    const btn = 'padding:8px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;';
+    async function refresh() {
+      $('prErr').textContent = '';
+      const box = $('prBody');
+      const r = await mgrFetch(api, { method: 'GET' });
+      if (!r.ok) { $('prErr').textContent = (r.data && r.data.error) || 'Could not load photos'; return; }
+      const list = Array.isArray(r.data.pending) ? r.data.pending : [];
+      if (!list.length) { box.innerHTML = '<div class="empty-state"><h3>No photos waiting</h3><p>New guest photos will appear here.</p></div>'; return; }
+      box.innerHTML = list.map(p => `<div data-pr="${escapeHTML(p.id)}" style="display:flex;gap:12px;align-items:center;padding:10px;border-radius:9px;background:rgba(245,236,216,.03);margin-bottom:8px;flex-wrap:wrap">
+        <a href="${escapeHTML(p.photo_url)}" target="_blank" rel="noopener"><img src="${escapeHTML(p.photo_url)}" alt="Guest photo of ${escapeHTML(p.dish_name || 'dish')}" loading="lazy" style="width:96px;height:96px;object-fit:cover;border-radius:8px"></a>
+        <div style="flex:1;min-width:120px"><div style="font-weight:600;font-size:14px">${escapeHTML(p.dish_name || 'Dish')}</div>
+          <div style="color:var(--ink-faint);font-size:11px;font-family:var(--mono)">${escapeHTML(p.created_at ? new Date(p.created_at).toLocaleString() : '')}</div></div>
+        <button data-prok="${escapeHTML(p.id)}" style="${btn}background:rgba(143,169,113,.15);color:#8fa971;border:1px solid rgba(143,169,113,.3)">Approve</button>
+        <button data-prno="${escapeHTML(p.id)}" style="${btn}background:rgba(248,113,113,.1);color:#f87171;border:1px solid rgba(248,113,113,.25)">Reject</button>
+      </div>`).join('');
+    }
+    $('prBody').addEventListener('click', async (e) => {
+      const ok = e.target.closest('[data-prok]'), no = e.target.closest('[data-prno]');
+      const b = ok || no;
+      if (!b) return;
+      b.disabled = true;
+      // The shared handler moderates via POST { slug, rating_id, action } (audited, restaurant-scoped).
+      const r = await mgrFetch(api, { method: 'POST', body: JSON.stringify({ slug, rating_id: ok ? ok.dataset.prok : no.dataset.prno, action: ok ? 'approve' : 'reject' }) });
+      if (!r.ok) { $('prErr').textContent = (r.data && r.data.error) || 'Failed'; b.disabled = false; return; }
+      toast(ok ? 'Photo approved' : 'Photo rejected', 'ok');
+      refresh();
+    });
+    refresh();
+  }
+
   // ============= KITCHEN STATIONS =============
   function stationSlug(name) {
     return String(name || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
@@ -1959,6 +2041,7 @@ Sub gluten-free bun +1200</code></div>
     if (e.target.closest('#combosAction'))       openCombosModal();
     if (e.target.closest('#reservationsAction')) openReservationsModal();
     if (e.target.closest('#schedulesAction'))    openSchedulesModal();
+    if (e.target.closest('#photoReviewsAction')) openPhotoReviewsModal();
     if (e.target.closest('#bulkImportAction'))   openBulkImportModal();
     if (e.target.closest('#bulkPriceAction'))    openBulkPriceModal();
     if (e.target.closest('#duplicateDishAction')) openDuplicateDishModal();
@@ -1967,6 +2050,8 @@ Sub gluten-free bun +1200</code></div>
     if (e.target.closest('#fullToggleAction'))   toggleRestaurantFull();
     if (e.target.closest('#teamAction'))         openTeamModal();
     if (e.target.closest('#shiftsAction'))       openShiftsModal();
+    if (e.target.closest('#menuSlotsAction'))    openMenuSlotsModal();
+    if (e.target.closest('#bulkStaffAction'))    openBulkStaffModal();
     if (e.target.closest('#prepSheetAction'))    openPrepSheetModal();
     if (e.target.closest('#analyticsAction'))    openAnalyticsModal();
     if (e.target.closest('#staffPerfAction'))    openStaffPerfModal();
@@ -2197,6 +2282,123 @@ Sub gluten-free bun +1200</code></div>
       load();
     };
     load();
+  }
+
+  // ============= MENU SLOTS =============
+  async function openMenuSlotsModal() {
+    const slug = CURRENT.restaurant.slug;
+    const base = `/api/admin/menu-slots?slug=${encodeURIComponent(slug)}`;
+    const inp = 'padding:9px 10px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:13px';
+    $('wizKicker').textContent = 'Menu';
+    $('wizTitle').textContent = 'Menu slots';
+    $('wizProgress').innerHTML = '';
+    $('wizBody').innerHTML = `
+      <p style="color:var(--ink-dim);margin-bottom:12px">Time windows such as Breakfast or Dinner. Set a dish's "Available during" in the dish editor. Dishes with no slot are always shown.</p>
+      <div id="msList" style="max-height:34vh;overflow:auto;margin-bottom:12px"></div>
+      <details id="msAddWrap" style="background:rgba(245,236,216,.03);border:1px solid var(--line);border-radius:9px;padding:8px 12px">
+        <summary style="cursor:pointer;font-size:13px;color:var(--ink-dim)">+ Add slot</summary>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
+          <input id="msName" maxlength="60" placeholder="Name, e.g. Breakfast" style="${inp}" />
+          <div style="display:flex;gap:8px;align-items:center"><input id="msStart" type="time" value="06:00" style="${inp};flex:1" /><span style="color:var(--ink-faint)">to</span><input id="msEnd" type="time" value="11:00" style="${inp};flex:1" /></div>
+          <div id="msDays" style="display:flex;flex-wrap:wrap;gap:10px">${[1, 2, 3, 4, 5, 6, 0].map(d => `<label style="font-size:12.5px;display:flex;gap:4px;align-items:center;cursor:pointer"><input type="checkbox" class="msDay" value="${d}" checked /> ${DOW_NAMES[d]}</label>`).join('')}</div>
+          <button class="wiz-primary" id="msAdd" type="button">Add slot</button>
+        </div>
+      </details>
+      <div id="msErr" style="color:#f87171;font-size:12.5px;min-height:16px;margin-top:8px"></div>`;
+    $('wizActions').innerHTML = `<button class="wiz-secondary" id="msClose">Close</button>`;
+    $('wizOverlay').classList.add('on');
+    $('wizClose').onclick = $('msClose').onclick = () => $('wizOverlay').classList.remove('on');
+    const err = m => { $('msErr').textContent = m || ''; };
+    const dayChips = days => [1, 2, 3, 4, 5, 6, 0].filter(d => days.includes(d)).map(d => `<span style="font-size:10.5px;padding:1px 6px;border-radius:99px;background:rgba(232,197,138,.12);color:#e8c58a">${DOW_NAMES[d]}</span>`).join(' ');
+    async function load() {
+      const { ok, data } = await mgrFetch(base);
+      if (!ok) { $('msList').innerHTML = ''; err(data.error || 'Could not load slots'); return; }
+      const slots = data.slots || [];
+      if (data.migrated === false) err('Menu slots are not set up on this database yet.');
+      $('msList').innerHTML = slots.length ? slots.map(sl => `
+        <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line)">
+          <div style="min-width:0"><div style="font-weight:600;font-size:14px">${escapeHTML(sl.name)} <span style="font-weight:400;color:var(--ink-dim);font-size:12.5px">${escapeHTML(sl.starts_time)}-${escapeHTML(sl.ends_time)}</span></div>
+            <div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:4px">${dayChips(sl.days_of_week)}</div></div>
+          <div style="display:flex;gap:10px;align-items:center;flex-shrink:0">
+            <label style="font-size:12px;display:flex;gap:4px;align-items:center;cursor:pointer"><input type="checkbox" data-ms-active="${escapeHTML(sl.id)}" ${sl.active ? 'checked' : ''} /> Active</label>
+            <button type="button" class="wiz-secondary" data-ms-del="${escapeHTML(sl.id)}" data-ms-name="${escapeHTML(sl.name)}" style="padding:4px 9px;color:#f87171" aria-label="Delete slot">Delete</button>
+          </div>
+        </div>`).join('') : '<div style="color:var(--ink-faint);font-size:13px">No slots yet - dishes are always available.</div>';
+      $('msList').querySelectorAll('[data-ms-active]').forEach(cb => cb.onchange = async () => {
+        err('');
+        const r = await mgrFetch(`/api/admin/menu-slots?id=${encodeURIComponent(cb.dataset.msActive)}`, { method: 'PATCH', body: JSON.stringify({ active: cb.checked }) });
+        if (!r.ok) { err(r.data.error || 'Update failed'); cb.checked = !cb.checked; }
+      });
+      $('msList').querySelectorAll('[data-ms-del]').forEach(b => b.onclick = async () => {
+        if (!confirm(`Delete slot "${b.dataset.msName}"? Its dishes become always-available.`)) return;
+        err('');
+        const r = await mgrFetch(`/api/admin/menu-slots?id=${encodeURIComponent(b.dataset.msDel)}`, { method: 'DELETE' });
+        if (!r.ok) return err(r.data.error || 'Delete failed');
+        load();
+      });
+    }
+    $('msAdd').onclick = async () => {
+      err('');
+      const name = $('msName').value.trim();
+      const days = [...document.querySelectorAll('.msDay')].filter(c => c.checked).map(c => Number(c.value));
+      if (!name) return err('Name is required');
+      if (!days.length) return err('Pick at least one day');
+      const btn = $('msAdd'); btn.disabled = true;
+      try {
+        const r = await mgrFetch(base, { method: 'POST', body: JSON.stringify({ name, starts_time: $('msStart').value, ends_time: $('msEnd').value, days_of_week: days }) });
+        if (!r.ok) return err(r.data.error || 'Could not add slot');
+        $('msName').value = '';
+        $('msAddWrap').open = false;
+        toast('Slot added', 'ok');
+        load();
+      } finally { btn.disabled = false; }
+    };
+    load();
+  }
+
+  // ============= BULK STAFF IMPORT =============
+  function openBulkStaffModal() {
+    const slug = CURRENT.restaurant.slug;
+    $('wizKicker').textContent = 'Team & tables';
+    $('wizTitle').textContent = 'Bulk staff import';
+    $('wizProgress').innerHTML = '';
+    $('wizBody').innerHTML = `
+      <p style="color:var(--ink-dim);margin-bottom:8px">One person per line, with a header row. <span id="bsTip" title="Format: Name,Role,PIN&#10;Example: Thandi Nkosi,waiter,4821&#10;PIN is optional - auto-generated if empty" style="cursor:help;border-bottom:1px dotted var(--ink-faint)">Format? (hover)</span></p>
+      <textarea id="bsText" rows="7" style="width:100%;padding:11px 13px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:12.5px;font-family:'JetBrains Mono',monospace;resize:vertical" placeholder="Name,Role,PIN&#10;Thandi Nkosi,waiter,4821&#10;Sipho Dlamini,kitchen,"></textarea>
+      <div style="font-size:11px;color:var(--ink-faint);margin-top:4px">Roles: waiter, kitchen, manager. Max 50 rows.</div>
+      <div id="bsOut" style="margin-top:10px;max-height:28vh;overflow:auto;font-size:12.5px"></div>
+      <div id="bsErr" style="color:#f87171;font-size:12.5px;min-height:16px;margin-top:6px"></div>`;
+    $('wizActions').innerHTML = `<button class="wiz-secondary" id="bsCancel">Close</button><button class="wiz-secondary" id="bsPreview">Preview (no changes)</button><button class="wiz-primary" id="bsImport">Import &amp; create</button>`;
+    $('wizOverlay').classList.add('on');
+    $('wizClose').onclick = $('bsCancel').onclick = () => $('wizOverlay').classList.remove('on');
+    const errList = arr => (arr && arr.length) ? `<div style="color:#f59e0b;margin-top:8px"><b>Skipped / warnings (${arr.length})</b><ul style="margin:4px 0 0 18px">${arr.map(x => `<li>${escapeHTML(x)}</li>`).join('')}</ul></div>` : '';
+    async function run(preview) {
+      $('bsErr').textContent = '';
+      const csv_text = $('bsText').value;
+      if (!csv_text.trim()) { $('bsErr').textContent = 'Paste some CSV first'; return; }
+      const btns = [$('bsPreview'), $('bsImport')]; btns.forEach(b => b.disabled = true);
+      try {
+        const { ok, data } = await mgrFetch('/api/admin/bulk-staff', { method: 'POST', body: JSON.stringify(preview ? { slug, csv_text, preview: true } : { slug, csv_text }) });
+        if (!ok) { $('bsErr').textContent = data.error || 'Request failed'; return; }
+        if (preview) {
+          const rows = data.parsed || [];
+          $('bsOut').innerHTML = '<div style="color:#f59e0b;margin-bottom:6px"><b>PREVIEW ONLY - nothing has been saved.</b> Click Import to create these accounts.</div>' + (rows.length ? `<table style="width:100%;border-collapse:collapse"><thead><tr><th align="left">Row</th><th align="left">Name</th><th align="left">Role</th><th align="left">PIN</th></tr></thead><tbody>${rows.map(p => `<tr><td>${escapeHTML(String(p.row))}</td><td>${escapeHTML(p.name)}</td><td>${escapeHTML(p.role)}</td><td>${p.pin_generated ? '<i>auto</i>' : escapeHTML(p.pin || '')}</td></tr>`).join('')}</tbody></table>` : '<div>No valid rows.</div>') + errList(data.errors);
+        } else {
+          const created = data.created || [];
+          const errs = data.errors || [];
+          $('bsOut').innerHTML = `<div style="color:#4ade80"><b>Imported ${Number(data.count) || created.length} staff</b>${errs.length ? ` - skipped ${errs.length}` : ''}</div>`
+            + (created.length ? `<div style="margin-top:6px;color:var(--ink-dim)">PINs are shown only once - note them now:</div><table style="width:100%;border-collapse:collapse"><tbody>${created.map(c => `<tr><td>${escapeHTML(c.name)}</td><td>${escapeHTML(c.role)}</td><td style="font-family:var(--mono)">${escapeHTML(c.pin)}</td></tr>`).join('')}</tbody></table>` : '')
+            + errList(errs);
+          toast('Staff imported', 'ok');
+        }
+      } catch (e) { $('bsErr').textContent = e.message; }
+      finally { btns.forEach(b => b.disabled = false); }
+    }
+    $('bsPreview').onclick = () => run(true);
+    $('bsImport').onclick = () => {
+      if (!$('bsText').value.trim()) { $('bsErr').textContent = 'Paste some CSV first'; return; }
+      if (confirm('Import these staff now? This creates real accounts (use Preview to check first).')) run(false);
+    };
   }
 
   async function openPrepSheetModal() {
@@ -3688,9 +3890,12 @@ Sub gluten-free bun +1200</code></div>
       clickCmd('categoriesAction', 'Categories', 'Your menu', ['starters', 'mains', 'desserts']),
       clickCmd('combosAction', 'Combos', 'Your menu', ['bundle', 'meal deal', 'set menu']),
       clickCmd('offersAction', 'Happy hour & offers', 'Your menu', ['discount', 'promo']),
+      clickCmd('photoReviewsAction', 'Photo reviews', 'Your menu', ['photo', 'image', 'moderate', 'approve']),
       clickCmd('schedulesAction', 'Menu scheduler', 'Your menu', ['breakfast', 'lunch', 'dinner', 'schedule']),
       clickCmd('tablesAction', 'Tables & waiters', 'Team & tables', ['table', 'assign', 'qr']),
       clickCmd('stationsAction', 'Kitchen stations', 'Team & tables', ['station', 'kitchen', 'expo', 'screen']),
+      clickCmd('menuSlotsAction', 'Menu slots', 'Your menu', ['breakfast', 'lunch', 'dinner', 'available', 'time']),
+      clickCmd('bulkStaffAction', 'Bulk staff import', 'Team & tables', ['csv', 'import', 'staff', 'pin']),
       clickCmd('staffAction2', 'Staff PINs', 'Team & tables', ['pin', 'waiter', 'kitchen']),
       clickCmd('analyticsAction', 'Analytics', 'Live now', ['revenue', 'heatmap', 'dishes', 'retention', 'stats']),
       clickCmd('teamAction', 'Team members', 'Team & tables', ['invite', 'manager']),

@@ -95,16 +95,16 @@ let restaurantName = '';
 async function load() {
   if (!slug) return document.getElementById('root').innerHTML = '<div class="msg">Missing ?r=&lt;restaurant-slug&gt;</div>';
   try {
-    const client = await api('/api/admin/client?slug=' + slug);
+    const client = await api('/api/admin/client?slug=' + encodeURIComponent(slug));
     restaurantName = client.restaurant.name || '';
     document.getElementById('restName').textContent = client.restaurant.name;
 
     if (type === 'tables') {
-      const t = await api('/api/admin/tables?slug=' + slug);
+      const t = await api('/api/admin/tables?slug=' + encodeURIComponent(slug));
       cachedItems = (t.tables || []).map(x => ({
         title: 'Table ' + x.label,
         subtitle: (x.seats || 2) + ' seat' + (x.seats === 1 ? '' : 's'),
-        url: `${location.origin}/t/${slug}/${encodeURIComponent(x.label)}`,
+        url: `${location.origin}/t/${encodeURIComponent(slug)}/${encodeURIComponent(x.label)}`,
         code: x.label
       }));
     } else if (type === 'kitchen') {
@@ -121,14 +121,14 @@ async function load() {
       cachedItems = (client.dishes || []).map(x => ({
         title: x.name,
         subtitle: x.price || '',
-        url: `${location.origin}/view.html?r=${slug}&d=${x.slug}`,
+        url: `${location.origin}/view.html?r=${encodeURIComponent(slug)}&d=${encodeURIComponent(x.slug)}`,
         code: x.slug
       }));
     } else {
       cachedItems = [{
         title: client.restaurant.name,
         subtitle: 'Full menu · AR-enabled',
-        url: `${location.origin}/m/${slug}`,
+        url: `${location.origin}/m/${encodeURIComponent(slug)}`,
         code: 'menu'
       }];
     }
