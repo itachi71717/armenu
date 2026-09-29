@@ -72,7 +72,13 @@ export default async function handler(req, res) {
         if (dishIds.length) {
           const { data: ds = [] } = await supabase.from('dishes')
             .select('id, station_id').in('id', dishIds);
-          mineDishes = new Set(ds.filter(d => d.station_id === session.station_id).map(d => d.id));
+          // A dish with NO station (station_id NULL, or its station was deleted) is visible to every
+          // station; so is a dish row we can no longer find. Only dishes routed to ANOTHER station are hidden.
+          const known = new Map(ds.map(d => [d.id, d]));
+          mineDishes = new Set(dishIds.filter(id => {
+            const d = known.get(id);
+            return !d || d.station_id == null || d.station_id === session.station_id;
+          }));
         }
         result = filterOrdersForStation(orders, mineDishes);
       }
@@ -131,7 +137,9 @@ export default async function handler(req, res) {
     const { data: order, error: orderErr } = await supabaseAdmin.from('orders').insert({
       restaurant_id: session.restaurant_id,
       table_id, table_label,
-      taken_by: session.staff_id,
+      // Manager hand-off sessions use a synthetic staff id ('manager-<uuid>') that is not a uuid,
+      // which would make this insert fail; only real staff rows can be recorded as taken_by.
+      taken_by: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(session.staff_id)) ? session.staff_id : null,
       source: 'staff',
       status: 'new',
       subtotal_cents: subtotal, total_cents: subtotal,
@@ -285,7 +293,8 @@ export function filterOrdersForStation(orders, mineDishes) {
   for (const o of orders) {
     let any = false;
     o.order_items = (o.order_items || []).map(it => {
-      const mine = mineDishes.has(it.dish_id);
+      // Custom / dish-less line items have no station to route by, so every station sees them.
+      const mine = !it.dish_id || mineDishes.has(it.dish_id);
       if (mine) any = true;
       return { ...it, mine };
     });
@@ -309,6 +318,8 @@ async function handleRecall(req, res, session, body) {
   const reason = String(rawReason == null || rawReason === true || rawReason === '1' ? '' : rawReason).slice(0, 500) || null;
   // Un-plate so the kitchen sees it as outstanding again.
   await supabaseAdmin.from('order_items').update({ recalled_at: new Date().toISOString(), recall_reason: reason, plated_at: null }).eq('id', itemId);
+  // TODO(speculative): /api/events emits COUNT-based signals, so a ready->prep recall (no count change) reaches kitchen
+  // tablets on their 12s poll rather than instantly over SSE.
   // Put a ready/served order back on the kitchen board.
   if (order.status === 'ready' || order.status === 'served') {
     await supabaseAdmin.from('orders').update({ status: 'prep', updated_at: new Date().toISOString() }).eq('id', order.id);

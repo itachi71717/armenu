@@ -49,7 +49,7 @@ function cols(list) {
 // Everything else stringifies via the default driver.
 const PG_ARRAY_COLS = new Set([
   'days_of_week', 'dish_ids', 'category_ids', 'enabled_languages',
-  'allergies', 'dietary_prefs', 'item_ids'
+  'allergies', 'dietary_prefs', 'item_ids', 'item_slugs'
 ]);
 export function toPgArrayLiteral(arr) {
   // Empty array → {}

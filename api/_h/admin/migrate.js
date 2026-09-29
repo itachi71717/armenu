@@ -14,12 +14,15 @@ import { auditLog } from '../_audit.js';
 export const REQUIRED = {
   tables: ['restaurants', 'dishes', 'orders', 'order_items', 'reservations', 'restaurant_settings',
     'restaurant_tables', 'staff', 'waiter_calls', 'reviews', 'offers', 'menu_schedules', 'categories',
-    'audit_log', 'manager_users', 'push_subscriptions', 'staff_login_attempts'],
+    'audit_log', 'manager_users', 'push_subscriptions', 'staff_login_attempts',
+    'pending_signups', 'customers', 'kitchen_stations', 'customer_dish_ratings', 'shifts', 'waitlist_entries'],
   columns: {
-    orders: ['client_order_id', 'cancelled_at', 'cancel_reason', 'tip_cents'],
+    orders: ['client_order_id', 'cancelled_at', 'cancel_reason', 'tip_cents', 'paid_cents', 'rush', 'customer_id'],
+    order_items: ['plated_at', 'paid_by', 'paid_at', 'recalled_at', 'recall_reason'],
+    waiter_calls: ['type'],
     reservations: ['duration_minutes', 'guest_email'],
     restaurant_settings: ['timezone'],
-    dishes: ['modifiers', 'stock_count', 'allergens', 'translations', 'sort_order', 'category_id'],
+    dishes: ['modifiers', 'stock_count', 'allergens', 'translations', 'sort_order', 'category_id', 'station_id'],
     restaurant_tables: ['assigned_staff_id'],
   },
 };

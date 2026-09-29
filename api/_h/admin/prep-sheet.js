@@ -61,7 +61,13 @@ export default async function handler(req, res) {
 
   const dishes = (rows || []).map(x => ({
     dish_name: x.dish_name,
-    avg_qty: Math.round(Number(x.avg_qty) * 10) / 10,
+    // One portion sold in four weeks averages 0.25; rounding that to 1dp is fine (0.3) but a tiny
+    // positive value must never display as 0, so fall back to 2dp.
+    avg_qty: (() => {
+      const v = Number(x.avg_qty) || 0;
+      const r1 = Math.round(v * 10) / 10;
+      return r1 === 0 && v > 0 ? Math.round(v * 100) / 100 : r1;
+    })(),
     station_name: x.station_name || null,
     category_name: x.category_name || null
   }));

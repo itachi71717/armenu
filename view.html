@@ -416,6 +416,7 @@
   const params = new URLSearchParams(location.search);
   const r = params.get('r') || 'demo';
   const d = params.get('d') || 'avocado';
+  let _noModel = false;   // dish has no .glb uploaded yet
 
   // ============ CUSTOMER PROFILE (identity + favourite heart) ============
   let customerToken = null;
@@ -428,7 +429,14 @@
     } catch { return null; }
   }
   customerToken = getCustomerToken();
-  async function refreshCustomer() {
+  // One refresh at a time (page load + visibilitychange + bfcache restore can overlap).
+  let _refreshing = null, _customerSettled = false, _favPending = 0, _favBusy = false;
+  function refreshCustomer() {
+    if (_refreshing) return _refreshing;
+    _refreshing = _refreshCustomer().catch(() => {}).finally(() => { _refreshing = null; _customerSettled = true; });
+    return _refreshing;
+  }
+  async function _refreshCustomer() {
     if (!customerToken) return;
     try {
       await fetch('/api/customer/hello', {
@@ -442,7 +450,8 @@
         const data = await res.json();
         if (data.customer) customer = data.customer;
         const favs = Array.isArray(data.favourites) ? data.favourites : [];
-        _isFavourited = favs.some(f => f.restaurant_slug === r && f.dish_slug === d);
+        // Don't clobber an optimistic toggle that's still in flight with a snapshot that predates it.
+        if (_favPending === 0) _isFavourited = favs.some(f => f.restaurant_slug === r && f.dish_slug === d);
       }
     } catch {}
     syncHeartBtn();
@@ -456,26 +465,44 @@
   }
   async function toggleFavourite() {
     const btn = document.getElementById('heartBtn');
-    if (!btn) return;
-    const was = _isFavourited;
-    _isFavourited = !was;
-    syncHeartBtn();
+    if (!btn || _favBusy) return;   // ignore taps while a request is in flight (double-tap)
+    _favBusy = true;
     try {
-      const res = await fetch('/api/customer/favourite', {
-        method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ token: customerToken, restaurant_slug: r, dish_slug: d })
-      });
-      if (!res.ok) throw new Error('failed');
-      const data = await res.json();
-      _isFavourited = !!data.favourited;
+      // Until the first hello+me lands, _isFavourited is a guess — tapping then would flip an
+      // already-favourited dish OFF. Wait (bounded) for the real state first.
+      if (!_customerSettled) await Promise.race([_customerReady, new Promise(res => setTimeout(res, 4000))]);
+      const was = _isFavourited;
+      _isFavourited = !was;
       syncHeartBtn();
-    } catch {
-      _isFavourited = was;
-      syncHeartBtn();
-    }
+      _favPending++;
+      try {
+        const send = () => fetch('/api/customer/favourite', {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          // Explicit desired state: idempotent server-side, unlike a blind toggle.
+          body: JSON.stringify({ token: customerToken, restaurant_slug: r, dish_slug: d, favourited: !was })
+        });
+        let res = await send();
+        if (res.status === 404) {
+          // Customer row not created yet (hello still in flight) — register it and retry once.
+          await fetch('/api/customer/hello', {
+            method: 'POST', headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ token: customerToken })
+          }).catch(() => {});
+          res = await send();
+        }
+        if (!res.ok) throw new Error('failed');
+        const data = await res.json();
+        _isFavourited = !!data.favourited;
+        syncHeartBtn();
+      } catch {
+        _isFavourited = was;
+        syncHeartBtn();
+      } finally { _favPending--; }
+    } finally { _favBusy = false; }
   }
-  refreshCustomer();
+  const _customerReady = refreshCustomer();
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refreshCustomer(); });
+  window.addEventListener('pageshow', (e) => { if (e.persisted) refreshCustomer(); });
   const heartBtn = document.getElementById('heartBtn');
   if (heartBtn) heartBtn.addEventListener('click', toggleFavourite);
 
@@ -533,17 +560,27 @@
   applyBranding();
 
   async function loadDish(){
-    let meal=null;
+    let meal=null, transient=false;
     try{
       // Try live API first (works once backend is deployed)
       const res = await fetch(`/api/dish?r=${encodeURIComponent(r)}&d=${encodeURIComponent(d)}`);
       if(res.ok){ meal = await res.json(); }
-    }catch(e){ /* offline / not deployed yet */ }
+      else if(res.status >= 500) transient = true;
+    }catch(e){ transient = true; /* offline / not deployed yet */ }
 
     if(!meal) meal = REGISTRY[`${r}/${d}`];
     if(!meal){
       document.body.classList.add('has-error');
-      document.getElementById('err').classList.add('show');
+      const errEl0 = document.getElementById('err');
+      if (transient) {
+        // A dropped connection or a 5xx is NOT "this dish hasn't been set up" — say so and offer a retry.
+        errEl0.querySelector('h2').textContent = "Couldn't load this dish.";
+        errEl0.querySelector('p').textContent = "Check your connection and try again.";
+        const retry0 = document.getElementById('retryBtn');
+        retry0.style.display = 'inline-flex';
+        retry0.onclick = () => location.reload();
+      }
+      errEl0.classList.add('show');
       document.getElementById('loader').classList.add('gone');
       document.getElementById('skeleton').classList.add('gone');
       return;
@@ -567,15 +604,30 @@
     // Show "Back to menu" link if the diner came from the master menu page
     const backLink = document.getElementById('backLink');
     if (backLink) {
-      backLink.href = `/menu.html?r=${encodeURIComponent(r)}`;
-      backLink.style.display = (document.referrer && document.referrer.includes('/menu.html')) ? 'inline-flex' : 'none';
+      // Keep the table: without &t= the menu opens a DIFFERENT cart (cart key includes the table) and
+      // the orders lose their table number. Table QR codes land on /m/<slug> or /t/<slug>/<table>,
+      // not /menu.html, so match those referrers too.
+      const backTable = params.get('t');
+      backLink.href = `/menu.html?r=${encodeURIComponent(r)}` + (backTable ? `&t=${encodeURIComponent(backTable)}` : '');
+      const ref = document.referrer || '';
+      backLink.style.display = (ref && /\/(menu\.html|m\/|t\/)/.test(ref) && ref.indexOf(location.origin) === 0) ? 'inline-flex' : 'none';
     }
 
     const mv = document.getElementById('mv');
     // reveal="manual" (set on the tag) defers the actual .glb network fetch
     // until dismissPoster()/activateAR() is called from the AR button click
     // handler below — the src is declared here but nothing downloads yet.
-    mv.setAttribute('src', meal.glb);
+    if (meal.glb) {
+      mv.setAttribute('src', meal.glb);
+    } else {
+      // No 3D model uploaded yet: setAttribute('src', null) would request the literal URL "null"
+      // and show a bogus "Couldn't load this dish" error. Keep the page usable (ordering still works).
+      _noModel = true;
+      arBtn.disabled = true;
+      arBtn.style.opacity = '.55';
+      arBtn.textContent = '3D view coming soon';
+      arHint.classList.remove('show');
+    }
     if(meal.usdz) mv.setAttribute('ios-src', meal.usdz);
     if(meal.orbit) mv.setAttribute('camera-orbit', meal.orbit);
     // Apply owner-set life-size scale (defaults to 1). model-viewer treats
@@ -648,7 +700,10 @@
             const key = 'armenu_cart_' + r + (table ? '_' + table : '');
             let raw;
             try { raw = JSON.parse(localStorage.getItem(key) || 'null'); } catch { raw = null; }
-            const cur = Array.isArray(raw) ? raw : (raw && Array.isArray(raw.items) ? raw.items : []);
+            // Mirror menu.html's 24h expiry: appending to an expired cart would refresh its timestamp and
+            // resurrect yesterday's abandoned items into today's order.
+            const fresh = raw && !Array.isArray(raw) && (Date.now() - (raw.ts || 0)) <= 24 * 60 * 60 * 1000;
+            const cur = Array.isArray(raw) ? raw : (fresh && Array.isArray(raw.items) ? raw.items : []);
             const existing = cur.find(i => i.slug === d && !(i.modifiers && i.modifiers.length));
             if (existing) existing.qty++;
             else cur.push({ key: d + '::', slug: d, name: meal.dish || meal.name || d, qty: 1, price_cents: meal.price_cents || 0, modifiers: [] });
@@ -673,9 +728,9 @@
           const prev = md[(idx - 1 + md.length) % md.length];
           const next = md[(idx + 1) % md.length];
           const q = table ? `&t=${encodeURIComponent(table)}` : '';
-          document.getElementById('prevDish').href = `/view.html?r=${r}&d=${prev.slug}${q}`;
+          document.getElementById('prevDish').href = `/view.html?r=${encodeURIComponent(r)}&d=${encodeURIComponent(prev.slug)}${q}`;
           document.getElementById('prevDish').textContent = '← ' + prev.name;
-          document.getElementById('nextDish').href = `/view.html?r=${r}&d=${next.slug}${q}`;
+          document.getElementById('nextDish').href = `/view.html?r=${encodeURIComponent(r)}&d=${encodeURIComponent(next.slug)}${q}`;
           document.getElementById('nextDish').textContent = next.name + ' →';
           // Touch-swipe: swipe left = next, right = prev
           let startX = null;
@@ -743,6 +798,7 @@
   }
 
   function updateArSupport() {
+    if (_noModel) return;
     // Android gets the guided "open in Chrome" popup on tap even before
     // canActivateAR resolves. scene-viewer works directly from the .glb,
     // no separate file needed, unlike iOS.

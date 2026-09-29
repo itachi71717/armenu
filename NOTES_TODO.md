@@ -3,6 +3,20 @@
 Maintained by Claude across sessions. What's done, what's next, what's blocked.
 Update after every completed item.
 
+## ✅ Just shipped
+Latest batches (details in the dated sections below where recorded):
+- Customer profiles v1
+- Kitchen multi-screen
+- UX batch 3
+- Ops batch
+- Big batch
+- Growth batch
+- Zero-bug batch
+
+## 🔁 Revisit later (added 2026-09-29; older items remain in the "Revisit later" section further down)
+- **Reservations + capacity preview** — Ian wants the reservation modal to show "3 tables available" / "🔴 near capacity" per slot before booking. Concept is clear, but he wants to see whether the existing reservation flow gets any use first before building on top. Data source: reservations table + restaurant_tables count + 90-min window overlap math. No QR-code dependency.
+- **Pricing page rework** — /plans currently has R499/R1499/Custom placeholder tiers. Ian is not going with this pricing. Revisit when he settles on the actual pricing model.
+
 ## ✅ 2026-09-28 — UX batch 3 (commit 27623db — deployed, smoke 33/33)
 **Guest (menu.html):**
 - 🔄 Reorder past order — one-tap re-add from profile order-history

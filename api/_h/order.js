@@ -4,8 +4,7 @@
 
 import { supabase } from '../_db.js';
 import { sendPush } from './push/_send.js';
-import { computeOpenState } from './dish.js';
-import { loyaltyConfig } from './customer/loyalty.js';
+import { loyaltyConfig, rewardDishAvailable } from './customer/loyalty.js';
 
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -32,6 +31,14 @@ export default async function handler(req, res) {
         crow = next;
         hops++;
       }
+      if (!crow) {
+        // Token is well-formed but /hello hasn't created the row yet (parallel
+        // page-load race, or first order before the profile call landed). Create it
+        // so this order is linked and "order ready" pushes can find the guest.
+        await supabase.from('customers').insert({ token: customer_token, last_seen_at: new Date().toISOString() });
+        const { data: again } = await supabase.from('customers').select('id, merged_into').eq('token', customer_token).maybeSingle();
+        crow = again;
+      }
       if (crow) customer_id = crow.id;
     } catch {}
   }
@@ -48,7 +55,7 @@ export default async function handler(req, res) {
     const { data: dup } = await supabase.from('orders')
       .select('id').eq('restaurant_id', restaurant.id)
       .eq('client_order_id', String(client_order_id).slice(0, 60))
-      .gte('created_at', cutoff).maybeSingle();
+      .gte('created_at', cutoff).order('created_at', { ascending: true }).limit(1).maybeSingle();
     if (dup) return res.status(200).json({ ok: true, order_id: dup.id, duplicate: true });
   }
 
@@ -58,16 +65,8 @@ export default async function handler(req, res) {
     .select('orders_enabled, default_currency').eq('restaurant_id', restaurant.id).maybeSingle();
   const ordersEnabled = settings ? (settings.orders_enabled !== false) : true;
   if (!ordersEnabled) return res.status(403).json({ error: 'Ordering is not enabled for this restaurant' });
-  // Outside opening hours (empty opening_hours = always open).
-  // Separate query: if the opening_hours migration hasn't run, a combined select
-  // would error and null the row above (silently re-enabling ordering).
-  try {
-    const { data: hrs, error: hrsErr } = await supabase.from('restaurant_settings')
-      .select('opening_hours, timezone').eq('restaurant_id', restaurant.id).maybeSingle();
-    if (!hrsErr && hrs && !computeOpenState(hrs.opening_hours, hrs.timezone).is_open) {
-      return res.status(403).json({ error: 'closed', message: 'This kitchen is closed right now.' });
-    }
-  } catch {}
+  // Opening hours are informational only: restaurants may run specials outside
+  // listed hours, so is_open never gates ordering.
 
   // Resolve table
   let table_id = null, table_label = table || null;
@@ -216,7 +215,12 @@ export default async function handler(req, res) {
   if (!resolved.length) return res.status(400).json({ error: 'No valid dishes in cart' });
 
   // Stock check — reject if any tracked item can't be fulfilled
-  const outOfStock = resolved.filter(x => x.stock_count != null && x.stock_count < x.qty);
+  // Aggregate per dish: the same dish on two cart lines (different modifiers) must be
+  // checked against stock as one total, not line by line.
+  const qtyByDish = {};
+  for (const x of resolved) qtyByDish[x.dish_id] = (qtyByDish[x.dish_id] || 0) + x.qty;
+  const outOfStock = resolved.filter((x, idx, arr) => x.stock_count != null && x.stock_count < qtyByDish[x.dish_id]
+    && arr.findIndex(y => y.dish_id === x.dish_id) === idx);
   if (outOfStock.length) {
     return res.status(409).json({
       error: 'out_of_stock',
@@ -233,17 +237,27 @@ export default async function handler(req, res) {
   // are not migrated yet the order simply proceeds with no discount.
   const REFERRAL_PCT = 10, REFERRAL_CAP_CENTS = 5000, REFERRAL_BONUS_STAMPS = 2;
   let loyaltyCfg = { enabled: false, threshold: 10, reward_value_cents: 0 };
-  let loyaltyDiscount = 0, referralDiscount = 0, referrerId = null;
+  let loyaltyDiscount = 0, referralDiscount = 0, referrerId = null, loyaltyRewardDish = null;
   if (customer_id) {
     try {
       const { data: ls } = await supabase.from('restaurant_settings')
-        .select('loyalty_threshold, loyalty_reward_cents, loyalty_enabled').eq('restaurant_id', restaurant.id).maybeSingle();
+        .select('loyalty_threshold, loyalty_reward_cents, loyalty_opted_in, loyalty_reward_dish_id').eq('restaurant_id', restaurant.id).maybeSingle();
       loyaltyCfg = loyaltyConfig(ls);
-      if (redeem_loyalty === true && loyaltyCfg.enabled && loyaltyCfg.reward_value_cents > 0) {
-        const { data: cnt } = await supabase.raw(
-          'select count(*)::int as n from loyalty_stamps where customer_id = $1 and restaurant_id = $2', [customer_id, restaurant.id]);
-        if ((cnt?.[0]?.n || 0) >= loyaltyCfg.threshold) {
-          loyaltyDiscount = Math.min(loyaltyCfg.reward_value_cents, subtotal);
+      if (redeem_loyalty === true && loyaltyCfg.enabled) {
+        // A configured reward dish takes priority over the legacy cash reward.
+        let rewardDish = null;
+        if (loyaltyCfg.reward_dish_id) {
+          const { data: rd } = await supabase.from('dishes')
+            .select('id, name, active, stock_count').eq('id', loyaltyCfg.reward_dish_id).eq('restaurant_id', restaurant.id).maybeSingle();
+          if (rewardDishAvailable(rd)) rewardDish = rd;
+        }
+        if (rewardDish || (!loyaltyCfg.reward_dish_id && loyaltyCfg.reward_value_cents > 0)) {
+          const { data: cnt } = await supabase.raw(
+            'select count(*)::int as n from loyalty_stamps where customer_id = $1 and restaurant_id = $2', [customer_id, restaurant.id]);
+          if ((cnt?.[0]?.n || 0) >= loyaltyCfg.threshold) {
+            if (rewardDish) loyaltyRewardDish = rewardDish;
+            else loyaltyDiscount = Math.min(loyaltyCfg.reward_value_cents, subtotal);
+          }
         }
       }
     } catch {}
@@ -274,9 +288,29 @@ export default async function handler(req, res) {
     client_order_id: client_order_id ? String(client_order_id).slice(0, 60) : null,
     customer_id,
     ...(loyaltyDiscount > 0 ? { loyalty_redeemed: true, loyalty_discount_cents: loyaltyDiscount } : {}),
+    ...(loyaltyRewardDish ? { loyalty_redeemed: true } : {}),
     ...(referralDiscount > 0 ? { referral_discount_cents: referralDiscount } : {})
   }).select().single();
   if (oerr) return res.status(500).json({ error: 'Could not save order' });
+
+  // Concurrent double-submit guard. The read-then-insert idempotency check above
+  // can't stop two simultaneous requests with the same client_order_id (no unique
+  // index). After inserting, the earliest row for the key wins; any later one
+  // deletes itself and returns the winner, so the kitchen never sees a duplicate.
+  if (client_order_id && typeof client_order_id === 'string') {
+    try {
+      const { data: first } = await supabase.from('orders')
+        .select('id').eq('restaurant_id', restaurant.id)
+        .eq('client_order_id', String(client_order_id).slice(0, 60))
+        .gte('created_at', new Date(Date.now() - 15 * 60 * 1000).toISOString())
+        .order('created_at', { ascending: true }).order('id', { ascending: true })
+        .limit(1).maybeSingle();
+      if (first && first.id && first.id !== order.id) {
+        await supabase.from('orders').delete().eq('id', order.id);
+        return res.status(200).json({ ok: true, order_id: first.id, duplicate: true });
+      }
+    } catch {}
+  }
 
   const rows = resolved.map(it => ({
     order_id: order.id,
@@ -288,6 +322,14 @@ export default async function handler(req, res) {
     note: it.note,
     ...(it.combo_id ? { combo_id: it.combo_id } : {})
   }));
+  // Loyalty free dish: a zero-price complimentary line, tagged in metadata.
+  if (loyaltyRewardDish) {
+    rows.push({
+      order_id: order.id, dish_id: loyaltyRewardDish.id, dish_name: loyaltyRewardDish.name,
+      qty: 1, price_cents: 0, modifiers: [], note: null, complimentary: true,
+      metadata: { loyalty_reward: true }
+    });
+  }
   const itemsRes = await supabase.from('order_items').insert(rows);
   if (itemsRes.error) {
     // Roll back the parent order — otherwise the kitchen sees an empty ghost order
@@ -301,7 +343,7 @@ export default async function handler(req, res) {
   // and gives the referrer bonus stamps. Best-effort, never fails the order.
   if (customer_id) {
     try {
-      if (loyaltyDiscount > 0) {
+      if (loyaltyDiscount > 0 || loyaltyRewardDish) {
         await supabase.raw(
           `delete from loyalty_stamps where id in (
              select id from loyalty_stamps where customer_id = $1 and restaurant_id = $2
@@ -358,7 +400,7 @@ export default async function handler(req, res) {
     tag: 'order-' + order.id
   }).catch(() => {});
 
-  return res.status(200).json({ ok: true, order_id: order.id, total_cents: totalC, loyalty_discount_cents: loyaltyDiscount, referral_discount_cents: referralDiscount });
+  return res.status(200).json({ ok: true, order_id: order.id, total_cents: totalC, loyalty_discount_cents: loyaltyDiscount, loyalty_reward_dish: loyaltyRewardDish ? loyaltyRewardDish.name : null, referral_discount_cents: referralDiscount });
 }
 
 function parsePrice(str) {

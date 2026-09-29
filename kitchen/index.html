@@ -182,11 +182,23 @@ try { session = JSON.parse(localStorage.getItem('armenu_kitchen_session') || 'nu
       .then(data => {
         if (data.token) {
           session = data;
+          // Carry the station binding (server echoes it) so the header chip / expo flag survive the reload.
+          session.station_name = data.station?.name || '';
+          session.is_expo = !!(data.station && data.station.is_expo);
           localStorage.setItem('armenu_kitchen_session', JSON.stringify(session));
           history.replaceState({}, '', '/kitchen/');
           location.reload();
+        } else {
+          // Never leave a dead portal_token in the address bar; tell the operator why they see the login form.
+          history.replaceState({}, '', '/kitchen/');
+          const le = document.getElementById('loginErr');
+          if (le) le.textContent = data.error || 'Manager hand-off failed — sign in with a PIN';
         }
-      }).catch(() => {});
+      }).catch(() => {
+        history.replaceState({}, '', '/kitchen/');
+        const le = document.getElementById('loginErr');
+        if (le) le.textContent = 'Manager hand-off failed — sign in with a PIN';
+      });
   }
 })();
 let poll = null, es = null, tickTimer = null;
@@ -209,6 +221,9 @@ let lastOrders = [], focusedOrderId = null;
 let rushOrderTimes = [];            // created_at ms of rush orders currently on the board
 let recallSeen = new Set(), recallSeeded = false;
 let _tickCount = 0;
+// Refresh ordering: SSE events, the 12s poll and manual taps can overlap. Only the newest
+// response may render, otherwise a slow older reply overwrites a newer board and re-beeps.
+let _refreshSeq = 0, _refreshApplied = 0, _sseDebounce = null;
 const RUSH_WINDOW_MS = 3 * 60 * 1000;
 
 // ---- Heartbeat / offline detection ----
@@ -318,12 +333,16 @@ $('loginBtn').onclick = async () => {
     btn.disabled = false; btn.innerHTML = orig;
   }
 };
+$('loginSlug').onkeydown = e => { if (e.key === 'Enter') $('loginBtn').click(); };
 $('loginPin').onkeydown = e => { if (e.key === 'Enter') $('loginBtn').click(); };
 $('loginStation').onkeydown = e => { if (e.key === 'Enter') $('loginBtn').click(); };
 
 function signOut() {
   localStorage.removeItem('armenu_kitchen_session');
   session = null;
+  _refreshSeq++; _refreshApplied = _refreshSeq; // drop any in-flight response from the old session
+  if (_sseDebounce) { clearTimeout(_sseDebounce); _sseDebounce = null; }
+  if (_sseRetry) { clearTimeout(_sseRetry); _sseRetry = null; }
   if (poll) clearInterval(poll);
   if (hbTimer) { clearInterval(hbTimer); hbTimer = null; }
   try { es?.close(); } catch {}
@@ -357,6 +376,7 @@ function onIn() {
   // arming new ones. Without this, every SSE reconnect stacks another
   // 12s poll and 1Hz tick until the tab is a hundred timers deep.
   if (poll) { clearInterval(poll); poll = null; }
+  if (_sseRetry) { clearTimeout(_sseRetry); _sseRetry = null; }
   if (tickTimer) { clearInterval(tickTimer); tickTimer = null; }
   if (hbTimer) { clearInterval(hbTimer); hbTimer = null; }
   if (es) { try { es.close(); } catch {} es = null; }
@@ -367,13 +387,31 @@ function onIn() {
   poll = setInterval(refresh, 12000);
   tickTimer = setInterval(tick, 1000);
   hbTimer = setInterval(checkHeartbeat, 5000);
+  startSSE();
+  registerCmdK();
+}
+
+// SSE is (re)started on its own so a dropped stream never re-runs the whole onIn() setup
+// (which re-fetched and re-armed every timer each 4s while the endpoint was down).
+let _sseRetry = null;
+function startSSE() {
+  if (!session) return;
+  if (_sseRetry) { clearTimeout(_sseRetry); _sseRetry = null; }
+  if (es) { try { es.close(); } catch {} es = null; }
   try {
     es = new EventSource('/api/events?token=' + encodeURIComponent(session.token));
     es.onopen = () => markTick();
-    es.addEventListener('orders', () => { markTick(); refresh(); });
-    es.onerror = () => { try { es.close(); } catch {} es = null; setTimeout(() => { if (session) onIn(); }, 4000); };
+    // Coalesce bursts of events and the poll into one fetch.
+    es.addEventListener('orders', () => {
+      markTick();
+      if (_sseDebounce) clearTimeout(_sseDebounce);
+      _sseDebounce = setTimeout(() => { _sseDebounce = null; refresh(); }, 250);
+    });
+    es.onerror = () => {
+      try { es.close(); } catch {} es = null;
+      _sseRetry = setTimeout(() => { _sseRetry = null; if (session) startSSE(); }, 4000);
+    };
   } catch {}
-  registerCmdK();
 }
 
 // Command palette — skipped on touch-only kiosks (speed over discoverability).
@@ -413,7 +451,7 @@ function tick() {
 }
 
 function fmtElapsed(ms) {
-  const s = Math.max(0, Math.floor(ms / 1000));
+  const s = Number.isFinite(ms) ? Math.max(0, Math.floor(ms / 1000)) : 0;
   return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
 }
 // <5m green, 5-10m default, 10-20m amber pulse, >20m red hard pulse.
@@ -457,9 +495,13 @@ function updateRushBanner() {
 }
 
 async function refresh() {
+  if (!session) return;
+  const seq = ++_refreshSeq;
   try {
     const { orders } = await api('/api/staff/orders');
     markTick();
+    if (!session || seq < _refreshApplied) return; // a newer response already rendered
+    _refreshApplied = seq;
     const kitchen = (orders || []).filter(o => ['new','prep','ready'].includes(o.status));
     $('orderCount').textContent = `${kitchen.length} order${kitchen.length === 1 ? '' : 's'}`;
     lastOrders = kitchen;
@@ -541,7 +583,7 @@ function render(orders) {
         <div class="t-table">${o.table_label ? `<b>${escapeHTML(o.table_label)}</b>` : 'Walk-up'}${o.rush ? '<span class="pill recall">⚡ RUSH</span>' : ''}</div>
         <div class="t-age">${fmtElapsed(Date.now() - createdMs)}</div>
       </div>
-      <div class="t-items" title="Tap items to mark plated — synced across kitchen screens">${lis}</div>
+      <div class="t-items" title="Tap items to mark plated — synced across kitchen screens">${lis || '<div class="note" style="padding:6px 2px">No line items on this order</div>'}</div>
       ${o.guest_note ? `<div class="t-note">📝 ${escapeHTML(o.guest_note)}</div>` : ''}
       <div class="t-actions">
         ${o.status === 'new' ? `<button class="btn-prep" data-mark="${o.id}:prep">Start prep</button>` : ''}
@@ -578,6 +620,7 @@ function focusNext() {
 }
 document.addEventListener('keydown', async e => {
   if (!session || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.repeat && e.key !== 'Escape') return; // a held key must not spam PATCHes / toggle items back and forth
   const t = e.target;
   if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
   if (getComputedStyle($('login')).display !== 'none') return;

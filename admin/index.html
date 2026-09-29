@@ -394,6 +394,7 @@
     var out = document.getElementById('migResult');
     if (!statusEl || !btn || !out) return;
 
+    var checked = false;
     async function fetchDiff() {
       statusEl.innerHTML = '<div class="sk-line" style="width:70%"></div><div class="sk-line" style="width:55%"></div>';
       btn.disabled = true;
@@ -401,10 +402,12 @@
         var r = await fetch('/api/admin/migrate', { credentials: 'include' });
         var j = await r.json();
         if (!r.ok) {
-          statusEl.innerHTML = '<div style="color:#f87171;font-weight:600">Cannot check migration status: ' + escapeHTML(j.error || r.status) + '</div>';
+          statusEl.innerHTML = '<div style="color:#f87171;font-weight:600">Cannot check migration status: ' + escapeHTML(j.error || j.message || r.status) + '</div>';
+          btn.disabled = false; btn.textContent = 'Retry check';
+          checked = false; // re-run the diff next time the tab is opened
           return;
         }
-        if (j.ok) {
+        if (j.ok && Array.isArray(j.missing) && j.missing.length === 0) {
           statusEl.innerHTML = '<div style="color:#7dd87d;font-weight:600;font-size:16px">✓ Database is up to date — nothing to migrate.</div><div style="color:var(--ink-dim);font-size:13px;margin-top:6px">Every required table + column is present. Running again is still safe (idempotent).</div>';
           btn.textContent = 'Run again anyway';
         } else {
@@ -416,6 +419,8 @@
         btn.disabled = false;
       } catch (e) {
         statusEl.innerHTML = '<div style="color:#f87171">Network error: ' + escapeHTML(e.message || e) + '</div>';
+        btn.disabled = false; btn.textContent = 'Retry check';
+        checked = false;
       }
     }
 
@@ -428,10 +433,10 @@
         var r = await fetch('/api/admin/migrate', { method: 'POST', credentials: 'include' });
         var j = await r.json();
         out.textContent = JSON.stringify(j, null, 2);
-        if (j.ok) {
+        if (j.ok && !(j.failures && j.failures.length)) {
           out.textContent = '✓ Migration complete.\n\n' +
             'Statements applied: ' + j.applied + '\n' +
-            'Failures: ' + (j.failures ? j.failures.length : 0) + '\n' +
+            'Failures: 0\n' +
             'Missing before: ' + (j.missing_before ? j.missing_before.length : 0) + '\n' +
             'Missing after: ' + (j.missing_after ? j.missing_after.length : 0) + '\n\n' +
             '---\n' + out.textContent;
@@ -443,10 +448,12 @@
       }
     }
 
-    btn.addEventListener('click', runMigration);
+    btn.addEventListener('click', function () {
+      if (btn.textContent === 'Retry check') { fetchDiff(); return; }
+      runMigration();
+    });
 
     // Fetch diff whenever the migrate view is shown
-    var checked = false;
     document.addEventListener('click', function (e) {
       var t = e.target && e.target.closest('[data-view="migrate"]');
       if (t && !checked) { checked = true; fetchDiff(); }
@@ -586,7 +593,8 @@
       // Populate restaurant filter dropdown lazily
       if ($('audFilterR').options.length <= 1) {
         try {
-          const { restaurants = [] } = await api('/api/admin/clients');
+          const cl = await api('/api/admin/clients');
+          const restaurants = Array.isArray(cl) ? cl : (cl.restaurants || []);
           for (const r of restaurants) {
             const o = document.createElement('option'); o.value = r.slug; o.textContent = r.name; $('audFilterR').appendChild(o);
           }
@@ -861,6 +869,8 @@
     try {
       await api('/api/admin/clients', { method: 'POST', body: JSON.stringify({ name, slug, email }) });
       $('ncName').value = $('ncSlug').value = $('ncEmail').value = '';
+      delete $('ncSlug').dataset.touched; // let the next restaurant auto-slug from its name again
+      loadPending(); // the server auto-clears the matching sign-up; refresh the badge/list
       toast('Restaurant created — tell the manager to sign up at /portal/ with ' + email, 'ok');
       go('clients');
     } catch (e) {

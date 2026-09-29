@@ -80,7 +80,10 @@ export default async function handler(req, res) {
     if (!v || v.restaurant_id !== rest.id) return res.status(401).json({ error: 'invalid portal token' });
     staff = { id: 'manager-' + rest.id, name: 'Manager', role: 'manager', active: true };
     const token = issueToken(staff.id, rest.id, 12, station);
-    return res.status(200).json({ token, staff, restaurant: { id: rest.id, slug: r, name: rest.name } });
+    return res.status(200).json({
+      token, staff, restaurant: { id: rest.id, slug: r, name: rest.name },
+      ...(station ? { station: { id: station.station_id, is_expo: station.is_expo, name: station.name, slug: station.slug } } : {})
+    });
   }
   // Brute-force guard: PIN is only 4-6 digits, so 10k-1M candidate space.
   // Persist failed attempts and lock a (restaurant, ip) for 15 minutes after

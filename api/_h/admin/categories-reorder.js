@@ -1,7 +1,7 @@
 // POST /api/admin/categories/reorder?slug=<r>  { order: [id, id, id, ...] }
 // Rewrites the sort_order column so the array position becomes the new order.
 import { supabase, supabaseAdmin } from '../../_db.js';
-import { requireAdmin } from '../../_auth.js';
+import { requireAdmin, assertScope } from '../../_auth.js';
 
 export default async function handler(req, res) {
   if (!requireAdmin(req)) return res.status(401).json({ error: 'unauthorized' });
@@ -13,6 +13,8 @@ export default async function handler(req, res) {
 
   const { data: r } = await supabase.from('restaurants').select('id').eq('slug', slug).single();
   if (!r) return res.status(404).json({ error: 'restaurant not found' });
+  const guard = assertScope(req, r.id);
+  if (guard) return res.status(guard.status).json({ error: guard.error });
 
   // Update each row's sort_order; keep it simple with a sequential loop (dozens of categories max)
   for (let i = 0; i < order.length; i++) {

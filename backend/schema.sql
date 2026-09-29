@@ -512,3 +512,20 @@ create table if not exists waitlist_entries (
 );
 create index if not exists idx_waitlist_rest_joined on waitlist_entries(restaurant_id, joined_at) where seated_at is null and left_at is null;
 alter table restaurant_settings add column if not exists is_full boolean default false;
+
+-- Loyalty reward is now a free dish (restaurant explicitly opts in).
+alter table restaurant_settings add column if not exists loyalty_reward_dish_id uuid references dishes(id) on delete set null;
+alter table restaurant_settings add column if not exists loyalty_opted_in boolean default false;
+alter table order_items add column if not exists metadata jsonb;
+
+-- "My usual": saved combos per guest per restaurant (max 5, enforced in API).
+create table if not exists customer_saved_combos (
+  id            uuid primary key default gen_random_uuid(),
+  customer_id   uuid references customers(id) on delete cascade,
+  restaurant_id uuid references restaurants(id) on delete cascade,
+  name          text default 'My usual',
+  item_slugs    text[],
+  notes         text,
+  created_at    timestamptz default now()
+);
+create index if not exists idx_saved_combos_customer_rest on customer_saved_combos(customer_id, restaurant_id);

@@ -10,6 +10,8 @@ export default async function handler(req, res) {
     const { slug } = req.query;
     const { data: r } = await supabase.from('restaurants').select('id').eq('slug', slug).single();
     if (!r) return res.status(404).json({ error: 'not found' });
+    const gGet = assertScope(req, r.id);
+    if (gGet) return res.status(gGet.status).json({ error: gGet.error });
     const { data = [] } = await supabase.from('restaurant_tables')
       .select('*').eq('restaurant_id', r.id).order('label');
     return res.status(200).json({ tables: data });
@@ -19,10 +21,18 @@ export default async function handler(req, res) {
     const { slug } = req.query;
     const { data: r } = await supabase.from('restaurants').select('id').eq('slug', slug).single();
     if (!r) return res.status(404).json({ error: 'not found' });
+    const gPost = assertScope(req, r.id);
+    if (gPost) return res.status(gPost.status).json({ error: gPost.error });
     let body = {};
     try { body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body; } catch {}
-    const label = String(body.label || '').trim();
+    body = body || {};
+    const label = String(body.label || '').trim().slice(0, 40);
     if (!label) return res.status(400).json({ error: 'label required' });
+    // Guests are matched to tables by label (orders, waiter calls, floor map), so labels must be unique.
+    const { data: dupes = [] } = await supabase.from('restaurant_tables').select('id, label').eq('restaurant_id', r.id);
+    if ((dupes || []).some(t => String(t.label).trim().toLowerCase() === label.toLowerCase())) {
+      return res.status(400).json({ error: 'A table with that label already exists' });
+    }
     const { data, error } = await supabaseAdmin.from('restaurant_tables').insert({
       restaurant_id: r.id, label, seats: parseInt(body.seats) || 2
     }).select().single();
@@ -40,7 +50,15 @@ export default async function handler(req, res) {
     let body = {};
     try { body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body; } catch {}
     const patch = { updated_at: new Date().toISOString() };
-    if ('label' in body)  patch.label  = String(body.label).trim();
+    if ('label' in body) {
+      const nl = String(body.label).trim().slice(0, 40);
+      if (!nl) return res.status(400).json({ error: 'label required' });
+      const { data: sib = [] } = await supabase.from('restaurant_tables').select('id, label').eq('restaurant_id', row.restaurant_id);
+      if ((sib || []).some(t => String(t.id) !== String(id) && String(t.label).trim().toLowerCase() === nl.toLowerCase())) {
+        return res.status(400).json({ error: 'A table with that label already exists' });
+      }
+      patch.label = nl;
+    }
     if ('seats' in body)  patch.seats  = parseInt(body.seats) || 2;
     if ('status' in body) patch.status = String(body.status);
     if ('assigned_staff_id' in body) {

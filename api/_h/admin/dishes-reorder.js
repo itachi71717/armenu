@@ -1,6 +1,6 @@
 // POST /api/admin/dishes/reorder?slug=<r>  { order: [dish_id, dish_id, ...] }
 import { supabase, supabaseAdmin } from '../../_db.js';
-import { requireAdmin } from '../../_auth.js';
+import { requireAdmin, assertScope } from '../../_auth.js';
 
 export default async function handler(req, res) {
   if (!requireAdmin(req)) return res.status(401).json({ error: 'unauthorized' });
@@ -12,6 +12,8 @@ export default async function handler(req, res) {
 
   const { data: r } = await supabase.from('restaurants').select('id').eq('slug', slug).single();
   if (!r) return res.status(404).json({ error: 'restaurant not found' });
+  const guard = assertScope(req, r.id);
+  if (guard) return res.status(guard.status).json({ error: guard.error });
 
   for (let i = 0; i < order.length; i++) {
     await supabaseAdmin.from('dishes').update({ sort_order: i * 10 }).eq('id', order[i]).eq('restaurant_id', r.id);

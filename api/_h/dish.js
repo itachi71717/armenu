@@ -69,7 +69,11 @@ export default async function handler(req, res) {
     const x = q.data;
     return res.status(200).json({
       dish: x.name, venue: restaurant.name,
-      price: x.price, price_cents: x.price_cents,
+      price: x.price,
+      // Dishes priced only via the legacy text `price` column have null price_cents;
+      // fall back to parsing it (same as order.js) so cart totals aren't R0.00.
+      price_cents: x.price_cents ?? (typeof x.price === 'string' && Number.isFinite(parseFloat(x.price.replace(/[^0-9.]/g, '')))
+        ? Math.round(parseFloat(x.price.replace(/[^0-9.]/g, '')) * 100) : null),
       description: x.description,
       translations: x.translations || {},
       allergens: x.allergens,
@@ -285,7 +289,7 @@ export default async function handler(req, res) {
       return {
         slug: x.slug, name: x.name,
         price: discounted_price ?? x.price,
-        price_cents: discounted_price_cents ?? x.price_cents,
+        price_cents: discounted_price_cents ?? x.price_cents ?? parsePrice(x.price),
         original_price, original_price_cents,
         discount_pct, offer_name,
         description: x.description,
@@ -294,9 +298,13 @@ export default async function handler(req, res) {
         translations: x.translations || {},
         category:      x.category_id ? catById[x.category_id]?.slug || null : null,
         category_name: x.category_id ? catById[x.category_id]?.name || null : null,
-        popularity_score: popMax > 0 ? Math.round(((popCounts[x.id] || 0) / popMax) * 100) : 0,
+        // Gate on the server too: no badge scores until the venue has 20+ orders in
+        // 7d, and a dish needs at least 3 orders itself (otherwise a dish with a
+        // single order can read as "100% of the top seller" and show Trending).
+        popularity_score: (popMax > 0 && orders7d >= 20 && (popCounts[x.id] || 0) >= 3)
+          ? Math.round(((popCounts[x.id] || 0) / popMax) * 100) : 0,
         stock: x.stock_count == null ? null : x.stock_count,
-        sold_out: x.stock_count === 0,
+        sold_out: typeof x.stock_count === 'number' && x.stock_count <= 0,
         modifiers: Array.isArray(x.modifiers) ? x.modifiers : []
       };
     })

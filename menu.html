@@ -448,7 +448,18 @@ function getCustomerToken() {
 customerToken = getCustomerToken();
 
 let offlineMode = false;
-async function refreshCustomer() {
+// Single in-flight refresh: page load, visibilitychange, pageshow and the merge flow can
+// all call this. Overlapping hello/me round-trips could apply out of order and clobber
+// newer state, so concurrent callers share one promise.
+let _refreshing = null;
+let _customerSettled = false;   // true once the first hello+me round-trip finished (ok or not)
+let _favPending = 0;            // optimistic heart toggles currently in flight
+function refreshCustomer() {
+  if (_refreshing) return _refreshing;
+  _refreshing = _refreshCustomer().catch(() => {}).finally(() => { _refreshing = null; _customerSettled = true; });
+  return _refreshing;
+}
+async function _refreshCustomer() {
   if (!customerToken) return;
   if (offlineMode || navigator.onLine === false) return; // no hello/beacons while offline
   try {
@@ -462,8 +473,12 @@ async function refreshCustomer() {
     if (res.ok) {
       const d = await res.json();
       if (d.customer) customer = d.customer;
-      customerFavourites = Array.isArray(d.favourites) ? d.favourites : [];
-      customerFavKeys = new Set(customerFavourites.map(f => f.restaurant_slug + '::' + f.dish_slug));
+      // Don't overwrite favourites while an optimistic heart toggle is in flight —
+      // this snapshot may predate it and would flip the heart back.
+      if (_favPending === 0) {
+        customerFavourites = Array.isArray(d.favourites) ? d.favourites : [];
+        customerFavKeys = new Set(customerFavourites.map(f => f.restaurant_slug + '::' + f.dish_slug));
+      }
       customerRecentOrders = Array.isArray(d.recent_orders) ? d.recent_orders : [];
     }
   } catch {}
@@ -497,7 +512,7 @@ function renderRecommendations() {
   const slot = document.getElementById('recsSlot');
   if (!slot) return;
   if (!recommendations.length || !hasCookieConsent()) { slot.innerHTML = ''; return; }
-  const sym = state.settings?.locale?.currency_symbol || 'R';
+  const sym = curSym();
   slot.innerHTML = `<section class="recs" aria-label="You might like">
     <div class="section-label">You might like</div>
     <div class="recs-row">${recommendations.map(x => {
@@ -514,8 +529,13 @@ function renderRecommendations() {
     }).join('')}</div></section>`;
 }
 window.addEventListener('armenu:consent', () => loadRecommendations());
-refreshCustomer();
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refreshCustomer(); });
+const _customerReady = refreshCustomer();
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') { refreshCustomer(); reloadCartFromStorage(); renderLastOrderBanner(); }
+});
+// Back/forward cache restore (e.g. returning from view.html): the restored page still
+// holds the OLD in-memory cart, and the next saveCart() would overwrite anything view.html added.
+window.addEventListener('pageshow', (e) => { if (e.persisted) { reloadCartFromStorage(); refreshCustomer(); renderLastOrderBanner(); } });
 
 // ============ LAST ORDER (persistent confirmation banner) ============
 const LAST_ORDER_KEY = 'armenu_last_order';
@@ -530,6 +550,9 @@ function loadLastOrder() {
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!parsed || !parsed.placed_at) return null;
+    // sessionStorage is per-tab, not per-restaurant: an order from venue A must not
+    // show as "your order" (or enable the bill button) after scanning venue B in the same tab.
+    if (parsed.restaurant_slug && parsed.restaurant_slug !== r) return null;
     if (Date.now() - new Date(parsed.placed_at).getTime() > LAST_ORDER_MAX_AGE_MS) return null;
     return parsed;
   } catch { return null; }
@@ -548,7 +571,7 @@ function renderLastOrderBanner() {
   const banner = $('lastOrderBanner');
   if (!banner) return;
   if (!order) { banner.style.display = 'none'; return; }
-  const sym = state.settings?.locale?.currency_symbol || 'R';
+  const sym = curSym();
   $('lastOrderBannerText').innerHTML =
     `Your order <b>#${escapeHTML(order.order_number)}</b> · ${escapeHTML(order.dish_summary || '')} · ${escapeHTML(fmtPrice(order.total_cents, sym) || '')} · Placed ${escapeHTML(fmtRelativeTime(order.placed_at))}`;
   banner.style.display = 'flex';
@@ -600,7 +623,7 @@ function openRateSheet(order) {
 }
 
 function openLastOrderSheet(order) {
-  const sym = state.settings?.locale?.currency_symbol || 'R';
+  const sym = curSym();
   const items = Array.isArray(order.items) ? order.items : [];
   const itemsHtml = items.length
     ? items.map(it => `
@@ -622,6 +645,9 @@ function openLastOrderSheet(order) {
 }
 
 renderLastOrderBanner();
+// The "Rate" button only appears once an order is 20+ min old and the banner is otherwise
+// rendered once — re-evaluate periodically so a guest who stays on the page still gets it.
+setInterval(() => { if (!document.hidden) renderLastOrderBanner(); }, 60000);
 
 function syncHeartButtons() {
   document.querySelectorAll('.heart-btn[data-heart]').forEach(btn => {
@@ -631,25 +657,60 @@ function syncHeartButtons() {
   });
 }
 
+function setHeartState(slug, on) {
+  document.querySelectorAll('.heart-btn[data-heart]').forEach(b => {
+    if (b.dataset.heart !== slug) return;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+}
+const _favBusy = new Set();
 async function toggleFavourite(slug, btn) {
-  const wasOn = btn.classList.contains('on');
-  btn.classList.toggle('on', !wasOn);
-  btn.setAttribute('aria-pressed', (!wasOn) ? 'true' : 'false');
+  if (_favBusy.has(slug)) return;   // double-tap while the first request is in flight
+  _favBusy.add(slug);
   try {
-    const res = await fetch('/api/customer/favourite', {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ token: customerToken, restaurant_slug: r, dish_slug: slug })
-    });
-    if (!res.ok) throw new Error('failed');
-    const d = await res.json();
+    // If the first hello+me hasn't landed yet the heart's visual state is a guess;
+    // wait (bounded) for the real favourites before deciding which way to flip.
+    if (!_customerSettled) await Promise.race([_customerReady, new Promise(res => setTimeout(res, 4000))]);
     const key = r + '::' + slug;
-    if (d.favourited) customerFavKeys.add(key); else customerFavKeys.delete(key);
-    btn.classList.toggle('on', !!d.favourited);
-    btn.setAttribute('aria-pressed', d.favourited ? 'true' : 'false');
-  } catch {
-    btn.classList.toggle('on', wasOn);
-    btn.setAttribute('aria-pressed', wasOn ? 'true' : 'false');
-  }
+    const wasOn = customerFavKeys.has(key);
+    const want = !wasOn;
+    setHeartState(slug, want);
+    _favPending++;
+    try {
+      const send = () => fetch('/api/customer/favourite', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        // Explicit desired state (not a blind server-side toggle) so a retry or stale UI can't invert it.
+        body: JSON.stringify({ token: customerToken, restaurant_slug: r, dish_slug: slug, favourited: want })
+      });
+      let res = await send();
+      if (res.status === 404) {
+        // The customer row doesn't exist yet (the parallel /hello hasn't landed, or the profile was just
+        // deleted and a fresh token minted). Register it, then retry once instead of reverting the heart.
+        await fetch('/api/customer/hello', {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ token: customerToken })
+        }).catch(() => {});
+        res = await send();
+      }
+      if (!res.ok) throw new Error('failed');
+      const d = await res.json();
+      if (d.favourited) {
+        customerFavKeys.add(key);
+        if (!customerFavourites.some(f => f.restaurant_slug === r && f.dish_slug === slug)) {
+          const dish = state.menu?.dishes?.find(x => x.slug === slug);
+          customerFavourites.push({ restaurant_slug: r, dish_slug: slug, dish_name: dish?.name || slug });
+        }
+      } else {
+        customerFavKeys.delete(key);
+        customerFavourites = customerFavourites.filter(f => !(f.restaurant_slug === r && f.dish_slug === slug));
+      }
+      setHeartState(slug, !!d.favourited);
+    } catch {
+      setHeartState(slug, wasOn);
+      toast("Couldn't update your favourite. Please try again.", 'err');
+    } finally { _favPending--; }
+  } finally { _favBusy.delete(slug); }
 }
 
 // Allergy nudge — warns (never blocks) when an added dish's allergens overlap
@@ -688,8 +749,21 @@ function ui(key) { return (UI_STRINGS[state.lang] || UI_STRINGS.en)[key] || UI_S
 let _displayCcy = 'ZAR';
 try { const saved = localStorage.getItem('armenu_display_ccy'); if (saved && FX_RATES[saved]) _displayCcy = saved; } catch {}
 
+// The restaurant's own currency symbol. Brand config can set a non-ZAR currency while
+// leaving currency_symbol at its 'R' default, which would render "R12.00" for a USD venue.
+function curSym() {
+  const l = (state.settings && state.settings.locale) || {};
+  const ccy = l.currency || 'ZAR';
+  const s = l.currency_symbol;
+  if (ccy !== 'ZAR' && (!s || s === 'R') && CURRENCY_SYMBOLS[ccy]) return CURRENCY_SYMBOLS[ccy];
+  return s || 'R';
+}
 function fmtPrice(cents, sym) {
-  if (!cents && cents !== 0) return '';
+  if (cents == null || cents === '' || !Number.isFinite(Number(cents))) return '';
+  // The tourist-currency preview (static ZAR rates) only applies to ZAR venues. A saved
+  // display currency from another venue must never re-convert a USD/EUR/... menu.
+  const baseCcy = (state.settings && state.settings.locale && state.settings.locale.currency) || 'ZAR';
+  if (baseCcy !== 'ZAR') return `${sym || curSym()}${(Number(cents) / 100).toFixed(2)}`;
   const zarValue = cents / 100;
   const rate = FX_RATES[_displayCcy] || 1;
   const converted = zarValue * rate;
@@ -730,6 +804,7 @@ async function revalidateMenu() {
     setOfflineChip(false);
     if (raw !== state._raw) {
       state.settings = settings; state.menu = menu; state._raw = raw;
+      reconcileCart();
       applyBranding(); render(); wireActions(); renderLastOrderBanner();
     }
     if (wasOffline) refreshCustomer();
@@ -860,6 +935,7 @@ async function boot() {
     state.menu = await menuRes.json();
     state._raw = JSON.stringify([state.settings, state.menu]);
     state.lang = state.settings.locale.default_lang || 'en';
+    reconcileCart();
     applyBranding();
     applySeo();
     render();
@@ -902,7 +978,7 @@ function applySeo() {
     if (cuisine) ld.servesCuisine = cuisine;
     if (prices.length) {
       const lo = Math.min(...prices), hi = Math.max(...prices);
-      const sym = st.locale?.currency_symbol || 'R';
+      const sym = curSym();
       ld.priceRange = sym + Math.round(lo / 100) + (hi > lo ? '-' + sym + Math.round(hi / 100) : '');
     }
     const addr = st.address || rest.address;
@@ -913,7 +989,7 @@ function applySeo() {
         hasMenuItem: dishes.slice(0, 100).map(d => {
           const it = { '@type': 'MenuItem', name: d.name || d.slug };
           if (d.description) it.description = d.description;
-          if (d.thumb_url) it.image = d.thumb_url;
+          if (d.thumb_url || d.thumb) it.image = d.thumb_url || d.thumb;
           if (typeof d.price_cents === 'number' && d.price_cents > 0) {
             it.offers = { '@type': 'Offer', price: (d.price_cents / 100).toFixed(2), priceCurrency: ccy };
           }
@@ -1107,7 +1183,7 @@ function render() {
     : ui('heroSub');
 
   const tableTag = table ? `<div class="table-tag">Table · ${escapeHTML(table)}</div>` : '';
-  const fxNote = _displayCcy !== 'ZAR'
+  const fxNote = (baseCcy === 'ZAR' && _displayCcy !== 'ZAR')
     ? `<div class="table-tag" style="border-color:rgba(255,176,102,.2);color:var(--ink-faint);background:transparent">≈ approx. ${escapeHTML(_displayCcy)}, charged in ${escapeHTML(baseCcy)}</div>`
     : '';
   const brandBadge = settings.branding.tagline
@@ -1116,7 +1192,7 @@ function render() {
 
   if (!dishes.length) {
     const skel = $('actionbarSkeleton'); if (skel) skel.style.display = 'none';
-    $('content').innerHTML = `${closedBannerHtml()}${cover}<section class="hero"><div class="pre">ARMenu</div><h1>${escapeHTML(restaurant.name)}</h1></section>
+    $('content').innerHTML = `${cover}<section class="hero"><div class="pre">ARMenu</div><h1>${escapeHTML(restaurant.name)}</h1></section>
       <main><div class="empty-state" data-icon="🍽"><h3>No dishes are live yet</h3><p>Check back soon.</p></div></main>`;
     return;
   }
@@ -1158,7 +1234,6 @@ function render() {
   }
 
   $('content').innerHTML = `
-    ${closedBannerHtml()}
     ${cover}
     <section class="hero">
       <div class="pre">ARMenu</div>
@@ -1229,7 +1304,51 @@ function render() {
   } else {
     document.querySelectorAll('.thumb[data-bg]').forEach(el => { el.style.backgroundImage = `url('${el.dataset.bg}')`; });
   }
+  revealHashDish();
 }
+
+// Deep links (#dish-<slug>: favourites, recent orders, "Choose options" from view.html,
+// recommendations). The browser's native hash scroll can't reach a dish inside a collapsed
+// <details> category (and runs before the menu even renders), so open the section and
+// scroll ourselves. Handles each distinct hash once so later re-renders (search, language)
+// don't keep yanking the page back.
+let _hashHandled = null, _hashBusy = false;
+function revealHashDish() {
+  const h = location.hash;
+  if (_hashBusy || !h || h.indexOf('#dish-') !== 0 || _hashHandled === h) return;
+  let slug; try { slug = decodeURIComponent(h.slice(6)); } catch { return; }
+  const known = state.menu?.dishes?.some(d => d.slug === slug);
+  if (!known) { _hashHandled = h; return; }
+  const el = document.getElementById('dish-' + slug);
+  if (!el) {
+    // Dish exists but isn't in the DOM: either the guest's own search/diet filter hides it,
+    // or (few categories) it lives in a category tab that isn't active. Fix the state and
+    // re-render; the second pass finds the element, so this can't loop.
+    if (state.searchQuery || state.dietFilters.size) {
+      state.searchQuery = ''; state.dietFilters.clear();
+      const s = $('menuSearch'); if (s) s.value = '';
+      const sc = $('menuSearchClear'); if (sc) sc.style.display = 'none';
+      syncFiltersToUrl(); syncDietChips();
+    }
+    const cat = state.categories.find(c => c.items.some(d => d.slug === slug));
+    if (cat) state.activeCategory = cat.key;
+    _hashBusy = true;
+    try { render(); } finally { _hashBusy = false; }
+    _hashHandled = h;   // one attempt per hash — never loop
+    const el2 = document.getElementById('dish-' + slug);
+    if (el2) {
+      const det2 = el2.closest('details.cat-section');
+      if (det2 && !det2.open) det2.open = true;
+      requestAnimationFrame(() => el2.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+    }
+    return;
+  }
+  _hashHandled = h;
+  const det = el.closest('details.cat-section');
+  if (det && !det.open) det.open = true;
+  requestAnimationFrame(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+}
+window.addEventListener('hashchange', () => { _hashHandled = null; if (state.menu) { closeSheet(); revealHashDish(); } });
 
 function wireCategoryStuck() {
   const nav = document.querySelector('.category-nav');
@@ -1366,7 +1485,7 @@ function updateCompareUi() {
 }
 function openCompare() {
   const all = state.menu?.dishes || [];
-  const sym = state.settings?.locale?.currency_symbol || 'R';
+  const sym = curSym();
   const dishes = loadCompare().map(s => all.find(d => d.slug === s)).filter(Boolean);
   if (!dishes.length) { closeSheet(); updateCompareUi(); return; }
   const canOrder = !!state.settings?.features?.orders;
@@ -1400,25 +1519,13 @@ function openCompare() {
 }
 
 // ---- Opening hours / combos helpers ----
-function isKitchenClosed() { return !!(state && state.menu && state.menu.is_open === false); }
-function nextOpenLabel() {
-  const n = state && state.menu && state.menu.next_open;
-  if (!n || !n.time) return 'soon';
-  const names = { sun: 'Sunday', mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday' };
-  if (n.days_ahead === 0) return 'today at ' + n.time;
-  if (n.days_ahead === 1) return 'tomorrow at ' + n.time;
-  return (names[n.day] || n.day) + ' at ' + n.time;
-}
-function closedBannerHtml() {
-  if (!isKitchenClosed()) return '';
-  return `<div class="closed-banner" role="status"><b>This kitchen is closed right now.</b> Menu will reopen ${escapeHTML(nextOpenLabel())}.</div>`;
-}
+// NOTE: is_open / opening hours are informational only. Nothing here is gated on them
+// (restaurants may run specials outside listed hours).
 function renderCombos() {
   const combos = (state.menu && Array.isArray(state.menu.combos)) ? state.menu.combos : [];
   if (!combos.length) return '';
-  const sym = state.settings.locale.currency_symbol || 'R';
+  const sym = curSym();
   const showOrder = state.settings.features.orders;
-  const closed = isKitchenClosed();
   return `<section class="combos-strip"><div class="section-label">🍽 Combos</div><div class="combos-row">${combos.map(c => `
     <div class="combo-card" id="combo-${escapeHTML(c.slug)}">
       <div class="combo-thumb"${c.thumb_url ? ` style="background-image:url('${escapeHTML(encodeURI(String(c.thumb_url)).replace(/['()]/g, ch => '%' + ch.charCodeAt(0).toString(16)))}')"` : ''}>${c.thumb_url ? '' : '🍽'}</div>
@@ -1429,13 +1536,12 @@ function renderCombos() {
         ${c.savings_cents > 0 ? `<div class="combo-save">Save ${escapeHTML(fmtPrice(c.savings_cents, sym))}</div>` : ''}
         <div class="combo-foot">
           <div class="combo-price">${escapeHTML(fmtPrice(c.price_cents, sym))}</div>
-          ${showOrder ? `<button class="combo-add" data-add-combo="${escapeHTML(c.id)}"${closed ? ' disabled' : ''}>+ Add</button>` : ''}
+          ${showOrder ? `<button class="combo-add" data-add-combo="${escapeHTML(c.id)}">+ Add</button>` : ''}
         </div>
       </div>
     </div>`).join('')}</div></section>`;
 }
 function addComboToCart(id) {
-  if (isKitchenClosed()) return toast('This kitchen is closed right now', 'err');
   const c = (state.menu.combos || []).find(x => x.id === id);
   if (!c) return;
   const key = 'combo::' + c.id;
@@ -1449,7 +1555,7 @@ function addComboToCart(id) {
 }
 
 function renderDish(d, idx) {
-  const sym = state.settings.locale.currency_symbol || 'R';
+  const sym = curSym();
   const price = d.price_cents ? fmtPrice(d.price_cents, sym) : (d.price || '');
   const nameTr = d.translations?.[state.lang]?.name || d.name;
   const descTr = d.translations?.[state.lang]?.description || d.description || '';
@@ -1496,7 +1602,7 @@ function renderDish(d, idx) {
         ${renderAllergenChips(d.allergens)}
         <div class="row">
           <a class="btn-ar" href="/view.html?r=${encodeURIComponent(r)}&d=${encodeURIComponent(d.slug)}${table ? '&t=' + encodeURIComponent(table) : ''}" style="display:flex;align-items:center;justify-content:center;text-decoration:none">See in AR →</a>
-          ${showOrder && !soldOut ? `<button class="btn-add" data-add="${escapeHTML(d.slug)}"${isKitchenClosed() ? ' disabled' : ''}>+ Add</button>` : ''}
+          ${showOrder && !soldOut ? `<button class="btn-add" data-add="${escapeHTML(d.slug)}">+ Add</button>` : ''}
           ${showOrder && soldOut ? `<button class="btn-add" disabled style="opacity:.4;cursor:not-allowed">Sold out</button>` : ''}
         </div>
       </div>
@@ -1719,31 +1825,70 @@ function reorderFromHistory(orderId) {
     total += qty;
     const dish = state.menu?.dishes?.find(d => d.slug === it.slug);
     if (!dish || dish.sold_out) continue;
+    // A dish with a required option group can't be re-added blind (the picker is what
+    // enforces the choice, and history doesn't store which options were picked).
+    if (Array.isArray(dish.modifiers) && dish.modifiers.some(g => g && g.required)) continue;
     const key = dish.slug + '::';
     const existing = state.cart.find(i => i.key === key);
     if (existing) existing.qty += qty;
-    else state.cart.push({ key, slug: dish.slug, name: dish.name, qty, price_cents: dish.price_cents || 0, modifiers: [] });
+    else state.cart.push({ key, slug: dish.slug, name: dish.name, qty, price_cents: unitPriceCents(dish, []), modifiers: [] });
     added += qty;
   }
   saveCart();
   updateActionbar();
   closeSheet();
-  toast(`Added ${added} of ${total} items` + (added < total ? ` — ${total - added} unavailable` : ''), added ? 'ok' : 'err');
+  toast(`Added ${added} of ${total} items` + (added < total ? ` — ${total - added} couldn't be added (unavailable or need options)` : ''), added ? 'ok' : 'err');
+}
+
+// Per-unit price the SERVER will charge (api/order.js): (base + modifier deltas), then the
+// active offer % applied to that whole sum. The menu payload's price_cents is already
+// discounted and modifier deltas are not, so adding them naively over-charged the
+// on-screen total for any discounted dish with paid modifiers.
+function unitPriceCents(dish, picked) {
+  let modSum = 0;
+  for (const m of (picked || [])) {
+    const [gi, oi] = String(m.id).split('-').map(Number);
+    const o = dish.modifiers?.[gi]?.options?.[oi];
+    modSum += o ? (parseInt(o.price_cents_delta, 10) || 0) : (m.price_cents_delta || 0);
+  }
+  if (dish.discount_pct && typeof dish.original_price_cents === 'number') {
+    return Math.max(0, Math.round((dish.original_price_cents + modSum) * (100 - dish.discount_pct) / 100));
+  }
+  return Math.max(0, (dish.price_cents || 0) + modSum);
+}
+// Re-price carts restored from localStorage/bfcache against the live menu (prices, offers
+// and modifier deltas may have changed since they were saved). Never drops items: a dish
+// can be hidden by a menu schedule yet still orderable, and the server has the final say.
+function reconcileCart() {
+  const dishes = state.menu && state.menu.dishes;
+  if (!Array.isArray(dishes) || !state.cart.length) return;
+  const combos = Array.isArray(state.menu.combos) ? state.menu.combos : [];
+  let changed = false;
+  for (const it of state.cart) {
+    let p = null;
+    if (it.combo_id) {
+      const c = combos.find(x => x.id === it.combo_id);
+      if (c) p = c.price_cents || 0;
+    } else {
+      const d = dishes.find(x => x.slug === it.slug);
+      if (d) p = unitPriceCents(d, it.modifiers);
+    }
+    if (p != null && it.price_cents !== p) { it.price_cents = p; changed = true; }
+  }
+  if (changed) saveCart();
 }
 
 function addToCart(slug, mods) {
-  if (isKitchenClosed()) return toast('This kitchen is closed right now', 'err');
   const dish = state.menu.dishes.find(d => d.slug === slug);
   if (!dish) return;
   // If dish has modifiers and none passed → open the modifier picker instead of adding raw.
   const dishMods = Array.isArray(dish.modifiers) ? dish.modifiers : [];
   if (dishMods.length && !mods) return openModifierPicker(dish);
   const picked = Array.isArray(mods) ? mods : [];
-  const addCents = picked.reduce((s, m) => s + (m.price_cents_delta || 0), 0);
   const key = slug + '::' + picked.map(m => m.id).sort().join('|');
   const existing = state.cart.find(i => i.key === key);
   if (existing) existing.qty++;
-  else state.cart.push({ key, slug, name: dish.name, qty: 1, price_cents: (dish.price_cents || 0) + addCents, modifiers: picked });
+  else state.cart.push({ key, slug, name: dish.name, qty: 1, price_cents: unitPriceCents(dish, picked), modifiers: picked });
   saveCart();
   updateActionbar();
   window.ArMenuSound?.play('pop');
@@ -1765,7 +1910,7 @@ function openModifierPicker(dish) {
             <label style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;background:rgba(255,239,220,.04);border:1px solid var(--line);cursor:pointer">
               <input type="${g.multi ? 'checkbox' : 'radio'}" name="mod-${gi}" data-g="${gi}" data-o="${oi}" style="accent-color:var(--accent)" />
               <span style="flex:1;font-size:14px">${escapeHTML(o.name)}</span>
-              <span style="color:var(--accent-2);font-size:13px;font-weight:700">${o.price_cents_delta > 0 ? '+' + fmtPrice(o.price_cents_delta, state.settings.locale.currency_symbol || 'R') : ''}</span>
+              <span style="color:var(--accent-2);font-size:13px;font-weight:700">${o.price_cents_delta > 0 ? '+' + fmtPrice(o.price_cents_delta, curSym()) : ''}</span>
             </label>`).join('')}
         </div>
       </div>`).join('')}
@@ -1795,6 +1940,10 @@ function openModifierPicker(dish) {
 
 // Cart persistence — survives page refreshes, kid-yanks, incoming WhatsApp taps.
 // Auto-expires after 24h so an abandoned cart from yesterday doesn't reload today.
+// Declared before loadCart(): an expired cart calls clearCart(), which assigns _cartDraft —
+// with the `let` further down that hit the temporal dead zone, threw, and left the stale
+// cart in storage (where view.html's add-to-cart then resurrected it).
+let _cartDraft = { note: '', tableInput: '' };
 const CART_KEY = 'armenu_cart_' + r + (table ? '_' + table : '');
 const CART_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 function saveCart() {
@@ -1815,6 +1964,24 @@ function loadCart() {
 }
 function clearCart() { state.cart = []; _cartDraft = { note: '', tableInput: '' }; try { localStorage.removeItem(CART_KEY); } catch {} }
 loadCart();
+// Re-read the cart from storage (another tab, or view.html's +Add, may have changed it).
+function reloadCartFromStorage() {
+  try {
+    if ($('sheet').classList.contains('on') && $('orderSend')) return;   // don't yank the cart out from under an open checkout
+    const raw = localStorage.getItem(CART_KEY);
+    let items = [];
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) items = parsed;
+      else if (parsed && Array.isArray(parsed.items) && Date.now() - (parsed.ts || 0) <= CART_MAX_AGE_MS) items = parsed.items;
+    }
+    if (JSON.stringify(items) === JSON.stringify(state.cart)) return;
+    state.cart = items;
+    reconcileCart();
+    if (state.settings) updateActionbar();
+  } catch {}
+}
+window.addEventListener('storage', (e) => { if (e.key === CART_KEY) reloadCartFromStorage(); });
 
 // ============ SHEETS ============
 function openSheet(html) {
@@ -1842,13 +2009,25 @@ async function refreshLoyalty() {
   } catch {}
 }
 function loyaltyDiscountFor(subtotal) {
-  return (_redeemLoyalty && _loyalty?.ready_to_redeem) ? Math.min(_loyalty.reward_value_cents || 0, subtotal) : 0;
+  // A reward DISH is added free by the server (no cash discount); only the legacy cash reward discounts.
+  if (_loyalty?.reward_dish) return 0;
+  return (_redeemLoyalty && _loyalty?.enabled && _loyalty?.ready_to_redeem) ? Math.min(_loyalty.reward_value_cents || 0, subtotal) : 0;
+}
+function loyaltyRedeeming() { return !!(_redeemLoyalty && _loyalty?.enabled && _loyalty?.ready_to_redeem); }
+function loyaltyThumbHtml(d, size) {
+  const px = size || 40;
+  const u = d && d.thumb_url ? "background-image:url('" + escapeHTML(encodeURI(String(d.thumb_url)).replace(/['()]/g, ch => '%' + ch.charCodeAt(0).toString(16))) + "');background-size:cover;background-position:center;" : '';
+  return `<span style="display:inline-flex;align-items:center;justify-content:center;flex:none;width:${px}px;height:${px}px;border-radius:10px;background-color:rgba(255,239,220,.08);${u}">${d && d.thumb_url ? '' : '🎁'}</span>`;
+}
+function loyaltyRewardLabel(l, sym) {
+  if (l && l.reward_dish) return 'free ' + l.reward_dish.name;
+  return (l && l.reward_value_cents > 0) ? (fmtPrice(l.reward_value_cents, sym) + ' off') : 'a reward';
 }
 refreshLoyalty();
 
 // Preserve user-typed values across cart re-renders (tip toggle / qty +/-)
 // so a guest who typed "no peanuts, allergy" then adjusted qty doesn't lose it.
-let _cartDraft = { note: '', tableInput: '' };
+// (_cartDraft itself is declared above, next to CART_KEY.)
 function waitChipHtml() {
   const w = state.menu && state.menu.wait_estimate;
   if (!w || typeof w.p50_min !== 'number') return '';
@@ -1873,7 +2052,7 @@ function openCart() {
   // Snapshot the current form values BEFORE we re-render (openSheet wipes them)
   const prevNote = $('orderNote')?.value; if (prevNote != null) _cartDraft.note = prevNote;
   const prevTbl  = $('orderTable')?.value; if (prevTbl != null) _cartDraft.tableInput = prevTbl;
-  const sym = state.settings.locale.currency_symbol || 'R';
+  const sym = curSym();
   const subtotal = state.cart.reduce((s, i) => s + i.price_cents * i.qty, 0);
   const tipCents = Math.round(subtotal * (_tipPct / 100));
   const loyaltyOff = loyaltyDiscountFor(subtotal);
@@ -1902,11 +2081,14 @@ function openCart() {
       <div style="display:flex;gap:6px">${tipBtns}</div>
     </div>
     ${tipCents > 0 ? `<div class="cart-total" style="padding-top:6px;font-weight:500;color:var(--ink-dim)"><span>Tip (${_tipPct}%)</span><span>${fmtPrice(tipCents, sym)}</span></div>` : ''}
+    ${_loyalty?.enabled && _loyalty?.ready_to_redeem ? `<label id="cartRedeemRow" style="display:flex;gap:10px;align-items:center;margin:10px 0;padding:10px 12px;border-radius:12px;border:1px solid rgba(var(--accent-rgb),.35);background:rgba(var(--accent-rgb),.08);font-size:13.5px;cursor:pointer"><input type="checkbox" id="cartRedeem" ${_redeemLoyalty ? 'checked' : ''} />${_loyalty.reward_dish ? loyaltyThumbHtml(_loyalty.reward_dish, 36) : ''}<span>🎁 Redeem for ${escapeHTML(loyaltyRewardLabel(_loyalty, sym))}</span></label>` : ''}
+    ${loyaltyRedeeming() && _loyalty.reward_dish ? `<div class="cart-total" id="cartLoyaltyLine" style="padding-top:6px;font-weight:500;color:var(--accent)"><span>🎁 ${escapeHTML(_loyalty.reward_dish.name)}</span><span>FREE</span></div>` : ''}
     ${loyaltyOff > 0 ? `<div class="cart-total" id="cartLoyaltyLine" style="padding-top:6px;font-weight:500;color:var(--accent)"><span>Loyalty reward</span><span>-${fmtPrice(loyaltyOff, sym)}</span></div>` : ''}
     <div class="cart-total" style="border-top:1px solid var(--line);padding-top:12px;font-size:18px"><span>Total</span><span style="color:var(--accent)">${fmtPrice(total, sym)}</span></div>
     <div class="field"><label>Note for the kitchen (optional)</label><textarea id="orderNote" rows="2" placeholder="Allergies, spice level, etc.">${escapeHTML(_cartDraft.note)}</textarea></div>
     ${!table ? `<div class="field"><label>Your table number (optional)</label><input id="orderTable" placeholder="e.g. 12" value="${escapeHTML(_cartDraft.tableInput)}" /></div>` : ''}
     <button class="submit" id="orderSend">Send to kitchen →</button>
+    <button type="button" class="ohr-reorder" id="saveUsual" style="width:100%;margin-top:10px">🥡 Save as usual</button>
   `);
   document.querySelectorAll('[data-tip]').forEach(b => b.onclick = () => { _tipPct = +b.dataset.tip; openCart(); });
   document.querySelectorAll('[data-inc]').forEach(b => b.onclick = () => { state.cart[b.dataset.inc].qty++; saveCart(); openCart(); updateActionbar(); });
@@ -1918,22 +2100,36 @@ function openCart() {
     openCart(); updateActionbar();
   });
   $('orderSend').onclick = submitOrder;
+  const cr = $('cartRedeem');
+  if (cr) cr.onchange = () => { _redeemLoyalty = cr.checked; openCart(); };
+  $('saveUsual').onclick = saveCartAsUsual;
   startWaitRefresh();
 }
 
+let _orderInFlight = false;
+let _pendingOrder = null;   // { sig, id, ts } — idempotency key kept across retries of the SAME cart
 async function submitOrder() {
-  if (isKitchenClosed()) return toast('This kitchen is closed right now', 'err');
+  if (_orderInFlight) return;   // second tap (or a re-rendered cart sheet's fresh button) while one is sending
+  _orderInFlight = true;
   const btn = $('orderSend'); btn.disabled = true; btn.textContent = 'Sending…';
   const note = $('orderNote')?.value.trim() || undefined;
   const tbl = table || $('orderTable')?.value.trim() || undefined;
   const subtotal = state.cart.reduce((s, i) => s + i.price_cents * i.qty, 0);
   const tip_cents = Math.round(subtotal * (_tipPct / 100));
-  const redeem_loyalty = loyaltyDiscountFor(subtotal) > 0;
+  const redeem_loyalty = loyaltyRedeeming();
   let total_cents = subtotal - loyaltyDiscountFor(subtotal) + tip_cents;
   // Client-side idempotency key — a network retry (spotty mobile signal
   // dropping the response leg after the DB write) sends the same key so
   // the server can short-circuit and return the same order_id.
-  const client_order_id = (crypto.randomUUID && crypto.randomUUID()) || (Date.now() + '-' + Math.random().toString(36).slice(2));
+  // The key must SURVIVE a failed attempt: generating a fresh one per tap made the
+  // server's dedupe useless for exactly the case it exists for (response lost after the
+  // DB write, guest taps Send again). Reuse it while the cart/tip/table/note are unchanged
+  // (and within the server's 15 min window); a changed cart is a new order and gets a new key.
+  const sig = JSON.stringify([state.cart.map(i => [i.key, i.qty]), tip_cents, tbl || '', note || '', redeem_loyalty]);
+  if (!_pendingOrder || _pendingOrder.sig !== sig || Date.now() - _pendingOrder.ts > 10 * 60 * 1000) {
+    _pendingOrder = { sig, ts: Date.now(), id: (crypto.randomUUID && crypto.randomUUID()) || (Date.now() + '-' + Math.random().toString(36).slice(2)) };
+  }
+  const client_order_id = _pendingOrder.id;
   try {
     const res = await fetch('/api/order', {
       method: 'POST', headers: { 'content-type': 'application/json' },
@@ -1943,8 +2139,11 @@ async function submitOrder() {
         items: state.cart.map(i => i.combo_id ? { combo_id: i.combo_id, qty: i.qty } : { dish_slug: i.slug, qty: i.qty, modifiers: i.modifiers || [] })
       })
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || data.error || 'Could not send');
+    // A gateway error page (502/504 HTML) isn't JSON — don't surface "Unexpected token <".
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || data.error || 'Could not send. Please try again.');
+    if (!data.order_id) throw new Error('Could not confirm your order. Please tap Send again.');
+    _pendingOrder = null;
     if (typeof data.total_cents === 'number') total_cents = data.total_cents;
     _redeemLoyalty = false;
 
@@ -1975,7 +2174,10 @@ async function submitOrder() {
     showOrderConfirmation(lastOrder);
     enableOrderReadyPush();   // fire-and-forget; never blocks the order flow
     refreshLoyalty();
-  } catch (e) { toast(e.message, 'err'); btn.disabled = false; btn.textContent = 'Send to kitchen →'; }
+  } catch (e) {
+    toast(e instanceof TypeError ? 'No connection. Tap Send again to retry.' : e.message, 'err');
+    btn.disabled = false; btn.textContent = 'Send to kitchen →';
+  } finally { _orderInFlight = false; }
 }
 
 // Quietly ask for notification permission after an order and register a
@@ -1986,31 +2188,43 @@ function b64ToUint8(b64) {
   const raw = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/'));
   return Uint8Array.from(raw, c => c.charCodeAt(0));
 }
-async function enableOrderReadyPush() {
+const _isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+// Returns true only when the subscription was actually registered with the server.
+// `userInitiated` = called straight from a tap: iOS Safari only shows the permission
+// prompt inside a user gesture, and by the time the order fetch resolves the gesture is gone.
+async function enableOrderReadyPush(userInitiated) {
   try {
-    if (!customerToken || !('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return;
-    if (Notification.permission === 'denied') return;
+    if (!customerToken || !('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return false;
+    if (Notification.permission === 'denied') return false;
     if (Notification.permission !== 'granted') {
+      // TODO(bug-audit): iOS Safari (a) exposes PushManager only to home-screen-installed web apps
+      // (so this silently returns above for a plain Safari tab) and (b) rejects
+      // requestPermission() outside a tap. Can't verify on-device from here; the confirmation
+      // sheet offers a tap-driven "Notify me" button on iOS as a fallback.
+      if (_isIOS && !userInitiated) return false;
       const perm = await Notification.requestPermission();
-      if (perm !== 'granted') return;
+      if (perm !== 'granted') return false;
     }
     const kr = await fetch('/api/push/vapid-key').then(x => x.json()).catch(() => null);
-    if (!kr || !kr.publicKey) return;
-    const reg = await navigator.serviceWorker.ready;
+    if (!kr || !kr.publicKey) return false;
+    // serviceWorker.ready never settles when no worker is registered — bound the wait.
+    const reg = await Promise.race([navigator.serviceWorker.ready, new Promise(res => setTimeout(() => res(null), 6000))]);
+    if (!reg) return false;
     let sub = await reg.pushManager.getSubscription();
     if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToUint8(kr.publicKey) });
-    await fetch('/api/push/subscribe', {
+    const res = await fetch('/api/push/subscribe', {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ subscription: sub.toJSON(), customer_token: customerToken, r })
     });
-  } catch {}
+    return res.ok;
+  } catch { return false; }
 }
 
 // Big check-mark confirmation shown right after the guest submits an order.
 // This is an ADDITIONAL layer on top of the existing "order placed" UX
 // (toast + chime + cart clear above) — it does not replace any of that.
 function showOrderConfirmation(order) {
-  const sym = state.settings?.locale?.currency_symbol || 'R';
+  const sym = curSym();
   openSheet(`
     <div class="order-conf-panel">
       <div class="conf-check">✓</div>
@@ -2018,12 +2232,21 @@ function showOrderConfirmation(order) {
       <div class="conf-num">#${escapeHTML(order.order_number)}</div>
       <div class="conf-hint">Show this to your waiter if needed · ${escapeHTML(fmtPrice(order.total_cents, sym) || '')}${order.table ? ' · Table ' + escapeHTML(order.table) : ''}</div>
       <div class="conf-actions">
+        ${(_isIOS && customerToken && 'PushManager' in window && 'Notification' in window && Notification.permission === 'default')
+          ? '<button class="submit" id="confNotify">🔔 Notify me when it\'s ready</button>' : ''}
         <button class="submit" id="confSaveImg">📷 Save to phone</button>
         <button class="submit" id="confDone" style="background:rgba(255,239,220,.06);color:var(--ink)">Done</button>
       </div>
     </div>
   `);
   $('confDone').onclick = closeSheet;
+  const notifyBtn = $('confNotify');
+  if (notifyBtn) notifyBtn.onclick = async () => {
+    notifyBtn.disabled = true;
+    const ok = await enableOrderReadyPush(true);
+    if (ok) { notifyBtn.remove(); toast("We'll notify you when it's ready", 'ok'); }
+    else { notifyBtn.disabled = false; toast("Couldn't turn on notifications on this device", 'err'); }
+  };
   $('confSaveImg').onclick = () => saveOrderReceiptImage(order);
 }
 
@@ -2032,7 +2255,7 @@ function showOrderConfirmation(order) {
 // export isn't available (e.g. locked-down webview).
 function saveOrderReceiptImage(order) {
   try {
-    const sym = state.settings?.locale?.currency_symbol || 'R';
+    const sym = curSym();
     const w = 640, lineH = 30;
     const items = Array.isArray(order.items) ? order.items : [];
     const h = 210 + items.length * lineH;
@@ -2087,13 +2310,82 @@ async function loadProfileLoyalty(sym) {
     const pct = Math.round((l.stamps_current / Math.max(1, l.threshold)) * 100);
     const here = l.slug === r;
     return `<div class="loyalty-row" style="margin-bottom:14px">
-      <div style="font-size:13px;margin-bottom:6px">${escapeHTML(l.stamps_current)} / ${escapeHTML(l.threshold)} stamps at ${escapeHTML(l.name || l.slug)} · ${escapeHTML(fmtPrice(l.reward_value_cents, sym))} free dish</div>
+      <div style="font-size:13px;margin-bottom:6px">${l.reward_dish ? loyaltyThumbHtml(l.reward_dish, 28) + ' ' : ''}${escapeHTML(l.stamps_current)} / ${escapeHTML(l.threshold)} stamps at ${escapeHTML(l.name || l.slug)} · 🎁 ${escapeHTML(loyaltyRewardLabel(l, sym))}</div>
       <div style="height:8px;border-radius:99px;background:rgba(255,239,220,.08);overflow:hidden"><div style="height:100%;width:${pct}%;background:var(--accent)"></div></div>
-      ${l.ready_to_redeem && here ? `<label style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:13px"><input type="checkbox" id="pfRedeem" ${_redeemLoyalty ? 'checked' : ''} /> Redeem on next order</label>` : (l.ready_to_redeem ? '<div class="sh-sub" style="margin-top:6px">Reward ready. Redeem it on your next order there.</div>' : '')}
+      ${l.ready_to_redeem && here ? `<label style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:13px"><input type="checkbox" id="pfRedeem" ${_redeemLoyalty ? 'checked' : ''} /> Redeem for ${escapeHTML(loyaltyRewardLabel(l, sym))} on next order</label>` : (l.ready_to_redeem ? '<div class="sh-sub" style="margin-top:6px">Reward ready. Redeem it on your next order there.</div>' : '')}
     </div>`;
   }).join('');
   const t = $('pfRedeem');
   if (t) t.onchange = () => { _redeemLoyalty = t.checked; if (t.checked && !_loyalty?.ready_to_redeem) refreshLoyalty(); };
+}
+// ============ MY USUAL (saved combos per restaurant) ============
+async function saveCartAsUsual() {
+  if (!customerToken) return toast('Profile not ready yet', 'err');
+  const slugs = [];
+  for (const it of state.cart) {
+    if (!it.slug || it.combo_id) continue;
+    for (let n = 0; n < Math.max(1, it.qty | 0) && slugs.length < 30; n++) slugs.push(it.slug);
+  }
+  if (!slugs.length) return toast('Add some dishes first (combos can\'t be saved)', 'err');
+  const nm = window.prompt('Name this order (optional)', 'My usual');
+  if (nm === null) return;
+  try {
+    const res = await fetch('/api/customer/my-usual', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ token: customerToken, restaurant_slug: r, name: nm.trim() || undefined, item_slugs: slugs })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || data.error || 'Could not save');
+    toast('Saved to your profile as "' + (nm.trim() || 'My usual') + '"', 'ok');
+  } catch (e) { toast(e.message || 'Could not save', 'err'); }
+}
+function loadUsualIntoCart(combo) {
+  let total = 0, added = 0;
+  for (const it of combo.items || []) {
+    total++;
+    const dish = state.menu?.dishes?.find(d => d.slug === it.dish_slug);
+    if (!dish || dish.sold_out) continue;
+    const key = dish.slug + '::';
+    const existing = state.cart.find(i => i.key === key);
+    if (existing) existing.qty += 1;
+    else state.cart.push({ key, slug: dish.slug, name: dish.name, qty: 1, price_cents: dish.price_cents || 0, modifiers: [] });
+    added++;
+  }
+  saveCart();
+  updateActionbar();
+  closeSheet();
+  toast(`Added ${added} of ${total} items` + (added < total ? ` — ${total - added} unavailable` : ''), added ? 'ok' : 'err');
+}
+async function loadProfileUsual(sym) {
+  const wrap = $('pfUsualWrap'), box = $('pfUsual'); if (!wrap || !box || !customerToken) return;
+  let saved = [];
+  try {
+    const res = await fetch('/api/customer/my-usual?token=' + encodeURIComponent(customerToken) + '&r=' + encodeURIComponent(r));
+    if (res.ok) saved = (await res.json()).saved || [];
+  } catch {}
+  if (!$('pfUsual')) return;
+  if (!saved.length) { wrap.style.display = 'none'; return; }
+  wrap.style.display = '';
+  box.innerHTML = saved.map(c => {
+    const total = c.items.reduce((s, i) => s + (i.price_cents || 0), 0);
+    return `<div class="loyalty-row" style="margin-bottom:12px">
+      <div style="font-size:14px;font-weight:700;margin-bottom:4px">${escapeHTML(c.name)} <span style="font-weight:400;color:var(--ink-dim)">· ${escapeHTML(fmtPrice(total, sym) || '')}</span></div>
+      <div class="sh-sub" style="margin:0 0 8px">${c.items.map(i => escapeHTML(i.dish_name) + (i.sold_out ? ' (sold out)' : '')).join(', ')}</div>
+      <div style="display:flex;gap:8px"><button type="button" class="ohr-reorder" data-usual-load="${escapeHTML(c.id)}" style="margin-top:0">Load into cart</button>
+      <button type="button" class="ohr-reorder" data-usual-del="${escapeHTML(c.id)}" style="margin-top:0;background:transparent;color:var(--ink-dim);border-color:var(--line)">Delete</button></div>
+    </div>`;
+  }).join('');
+  box.querySelectorAll('[data-usual-load]').forEach(b => b.onclick = () => {
+    const c = saved.find(x => x.id === b.dataset.usualLoad); if (c) loadUsualIntoCart(c);
+  });
+  box.querySelectorAll('[data-usual-del]').forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    try {
+      const res = await fetch('/api/customer/my-usual?token=' + encodeURIComponent(customerToken) + '&id=' + encodeURIComponent(b.dataset.usualDel), { method: 'DELETE' });
+      if (!res.ok) throw new Error();
+      loadProfileUsual(sym);
+    } catch { b.disabled = false; toast('Could not delete', 'err'); }
+  });
 }
 async function loadProfileReferral() {
   const box = $('pfReferral'); if (!box) return;
@@ -2136,14 +2428,14 @@ function openProfile() {
   const favHtml = customerFavourites.length
     ? customerFavourites.map(f => `
         <div class="fav-row">
-          <a href="/m/${encodeURIComponent(f.restaurant_slug)}#dish-${encodeURIComponent(f.dish_slug)}">
+          <a href="/m/${encodeURIComponent(f.restaurant_slug)}#dish-${encodeURIComponent(f.dish_slug)}" data-fav-dish="${escapeHTML(f.dish_slug)}" data-fav-rest="${escapeHTML(f.restaurant_slug)}">
             ${escapeHTML(f.dish_name || f.dish_slug)}
             <span class="fav-r">${escapeHTML(f.restaurant_slug)}</span>
           </a>
         </div>`).join('')
     : `<div class="sh-sub">No favourites yet — tap the ♥ on any dish.</div>`;
 
-  const sym = state.settings?.locale?.currency_symbol || 'R';
+  const sym = curSym();
   const ordersHtml = customerRecentOrders.length
     ? customerRecentOrders.map(o => `
         <div class="order-hist-row">
@@ -2177,6 +2469,8 @@ function openProfile() {
     <button class="submit" id="pfSave">Save →</button>
     <div class="section-label" style="margin:24px 6px 12px">🎁 Loyalty</div>
     <div id="pfLoyalty"><div class="sh-sub">Loading…</div></div>
+    <div id="pfUsualWrap" style="display:none"><div class="section-label" style="margin:24px 6px 12px">🥡 My usual</div>
+    <div id="pfUsual"></div></div>
     <div class="section-label" style="margin:24px 6px 12px">Refer a friend</div>
     <div id="pfReferral"><div class="sh-sub">Loading…</div></div>
     <div class="section-label" style="margin:24px 6px 12px">Your favourites</div>
@@ -2188,7 +2482,18 @@ function openProfile() {
   `);
 
   document.querySelectorAll('[data-reorder]').forEach(b => b.onclick = () => reorderFromHistory(b.dataset.reorder));
+  // Favourites for THIS restaurant: don't reload the page (that drops the table QR context and
+  // never opens a collapsed category) — close the sheet, open the category and scroll to the dish.
+  document.querySelectorAll('#pfFavList a[data-fav-dish]').forEach(a => a.onclick = (e) => {
+    if (a.dataset.favRest !== r) return;   // other restaurant: normal navigation
+    e.preventDefault();
+    closeSheet();
+    try { history.replaceState(null, '', location.pathname + location.search + '#dish-' + encodeURIComponent(a.dataset.favDish)); } catch {}
+    _hashHandled = null;
+    revealHashDish();
+  });
   loadProfileLoyalty(sym);
+  loadProfileUsual(sym);
   loadProfileReferral();
 
   let allergyState = allergies.slice();
@@ -2238,9 +2543,11 @@ function openProfile() {
         method: 'PATCH', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           token: customerToken,
-          name: $('pfName').value.trim() || undefined,
-          phone: $('pfPhone').value.trim() || undefined,
-          email: $('pfEmail').value.trim() || undefined,
+          // Empty string (not undefined) so clearing a field actually clears it server-side;
+          // undefined is dropped from the JSON and the old value would silently stay.
+          name: $('pfName').value.trim(),
+          phone: $('pfPhone').value.trim(),
+          email: $('pfEmail').value.trim(),
           allergies: allergyState,
           dietary_prefs: [...dietState]
         })
@@ -2268,8 +2575,9 @@ function openProfile() {
       try { localStorage.removeItem('armenu_customer_token'); } catch {}
       customerToken = crypto.randomUUID();
       try { localStorage.setItem('armenu_customer_token', customerToken); } catch {}
-      customer = null; customerFavourites = []; customerFavKeys = new Set();
+      customer = null; customerFavourites = []; customerFavKeys = new Set(); customerRecentOrders = [];
       syncHeartButtons();
+      refreshCustomer();   // register the fresh token so hearts / push / orders link to a real customer row
       if (window.ArmenuFX?.toast) window.ArmenuFX.toast('Your data has been deleted', { type: 'success' });
       else alert('Your data has been deleted');
       closeSheet();
@@ -2294,9 +2602,10 @@ function openDeleteConfirm() {
       const res = await fetch('/api/customer/me?token=' + encodeURIComponent(customerToken), { method: 'DELETE' });
       if (!res.ok) throw new Error('failed');
       try { localStorage.removeItem('armenu_customer_token'); } catch {}
-      customer = null; customerFavourites = []; customerFavKeys = new Set();
+      customer = null; customerFavourites = []; customerFavKeys = new Set(); customerRecentOrders = [];
       customerToken = getCustomerToken();
       syncHeartButtons();
+      refreshCustomer();   // register the fresh token so hearts / push / orders link to a real customer row
       window.ArmenuFX?.toast('Profile deleted', { type: 'success' });
       closeSheet();
     } catch (e) {
@@ -2421,14 +2730,9 @@ function wireActions() {
   $('reviewBtn').onclick = openReview;
   $('reserveBtn').onclick = openReserve;
   $('profileBtn').onclick = openProfile;
-
-  const langs = state.settings.locale.languages || ['en'];
-  $('langBtn').onclick = () => {
-    const i = langs.indexOf(state.lang);
-    state.lang = langs[(i + 1) % langs.length];
-    $('langBtn').textContent = state.lang.toUpperCase();
-    render();
-  };
+  // NOTE: the language button is wired inside render() (cycles every language that has
+  // translations AND persists the choice). It used to be re-bound here to a settings-only
+  // list with no persistence, which made translated-but-unlisted languages unreachable.
 }
 
 $('cmpChip').onclick = openCompare;

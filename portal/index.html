@@ -835,9 +835,9 @@
           </div>
         </div>
         <div class="locations-grid">${data.locations.map(l => `
-          <div class="loc-card" data-loc="${l.slug}">
-            <div class="loc-name">${l.name}</div>
-            <div class="loc-slug">${l.slug}.armenu.co.za</div>
+          <div class="loc-card" data-loc="${escapeHTML(l.slug)}">
+            <div class="loc-name">${escapeHTML(l.name)}</div>
+            <div class="loc-slug">${escapeHTML(l.slug)}.armenu.co.za</div>
             <div class="loc-metrics">
               <span><b>${l.metrics_7d.scans}</b> scans</span>
               <span><b>${l.metrics_7d.orders}</b> orders</span>
@@ -845,9 +845,9 @@
               ${l.metrics_7d.avg_rating ? `<span><b>${l.metrics_7d.avg_rating.toFixed(1)}★</b></span>` : ''}
             </div>
             <div class="loc-actions">
-              <a class="loc-btn" data-open="admin" data-slug="${l.slug}">Manage</a>
-              <a class="loc-btn" data-open="menu" data-slug="${l.slug}">Menu</a>
-              <a class="loc-btn" data-open="kitchen" data-slug="${l.slug}">Kitchen</a>
+              <a class="loc-btn" data-open="admin" data-slug="${escapeHTML(l.slug)}">Manage</a>
+              <a class="loc-btn" data-open="menu" data-slug="${escapeHTML(l.slug)}">Menu</a>
+              <a class="loc-btn" data-open="kitchen" data-slug="${escapeHTML(l.slug)}">Kitchen</a>
             </div>
           </div>`).join('')}</div>`;
       // Remove any prior org-overview from a previous loadMe() BEFORE
@@ -1278,12 +1278,14 @@
     _cachedMgrToken = { token: data.token, slug, expires: Date.now() + 11 * 3600 * 1000 };
     return data.token;
   }
-  async function mgrFetch(path, opts = {}) {
+  async function mgrFetch(path, opts = {}, _retried = false) {
     const tok = await mgrToken(CURRENT?.restaurant?.slug);
     const res = await fetch(path, {
       ...opts,
       headers: { 'content-type': 'application/json', 'x-portal-token': tok, ...(opts.headers || {}) }
     });
+    // Token rotated / server secret changed / clock skew: mint a fresh one once instead of failing every call until reload.
+    if (res.status === 401 && !_retried) { _cachedMgrToken = null; return mgrFetch(path, opts, true); }
     const data = await res.json().catch(() => ({}));
     return { ok: res.ok, status: res.status, data };
   }
@@ -1447,10 +1449,7 @@ Sub gluten-free bun +1200</code></div>
       const origDelLabel = delBtn.textContent;
       delBtn.disabled = true; delBtn.innerHTML = '<span class="btn-spinner"></span>Deleting…';
       try {
-        // We need the dish's id; portal /me only returns slug. Fetch it via admin/dishes list? There's no GET.
-        // Use PATCH on /api/admin/dishes?id=<id> — but we need the id. Fall back to fetching /api/dish?r=&d=.
-        const dinfo = await fetch(`/api/dish?r=${CURRENT.restaurant.slug}&d=${existing.slug}`).then(r => r.json());
-        // Not enough — we need the dishes table id. Use an admin categories-style lookup would help. Fastest: POST an inactive PATCH via a helper we still need to build; for now skip delete unless we build the list endpoint. Instead, hide by setting active=false via slug lookup on the server. We'll route through a small compatibility endpoint:
+        // The server resolves the dish by (restaurant slug + dish slug), so no id lookup is needed.
         const { ok, data } = await mgrFetch(`/api/admin/dishes?slug=${CURRENT.restaurant.slug}&dish_slug=${existing.slug}`, { method: 'DELETE' });
         if (!ok) { $('dishEditorErr').textContent = data.error || 'Failed to delete'; delBtn.disabled = false; delBtn.textContent = origDelLabel; return; }
         toast('Dish deleted', 'ok');
@@ -1666,13 +1665,13 @@ Sub gluten-free bun +1200</code></div>
         return `<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:9px;background:rgba(245,236,216,.03);margin-bottom:6px;flex-wrap:wrap">
           <div style="flex:1;min-width:150px">
             <div style="font-weight:600;font-size:14px">${escapeHTML(t.label)}${assigned ? ' · <span style="color:#e8c58a">👤 ' + escapeHTML(assigned.name) + '</span>' : ''}</div>
-            <div style="color:var(--ink-faint);font-size:11px;font-family:var(--mono);letter-spacing:.06em">${t.seats || 2} seats · ${t.status || 'available'}</div>
+            <div style="color:var(--ink-faint);font-size:11px;font-family:var(--mono);letter-spacing:.06em">${escapeHTML(String(t.seats || 2))} seats · ${escapeHTML(t.status || 'available')}</div>
           </div>
-          <select data-assign="${t.id}" style="padding:6px 8px;border-radius:6px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:12px;max-width:130px">
+          <select data-assign="${escapeHTML(t.id)}" style="padding:6px 8px;border-radius:6px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:12px;max-width:130px">
             <option value="">— unassigned —</option>
             ${waiterOpts.map(s => `<option value="${s.id}" ${t.assigned_staff_id === s.id ? 'selected' : ''}>${escapeHTML(s.name)}</option>`).join('')}
           </select>
-          <button data-print-table="${t.label}" title="Print this table's QR" style="background:rgba(232,197,138,.1);color:#e8c58a;border:1px solid rgba(232,197,138,.28);padding:6px 10px;border-radius:8px;font-size:11px;cursor:pointer">🖨 QR</button>
+          <button data-print-table="${escapeHTML(t.label)}" title="Print this table's QR" style="background:rgba(232,197,138,.1);color:#e8c58a;border:1px solid rgba(232,197,138,.28);padding:6px 10px;border-radius:8px;font-size:11px;cursor:pointer">🖨 QR</button>
           <button data-del="/api/admin/tables?id=${t.id}&slug=${slug}" style="background:rgba(248,113,113,.1);color:#f87171;border:1px solid rgba(248,113,113,.25);padding:6px 10px;border-radius:8px;font-size:11px;cursor:pointer">🗑</button>
         </div>`;
       },
@@ -1773,7 +1772,7 @@ Sub gluten-free bun +1200</code></div>
           ev.target.disabled = true;
           try {
             for (let i = 0; i < SEEDS.length; i++) {
-              await call(api(), 'POST', { name: SEEDS[i].name, slug: stationSlug(SEEDS[i].name), is_expo: SEEDS[i].is_expo, sort_order: i });
+              await call(api(), 'POST', { name: SEEDS[i].name, station_slug: stationSlug(SEEDS[i].name), is_expo: SEEDS[i].is_expo, sort_order: i });
             }
             toast('Stations added', 'ok');
           } catch (e) { $('stErr').textContent = e.message; }
@@ -1840,7 +1839,7 @@ Sub gluten-free bun +1200</code></div>
       if (!name || !sl) { $('stErr').textContent = 'Name required'; return; }
       const btn = $('stnSave'); btn.disabled = true;
       try {
-        await call(api(), 'POST', { name, slug: sl, is_expo: $('stnExpo').checked, sort_order: items.length });
+        await call(api(), 'POST', { name, station_slug: sl, is_expo: $('stnExpo').checked, sort_order: items.length });
         $('stnName').value = ''; $('stnSlug').textContent = '—'; $('stnExpo').checked = false;
         toast('Station added', 'ok');
         refresh();
@@ -1933,6 +1932,8 @@ Sub gluten-free bun +1200</code></div>
       .then(() => window.print());
   }
   // Lay shifts into per-day columns. cls = 'sh' (screen) or 'pr' (print).
+  // TODO(speculative): shifts are bucketed by the BROWSER's timezone, not restaurant_settings.timezone; a manager
+  // travelling/abroad sees shifts on the wrong day. Also shifts wholly outside 08:00-23:00 render as a stub at the grid edge.
   function shiftGridHTML(ws, shifts, cls, withIds) {
     const hours = [];
     for (let h = SH_START; h < SH_END; h++) hours.push(`<div>${pad2(h)}:00</div>`);
@@ -1989,14 +1990,18 @@ Sub gluten-free bun +1200</code></div>
     $('wizOverlay').classList.add('on');
     $('wizClose').onclick = $('shClose').onclick = () => $('wizOverlay').classList.remove('on');
 
+    let _shSeq = 0;
     async function load() {
-      const from = ws.toISOString();
-      const to = new Date(ws.getFullYear(), ws.getMonth(), ws.getDate() + 7).toISOString();
-      $('shLabel').textContent = weekLabel(ws);
-      const { ok, data } = await mgrFetch(`/api/admin/shifts?slug=${slug}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+      const seq = ++_shSeq;
+      const wk = new Date(ws); // snapshot: ws is mutated in place by the prev/next buttons
+      const from = wk.toISOString();
+      const to = new Date(wk.getFullYear(), wk.getMonth(), wk.getDate() + 7).toISOString();
+      $('shLabel').textContent = weekLabel(wk);
+      const { ok, data } = await mgrFetch(`/api/admin/shifts?slug=${encodeURIComponent(slug)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+      if (seq !== _shSeq) return; // user already paged to another week - don't paint stale shifts under the new label
       shifts = ok ? (data.shifts || []) : [];
-      if (!ok) $('shErr').textContent = data.error || 'Could not load shifts';
-      $('shGridWrap').innerHTML = shiftGridHTML(ws, shifts, 'sh', true);
+      $('shErr').textContent = ok ? '' : (data.error || 'Could not load shifts');
+      $('shGridWrap').innerHTML = shiftGridHTML(wk, shifts, 'sh', true);
     }
     try {
       const r = await mgrFetch(`/api/admin/staff?slug=${slug}`);
@@ -2009,8 +2014,10 @@ Sub gluten-free bun +1200</code></div>
     $('shPrev').onclick = () => { ws.setDate(ws.getDate() - 7); load(); };
     $('shNext').onclick = () => { ws.setDate(ws.getDate() + 7); load(); };
     $('shAddToggle').onclick = () => { const f = $('shForm'); f.style.display = f.style.display === 'block' ? 'none' : 'block'; };
-    $('shPrint').onclick = () => printNow(
-      brandHead(brand, 'Staff shifts · ' + weekLabel(ws)) + shiftGridHTML(ws, shifts, 'pr', false));
+    $('shPrint').onclick = () => {
+      // Overnight shifts spill into the next week's fetch window only via their start day, so print exactly what the grid shows.
+      printNow(brandHead(brand, 'Staff shifts · ' + weekLabel(ws)) + shiftGridHTML(new Date(ws), shifts, 'pr', false));
+    };
     $('shGridWrap').onclick = async (e) => {
       const b = e.target.closest('[data-shift]');
       if (!b || !confirm('Remove this shift?')) return;
@@ -2041,7 +2048,6 @@ Sub gluten-free bun +1200</code></div>
   async function openPrepSheetModal() {
     const slug = CURRENT.restaurant.slug;
     const brand = await fetchBrand();
-    const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
     let last = null;
     $('wizKicker').textContent = 'Kitchen';
     $('wizTitle').textContent = 'Prep sheet';
@@ -2049,7 +2055,7 @@ Sub gluten-free bun +1200</code></div>
     $('wizBody').innerHTML = `
       <p style="color:var(--ink-dim);margin-bottom:12px">Expected quantities are the average of the same weekday over the last 4 weeks.</p>
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
-        <input type="date" id="ppDate" value="${ymd(tomorrow)}" style="flex:1;padding:9px 10px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:13px" />
+        <input type="date" id="ppDate" value="" style="flex:1;padding:9px 10px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:13px" />
         <button class="wiz-secondary" id="ppLoad">Show</button>
       </div>
       <div id="ppBody" style="max-height:44vh;overflow:auto"></div>
@@ -2058,19 +2064,22 @@ Sub gluten-free bun +1200</code></div>
     $('wizOverlay').classList.add('on');
     $('wizClose').onclick = $('ppClose').onclick = () => $('wizOverlay').classList.remove('on');
     const rowsHTML = (d, forPrint) => `<table ${forPrint ? '' : 'class="pp-table"'}><thead><tr><th>Dish</th><th>Expected qty</th><th>Station</th><th>Category</th></tr></thead><tbody>${
-      d.dishes.map(x => `<tr><td>${escapeHTML(x.dish_name)}</td><td>${x.avg_qty}</td><td>${escapeHTML(x.station_name || '—')}</td><td>${escapeHTML(x.category_name || '—')}</td></tr>`).join('')
+      d.dishes.map(x => `<tr><td>${escapeHTML(x.dish_name)}</td><td>${Number(x.avg_qty) > 0 && Number(x.avg_qty) < 0.1 ? '&lt;0.1' : (Number(x.avg_qty) || 0)}</td><td>${escapeHTML(x.station_name || '—')}</td><td>${escapeHTML(x.category_name || '—')}</td></tr>`).join('')
       || '<tr><td colspan="4">No order history for this weekday yet.</td></tr>'}</tbody></table>`;
     async function load() {
       $('ppErr').textContent = '';
-      const { ok, data } = await mgrFetch(`/api/admin/prep-sheet?slug=${slug}&date=${encodeURIComponent($('ppDate').value)}`);
+      // First load sends no date: the server picks tomorrow in the RESTAURANT's timezone (the browser's may differ).
+      const dv = $('ppDate').value;
+      const { ok, data } = await mgrFetch(`/api/admin/prep-sheet?slug=${encodeURIComponent(slug)}${dv ? '&date=' + encodeURIComponent(dv) : ''}`);
       if (!ok) { $('ppErr').textContent = data.error || 'Could not load'; return; }
       last = data;
+      if (!dv && data.generated_for) $('ppDate').value = data.generated_for;
       $('ppBody').innerHTML = rowsHTML(data, false);
     }
     $('ppLoad').onclick = load;
     $('ppDate').onchange = load;
     $('ppPrint').onclick = async () => {
-      if (!last || last.generated_for !== $('ppDate').value) await load();
+      if (!last || ($('ppDate').value && last.generated_for !== $('ppDate').value)) await load();
       if (!last) return;
       printNow(brandHead(brand, 'Prep sheet for ' + last.generated_for) + rowsHTML(last, true));
     };
@@ -2120,13 +2129,17 @@ Sub gluten-free bun +1200</code></div>
     </div>`;
     body.querySelectorAll('th.srt').forEach(th => th.onclick = () => { anCatSort = th.dataset.s; anRender(); });
   }
+  let _anSeq = 0;
   async function anLoad() {
+    const seq = ++_anSeq;
+    const range = anRange;
     $('anBody').textContent = 'Loading…';
     try {
-      const { ok, data } = await mgrFetch(`/api/admin/analytics?slug=${encodeURIComponent(CURRENT.restaurant.slug)}&range=${anRange}`);
+      const { ok, data } = await mgrFetch(`/api/admin/analytics?slug=${encodeURIComponent(CURRENT.restaurant.slug)}&range=${range}`);
+      if (seq !== _anSeq) return; // a newer range was picked while this one was in flight
       if (!ok) throw new Error(data.error || 'Failed to load');
       anData = data; anRender();
-    } catch (e) { $('anBody').innerHTML = `<span style="color:#f87171">${escapeHTML(e.message)}</span>`; }
+    } catch (e) { if (seq === _anSeq) $('anBody').innerHTML = `<span style="color:#f87171">${escapeHTML(e.message)}</span>`; }
   }
   function openAnalyticsModal() {
     $('analyticsModal').classList.add('show');
@@ -2722,6 +2735,24 @@ Sub gluten-free bun +1200</code></div>
           <div id="ohErr" style="color:#f87171;font-size:12.5px;min-height:16px"></div>
           <button type="button" id="ohSave" style="width:100%;margin-top:6px;padding:9px;border-radius:9px;background:rgba(232,197,138,.1);color:#e8c58a;border:1px solid rgba(232,197,138,.3);font-size:12.5px;font-weight:700;cursor:pointer">Save opening hours</button>
         </div>
+        <div id="loySection" style="border-top:1px solid var(--line);padding-top:12px">
+          <div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:4px">Loyalty program</div>
+          <div style="font-size:11px;color:var(--ink-faint);margin-bottom:8px">Guests earn a stamp per order. At the threshold they can redeem one free dish of your choice. Off until you turn it on.</div>
+          <label style="display:flex;gap:8px;align-items:center;font-size:13px;margin-bottom:8px;cursor:pointer"><input type="checkbox" id="loyOn" ${s.loyalty_opted_in === true ? 'checked' : ''} /> Enable loyalty program</label>
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+            <span style="font-size:12.5px;color:var(--ink-dim)">Stamps needed</span>
+            <input id="loyThreshold" type="number" min="1" max="100" value="${parseInt(s.loyalty_threshold) || 10}" style="width:80px;padding:7px 8px;border-radius:8px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:13px" />
+          </div>
+          <div style="margin-bottom:8px">
+            <div style="font-size:12.5px;color:var(--ink-dim);margin-bottom:4px">Free reward dish</div>
+            <select id="loyDish" style="width:100%;padding:8px;border-radius:8px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:13px">
+              <option value="">— Pick a dish —</option>
+              ${(CURRENT.dishes || []).filter(d => d.id).map(d => `<option value="${escapeHTML(d.id)}" ${s.loyalty_reward_dish_id === d.id ? 'selected' : ''}>${escapeHTML(d.name || d.slug || 'Dish')}</option>`).join('')}
+            </select>
+          </div>
+          <div id="loyErr" style="color:#f87171;font-size:12.5px;min-height:16px"></div>
+          <button type="button" id="loySave" style="width:100%;margin-top:2px;padding:9px;border-radius:9px;background:rgba(232,197,138,.1);color:#e8c58a;border:1px solid rgba(232,197,138,.3);font-size:12.5px;font-weight:700;cursor:pointer">Save loyalty settings</button>
+        </div>
         <div id="brErr" style="color:#f87171;font-size:12.5px;min-height:16px"></div>
        </div>
        <div>
@@ -2737,6 +2768,28 @@ Sub gluten-free bun +1200</code></div>
     $('wizClose').onclick = $('brCancel').onclick = () => $('wizOverlay').classList.remove('on');
 
     initHoursEditor(slug, s.opening_hours);
+    $('loySave').onclick = async () => {
+      $('loyErr').textContent = '';
+      const on = $('loyOn').checked;
+      const dishId = $('loyDish').value || null;
+      const threshold = parseInt($('loyThreshold').value, 10);
+      if (!Number.isFinite(threshold) || threshold < 1 || threshold > 100) { $('loyErr').textContent = 'Stamps needed must be between 1 and 100.'; return; }
+      if (on && !dishId) { $('loyErr').textContent = 'Pick the free dish guests will earn.'; return; }
+      $('loySave').disabled = true; $('loySave').innerHTML = '<span class="btn-spinner"></span>Saving…';
+      try {
+        const { ok, data } = await mgrFetch('/api/customer/loyalty', {
+          method: 'POST',
+          body: JSON.stringify({ restaurant_slug: slug, loyalty_opted_in: on, loyalty_threshold: threshold, loyalty_reward_dish_id: dishId })
+        });
+        if (!ok) throw new Error(data.error || 'Save failed');
+        window.ArMenuSound?.play('chime');
+        toast(on ? 'Loyalty program is on' : 'Loyalty program is off', 'ok');
+      } catch (e) {
+        $('loyErr').textContent = e.message;
+      } finally {
+        $('loySave').disabled = false; $('loySave').textContent = 'Save loyalty settings';
+      }
+    };
     const updateSwatch = (hex) => { $('brSwatch').style.background = hex; $('brPrimaryPick').value = hex; };
     $('brPrimary').oninput = (e) => { if (/^#[0-9a-f]{6}$/i.test(e.target.value)) updateSwatch(e.target.value); };
     $('brPrimaryPick').oninput = (e) => { $('brPrimary').value = e.target.value; updateSwatch(e.target.value); };
@@ -2945,7 +2998,7 @@ Sub gluten-free bun +1200</code></div>
     const withTok = async (extra) => { const t = await tokenPromise; return `${adminBase}&portal_token=${encodeURIComponent(t)}${extra || ''}`; };
 
     const STEPS = [
-      { kicker: 'Welcome', title: `Hi ${rest.name.split(' ')[0]}, let's set you up.`, body:
+      { kicker: 'Welcome', title: `Hi ${escapeHTML(String(rest.name || '').split(' ')[0])}, let's set you up.`, body:
         `<p>This 5-minute wizard walks you through the essentials so your AR menu is live before dinner tonight.</p>
          <ul><li>Upload your logo &amp; pick a colour</li><li>Add your first category and first dish</li><li>Set a kitchen PIN &amp; print your QR</li></ul>`,
         actions: async () => [
@@ -3026,18 +3079,31 @@ Sub gluten-free bun +1200</code></div>
   function onboardDone() {
     try { localStorage.setItem(ONBOARD_FLAG, '1'); } catch {}
     try { sessionStorage.setItem(ONBOARD_FLAG, '1'); } catch {}
+    if (_onboardTimer) { clearTimeout(_onboardTimer); _onboardTimer = null; }
     $('onboardWiz').classList.remove('on');
   }
-  async function maybeShowOnboardWiz(rest) {
-    let already = false;
-    try { already = !!(localStorage.getItem(ONBOARD_FLAG) || sessionStorage.getItem(ONBOARD_FLAG)); } catch {}
-    if (already) return;
-    try {
-      const res = await fetch(`/api/dish?r=${encodeURIComponent(rest.slug)}`);
-      const d = await res.json().catch(() => ({}));
-      const dishes = Array.isArray(d.dishes) ? d.dishes : [];
-      if (dishes.length === 0) setTimeout(() => showOnboardWiz(rest), 800);
-    } catch (e) { /* network hiccup — don't block the portal on this */ }
+  const onboardSeen = () => { try { return !!(localStorage.getItem(ONBOARD_FLAG) || sessionStorage.getItem(ONBOARD_FLAG)); } catch { return false; } };
+  let _onboardTimer = null;
+  function maybeShowOnboardWiz(rest) {
+    // loadMe() re-runs after every dish/stock edit; each run used to queue another 800ms open, so the
+    // wizard reappeared (reset to step 1) right after Skip or right after the first dish was added.
+    if (onboardSeen()) return;
+    if ($('onboardWiz').classList.contains('on') || _onboardTimer) return;
+    // /api/me is authoritative and uncached; the public /api/dish list can be served stale by the service worker.
+    const dishes = Array.isArray(CURRENT?.dishes) ? CURRENT.dishes : null;
+    if (dishes === null) return;
+    if (dishes.length > 0) {
+      // A manager who already has a menu never needs the first-dish wizard - remember that so deleting
+      // every dish later doesn't summon it either.
+      try { localStorage.setItem(ONBOARD_FLAG, '1'); } catch {}
+      return;
+    }
+    _onboardTimer = setTimeout(() => {
+      _onboardTimer = null;
+      if (onboardSeen() || $('onboardWiz').classList.contains('on')) return; // skipped / opened in the meantime
+      if (Array.isArray(CURRENT?.dishes) && CURRENT.dishes.length > 0) return;
+      showOnboardWiz(rest);
+    }, 800);
   }
   function showOnboardWiz(rest) {
     const ONBOARD_STEPS = [
@@ -3065,6 +3131,7 @@ Sub gluten-free bun +1200</code></div>
               });
               if (!ok) throw new Error(data.error || 'Could not add dish');
               toast('First dish added', 'ok');
+              try { localStorage.setItem(ONBOARD_FLAG, '1'); } catch {}
               loadMe();
               render(1);
             } catch (e) {

@@ -23,6 +23,8 @@ export default async function handler(req, res) {
 
     const { data: restaurant } = await supabase.from('restaurants').select('id').eq('slug', restaurant_slug).single();
     if (!restaurant) return res.status(404).json({ error: 'Restaurant not found' });
+    const postGuard = assertScope(req, restaurant.id);
+    if (postGuard) return res.status(postGuard.status).json({ error: postGuard.error });
 
     // Kitchen station must belong to the same restaurant (never trust a client-supplied id).
     let stationId = null;
@@ -32,9 +34,21 @@ export default async function handler(req, res) {
       stationId = st.id;
     }
 
+    // dishes are unique on (restaurant_id, slug): two "Burger"s used to fail with a raw Postgres
+    // duplicate-key message. Pick the next free suffix instead.
+    let dishSlug = slugify(name);
+    {
+      const { data: taken = [] } = await supabase.from('dishes').select('slug').eq('restaurant_id', restaurant.id);
+      const used = new Set((taken || []).map(x => x.slug));
+      if (used.has(dishSlug)) {
+        let n = 2;
+        while (used.has(dishSlug.slice(0, 44) + '-' + n)) n++;
+        dishSlug = dishSlug.slice(0, 44) + '-' + n;
+      }
+    }
     const { data, error } = await supabaseAdmin.from('dishes').insert({
       restaurant_id: restaurant.id,
-      slug: slugify(name),
+      slug: dishSlug,
       name,
       price: price || null,
       price_cents: parseCents(price),

@@ -98,6 +98,17 @@ export default async function handler(req, res) {
 
   const { data: r } = await supabase.from('restaurants').select('id').eq('slug', slug).single();
   if (!r) return res.status(404).json({ error: 'not found' });
+  const legacyGuard = assertScope(req, r.id);
+  if (legacyGuard) return res.status(legacyGuard.status).json({ error: legacyGuard.error });
+
+  // Bucket by the restaurant's own calendar day / hour. Slicing the UTC ISO string put an order
+  // placed at 00:30 Johannesburg time on the previous day; getHours() used the server's zone.
+  const { data: stRows } = await supabase.raw('select timezone from restaurant_settings where restaurant_id = $1 limit 1', [r.id]);
+  const tz = validTz(stRows?.[0]?.timezone) || DEFAULT_TZ;
+  const dayFmt = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' });
+  const hourFmt = new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', hourCycle: 'h23' });
+  const localDay = v => dayFmt.format(new Date(v));
+  const localHour = v => (parseInt(hourFmt.format(new Date(v)), 10) || 0) % 24;
 
   const [scansQ, ordersQ, reviewsQ, dishesQ] = await Promise.all([
     supabase.from('scans')
@@ -129,10 +140,10 @@ export default async function handler(req, res) {
   }
 
   // Per-day buckets
-  const dayKey = ts => ts.slice(0, 10);
+  const dayKey = ts => localDay(ts);
   const byDay = {};
   for (let i = 0; i < days; i++) {
-    const d = new Date(Date.now() - i * 86400_000).toISOString().slice(0, 10);
+    const d = localDay(Date.now() - i * 86400_000);
     byDay[d] = { day: d, scans: 0, orders: 0, revenue_cents: 0, reviews: 0 };
   }
   for (const s of scans) if (byDay[dayKey(s.scanned_at)]) byDay[dayKey(s.scanned_at)].scans++;
@@ -144,8 +155,8 @@ export default async function handler(req, res) {
 
   // Peak hours (0-23)
   const hourly = Array.from({ length: 24 }, (_, h) => ({ hour: h, scans: 0, orders: 0 }));
-  for (const s of scans) hourly[new Date(s.scanned_at).getHours()].scans++;
-  for (const o of orders) hourly[new Date(o.created_at).getHours()].orders++;
+  for (const s of scans) hourly[localHour(s.scanned_at)].scans++;
+  for (const o of orders) hourly[localHour(o.created_at)].orders++;
 
   // Top dishes
   const topScans = {};

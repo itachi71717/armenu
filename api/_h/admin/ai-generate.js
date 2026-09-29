@@ -16,7 +16,7 @@
 // Env: MESHY_API_KEY   (kept server-side, never leaked to clients)
 import crypto from 'node:crypto';
 import { supabase, supabaseAdmin } from '../../_db.js';
-import { requireAdmin } from '../../_auth.js';
+import { requireAdmin, assertScope } from '../../_auth.js';
 import { enforceCredits, consumeCredits, grantCredits, logUsage } from '../_quota.js';
 
 const UPSTREAM = 'https://api.meshy.ai/openapi/v1';
@@ -145,6 +145,9 @@ export default async function handler(req, res) {
     if (body.retry && body.previous_job_id) {
       const prev = await findJobMeta(body.previous_job_id);
       if (!prev) return res.status(404).json({ error: 'Original job not found' });
+      // The retry is addressed by job id only (no slug), so the dispatcher guard can't see whose job it is.
+      const retryGuard = assertScope(req, prev.restaurant_id);
+      if (retryGuard) return res.status(retryGuard.status).json({ error: retryGuard.error });
       const root = prev.root_job_id || prev.job_id;
       const used = await countRetriesForRoot(root);
       if (used >= MAX_FREE_RETRIES) {
@@ -174,6 +177,8 @@ export default async function handler(req, res) {
     }
 
     // ---- FINALIZE (download all assets → Supabase Storage → attach to dish) ----
+    // TODO(speculative): finalize trusts body.job_id + restaurant_slug without checking the job's stored restaurant_id
+    // matches that slug (findJobMeta could be compared). Job ids are unguessable, so not exploitable in practice.
     if (body.finalize && body.job_id) {
       const data = await upstream('/image-to-3d/' + encodeURIComponent(body.job_id));
       if (String(data.status || '').toUpperCase() !== 'SUCCEEDED') {

@@ -9,7 +9,7 @@ export default async function handler(req, res) {
 
   let body = {};
   try { body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body; } catch {}
-  const { token, restaurant_slug, dish_slug } = body || {};
+  const { token, restaurant_slug, dish_slug, favourited: desired } = body || {};
   if (!isValidToken(token)) return res.status(400).json({ error: 'invalid_token' });
   if (!restaurant_slug || !dish_slug) return res.status(400).json({ error: 'Missing restaurant_slug or dish_slug' });
 
@@ -23,18 +23,26 @@ export default async function handler(req, res) {
     .select('id').eq('restaurant_id', restaurant.id).eq('slug', dish_slug).maybeSingle();
   if (!dish) return res.status(404).json({ error: 'not_found' });
 
-  const { data: existing } = await supabase.from('customer_favourites')
-    .select('id').eq('customer_id', customer.id).eq('dish_id', dish.id).maybeSingle();
-
-  if (existing) {
-    await supabase.from('customer_favourites').delete().eq('id', existing.id);
-    return res.status(200).json({ favourited: false });
+  // Explicit `favourited: true|false` makes the call idempotent (double-tap /
+  // stale optimistic state can't invert the result). Without it, keep the
+  // legacy toggle behaviour.
+  let want = typeof desired === 'boolean' ? desired : null;
+  if (want === null) {
+    const { data: existing } = await supabase.from('customer_favourites')
+      .select('id').eq('customer_id', customer.id).eq('dish_id', dish.id).maybeSingle();
+    want = !existing;
   }
 
-  await supabase.from('customer_favourites').insert({
-    customer_id: customer.id,
-    dish_id: dish.id,
-    restaurant_id: restaurant.id
-  });
-  return res.status(200).json({ favourited: true });
+  if (want) {
+    // unique(customer_id, dish_id): a concurrent/duplicate insert comes back as an error
+    // (ignored) — the row exists either way, so the result is still "favourited".
+    await supabase.from('customer_favourites').insert({
+      customer_id: customer.id,
+      dish_id: dish.id,
+      restaurant_id: restaurant.id
+    });
+    return res.status(200).json({ favourited: true });
+  }
+  await supabase.from('customer_favourites').delete().eq('customer_id', customer.id).eq('dish_id', dish.id);
+  return res.status(200).json({ favourited: false });
 }

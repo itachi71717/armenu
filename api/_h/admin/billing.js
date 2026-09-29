@@ -5,7 +5,7 @@
 //               PADDLE_PRICE_STARTER, PADDLE_PRICE_PRO, PADDLE_PRICE_PREMIUM,
 //               PADDLE_ENV ("sandbox" | "production")
 import { supabase } from '../../_db.js';
-import { requireAdmin } from '../../_auth.js';
+import { requireAdmin, assertScope } from '../../_auth.js';
 
 export default async function handler(req, res) {
   if (!requireAdmin(req)) return res.status(401).json({ error: 'unauthorized' });
@@ -20,6 +20,8 @@ export default async function handler(req, res) {
 
   const { data: r } = await supabase.from('restaurants').select('id, email').eq('slug', slug).single();
   if (!r) return res.status(404).json({ error: 'not found' });
+  const guard = assertScope(req, r.id);
+  if (guard) return res.status(guard.status).json({ error: guard.error });
 
   const base = process.env.PADDLE_ENV === 'production'
     ? 'https://api.paddle.com'

@@ -3,7 +3,7 @@
 // Admin-only.
 
 import { supabase, supabaseAdmin } from '../../_db.js';
-import { requireAdmin, getScopedRestaurantId } from '../../_auth.js';
+import { requireAdmin, getScopedRestaurantId, assertScope } from '../../_auth.js';
 import { auditLog } from '../_audit.js';
 
 // Fields a scoped MANAGER may edit via their portal_token.
@@ -27,6 +27,8 @@ export default async function handler(req, res) {
   if (!slug) return res.status(400).json({ error: 'slug required' });
   const { data: r } = await supabase.from('restaurants').select('id').eq('slug', slug).single();
   if (!r) return res.status(404).json({ error: 'not found' });
+  const guard = assertScope(req, r.id);
+  if (guard) return res.status(guard.status).json({ error: guard.error });
 
   if (req.method === 'GET') {
     let { data: s } = await supabase.from('restaurant_settings').select('*').eq('restaurant_id', r.id).maybeSingle();

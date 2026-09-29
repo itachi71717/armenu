@@ -19,6 +19,7 @@ const ROUTES = {
   'customer/rate-dish': 'customer/rate-dish',
   'customer/recommendations': 'customer/recommendations',
   'customer/loyalty':   'customer/loyalty',
+  'customer/my-usual':  'customer/my-usual',
   'customer/referral':  'customer/referral',
 
   'push/subscribe': 'push/subscribe',

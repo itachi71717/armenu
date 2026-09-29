@@ -15,6 +15,8 @@ export default async function handler(req, res) {
     const { slug } = req.query;
     const { data: r } = await supabase.from('restaurants').select('id').eq('slug', slug).single();
     if (!r) return res.status(404).json({ error: 'not found' });
+    const gGet = assertScope(req, r.id);
+    if (gGet) return res.status(gGet.status).json({ error: gGet.error });
     const { data = [] } = await supabase.from('categories')
       .select('*').eq('restaurant_id', r.id).order('sort_order').order('name');
     return res.status(200).json({ categories: data });
@@ -24,11 +26,18 @@ export default async function handler(req, res) {
     const { slug } = req.query;
     const { data: r } = await supabase.from('restaurants').select('id').eq('slug', slug).single();
     if (!r) return res.status(404).json({ error: 'not found' });
+    const gPost = assertScope(req, r.id);
+    if (gPost) return res.status(gPost.status).json({ error: gPost.error });
     let body = {};
     try { body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body; } catch {}
+    body = body || {};
     const name = String(body.name || '').trim();
     if (!name) return res.status(400).json({ error: 'name required' });
     const s = slugify(name) || 'cat-' + Date.now().toString(36);
+    const { data: catRows = [] } = await supabase.from('categories').select('name, slug').eq('restaurant_id', r.id);
+    if ((catRows || []).some(c => c.slug === s || String(c.name).trim().toLowerCase() === name.toLowerCase())) {
+      return res.status(400).json({ error: 'A category with that name already exists' });
+    }
     const { data, error } = await supabaseAdmin.from('categories').insert({
       restaurant_id: r.id, name, slug: s, sort_order: body.sort_order || 0
     }).select().single();

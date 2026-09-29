@@ -20,7 +20,7 @@ function setup(over = {}) {
     restaurants: () => ({ data: { id: 'r1' } }),
     restaurant_settings: () => ({ data: {
       orders_enabled: true, default_currency: 'ZAR',
-      loyalty_threshold: 10, loyalty_reward_cents: 5000, loyalty_enabled: true,
+      loyalty_threshold: 10, loyalty_reward_cents: 5000, loyalty_opted_in: true,
       opening_hours: cfg.hours, timezone: cfg.tz,
     } }),
     dishes: () => ({ data: [{ id: 'd1', slug: 'steak', name: 'Steak', price_cents: cfg.price, stock_count: null, modifiers: [] }] }),
@@ -131,21 +131,17 @@ describe('referral discount on POST /api/order', () => {
   });
 });
 
-describe('opening hours gate on POST /api/order', () => {
-  it('rejects with 403 closed outside opening hours (restaurant timezone, not UTC)', async () => {
-    // A slot that never contains "now" in any timezone: 1 minute long, at an arbitrary time.
-    // Build hours for every day from a 1-minute window that is not the current minute.
+describe('opening hours never gate POST /api/order', () => {
+  it('accepts orders even outside listed opening hours', async () => {
     const d = new Date();
     const hhmm = (dt) => dt.toISOString().slice(11, 16);
     const start = new Date(d.getTime() + 6 * 3600 * 1000), end = new Date(start.getTime() + 60 * 1000);
-    // Use UTC as the restaurant timezone so the window maths above is exact.
     const slot = [[hhmm(start), hhmm(end)]];
     const hours = Object.fromEntries(['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'].map(k => [k, slot]));
     setup({ hours, tz: 'UTC' });
     const res = makeRes();
     await handler(post(), res);
-    expect(res.statusCode).toBe(403);
-    expect(res.body.error).toBe('closed');
+    expect(res.statusCode).toBe(200);
   });
 
   it('accepts orders when opening_hours is empty (always open)', async () => {

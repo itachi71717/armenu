@@ -41,7 +41,7 @@ export default async function handler(req, res) {
         where restaurant_id = $1 and created_at >= ${dayStart}
       )
       select
-        (select count(*)::int from t) as orders_today,
+        (select count(*)::int from t where status <> 'cancelled') as orders_today,
         (select coalesce(sum(total_cents), 0)::bigint from t where status <> 'cancelled') as revenue_today_cents,
         (select count(*)::int from t where status = 'served') as served_count,
         (select percentile_cont(0.5) within group (order by extract(epoch from (updated_at - created_at)))
