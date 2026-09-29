@@ -412,7 +412,10 @@ async function refresh() {
 
     if (active === 'orders') renderOrders(activeOrders);
     if (active === 'calls')  renderCalls(openCalls);
-    if (active === 'floor')  renderFloor((await api('/api/staff/tables')).tables || []);
+    if (active === 'floor') {
+      renderFloor((await api('/api/staff/tables')).tables || []);
+      await loadWaitlist();
+    }
     if (active === 'tables') renderTables((await api('/api/staff/tables')).tables || []);
   } catch (e) { if (e.message !== 'unauth') console.error(e); }
 }
@@ -759,6 +762,29 @@ function openFloorSheet(id) {
   });
 }
 setInterval(() => { if (session && !document.hidden && document.querySelector('.tab.active')?.dataset.tab === 'floor') refresh(); }, 10000);
+
+// ============ WAITLIST (guests queued while the restaurant is full) ============
+async function loadWaitlist() {
+  let entries = [];
+  try { entries = (await api('/api/admin/waitlist')).entries || []; } catch (e) { if (e.message === 'unauth') return; }
+  let box = document.getElementById('waitlistSection');
+  if (!box) { box = document.createElement('div'); box.id = 'waitlistSection'; $('view-floor').appendChild(box); }
+  if (!entries.length) { box.innerHTML = ''; return; }
+  box.innerHTML = '<h4 style="margin:16px 0 8px">Waitlist (' + entries.length + ')</h4>' + entries.map(w => {
+    const mins = Math.max(0, Math.round((Date.now() - new Date(w.joined_at).getTime()) / 60000));
+    return '<div class="opt"><span><b>' + escapeHTML(w.guest_name) + '</b> · party of ' + (w.party_size || 2) + ' · waiting ' + mins + 'm' + (w.notes ? ' · ' + escapeHTML(w.notes) : '') + '</span>'
+      + '<span><button class="btn-ok" data-wl-act="seat" data-wl-id="' + escapeHTML(w.id) + '">Seat</button> '
+      + '<button data-wl-act="leave" data-wl-id="' + escapeHTML(w.id) + '">No-show</button></span></div>';
+  }).join('');
+  box.querySelectorAll('[data-wl-act]').forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    try {
+      await api('/api/admin/waitlist?id=' + encodeURIComponent(b.dataset.wlId), { method: 'PATCH', body: JSON.stringify({ action: b.dataset.wlAct }) });
+      toast(b.dataset.wlAct === 'seat' ? 'Guest seated' : 'Marked as no-show');
+      loadWaitlist();
+    } catch (err) { b.disabled = false; toast(err.message, 'err'); }
+  });
+}
 
 $('modal').onclick = e => { if (e.target.id === 'modal') $('modal').classList.remove('on'); };
 

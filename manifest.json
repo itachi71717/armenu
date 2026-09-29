@@ -12,6 +12,7 @@
     { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
   ],
   "shortcuts": [
+    { "name": "ARMenu Admin",  "short_name": "Admin",  "description": "Boss panel",                  "url": "/admin/" },
     { "name": "Portal",   "short_name": "Portal",   "description": "Restaurant manager portal", "url": "/portal/" },
     { "name": "Kitchen",  "short_name": "Kitchen",  "description": "Kitchen display",             "url": "/kitchen/" },
     { "name": "Staff",    "short_name": "Staff",    "description": "Waiter console",              "url": "/staff/" }

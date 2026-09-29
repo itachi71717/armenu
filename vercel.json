@@ -73,6 +73,10 @@
       "destination": "/kitchen/index.html"
     },
     {
+      "source": "/discover",
+      "destination": "/discover.html"
+    },
+    {
       "source": "/m/:slug",
       "destination": "/menu.html?r=:slug"
     },

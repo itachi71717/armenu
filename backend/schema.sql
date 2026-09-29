@@ -459,3 +459,56 @@ create index if not exists push_subs_customer on push_subscriptions(customer_id)
 
 -- Reservation table preferences (Window / Quiet / Booster seat / Outside).
 alter table reservations add column if not exists preferences jsonb default '[]'::jsonb;
+
+-- Menu combos (bundle N dishes at a set price) + weekly opening hours.
+create table if not exists combos (
+  id            uuid primary key default gen_random_uuid(),
+  restaurant_id uuid references restaurants(id) on delete cascade,
+  name          text,
+  description   text,
+  slug          text,
+  item_ids      uuid[],
+  price_cents   int,
+  thumb_url     text,
+  active        boolean default true,
+  sort_order    int default 0,
+  created_at    timestamptz default now(),
+  unique(restaurant_id, slug)
+);
+create index if not exists idx_combos_rest on combos(restaurant_id, active, sort_order);
+alter table restaurant_settings add column if not exists opening_hours jsonb default '{}'::jsonb;
+alter table order_items add column if not exists combo_id uuid references combos(id) on delete set null;
+
+-- Loyalty stamps + referral codes.
+alter table customers add column if not exists referral_code text unique;
+alter table customers add column if not exists referred_by uuid references customers(id) on delete set null;
+create table if not exists loyalty_stamps (
+  id            uuid primary key default gen_random_uuid(),
+  customer_id   uuid references customers(id) on delete cascade,
+  restaurant_id uuid references restaurants(id) on delete cascade,
+  order_id      uuid references orders(id) on delete cascade,
+  earned_at     timestamptz default now()
+);
+create index if not exists idx_loyalty_stamps_customer_rest on loyalty_stamps(customer_id, restaurant_id, earned_at);
+alter table restaurant_settings add column if not exists loyalty_threshold int default 10;
+alter table restaurant_settings add column if not exists loyalty_reward_cents int default 10000;
+alter table restaurant_settings add column if not exists loyalty_enabled boolean default true;
+alter table orders add column if not exists loyalty_redeemed boolean default false;
+alter table orders add column if not exists loyalty_discount_cents int default 0;
+alter table orders add column if not exists referral_discount_cents int default 0;
+
+-- Full-house waitlist: guests join when the restaurant is flagged full.
+create table if not exists waitlist_entries (
+  id            uuid primary key default gen_random_uuid(),
+  restaurant_id uuid references restaurants(id) on delete cascade,
+  customer_id   uuid references customers(id) on delete set null,
+  guest_name    text,
+  guest_phone   text,
+  party_size    int,
+  joined_at     timestamptz default now(),
+  seated_at     timestamptz,
+  left_at       timestamptz,
+  notes         text
+);
+create index if not exists idx_waitlist_rest_joined on waitlist_entries(restaurant_id, joined_at) where seated_at is null and left_at is null;
+alter table restaurant_settings add column if not exists is_full boolean default false;

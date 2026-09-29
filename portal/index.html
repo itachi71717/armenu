@@ -12,6 +12,8 @@
 <meta property="og:url" content="https://armenu.co.za/portal/" />
 <link rel="canonical" href="https://armenu.co.za/portal/" />
 <link rel="manifest" href="/manifest.json" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="ARMenu Portal" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -360,6 +362,7 @@
       <span class="pill scan-pill" id="navScans">0 scans this week</span>
       <span class="pill" id="navDishCount">0 dishes live</span>
       <button class="pill" id="navCredits" style="cursor:pointer;background:linear-gradient(135deg,rgba(232,197,138,.15),rgba(212,165,116,.06));border:1px solid rgba(232,197,138,.28);color:#e8c58a">◊ — credits</button>
+      <button class="btn" id="pwaInstall" style="display:none" aria-label="Install as app">📱 Install as app</button>
       <button class="btn" id="signOutBtn">Sign out</button>
     </div>
   </nav>
@@ -427,6 +430,9 @@
           <div class="action" id="categoriesAction">
             <span class="ico">📂</span><div><h3>Categories</h3><p>Starters, Mains, Desserts…</p></div>
           </div>
+          <div class="action" id="combosAction">
+            <span class="ico">🍽</span><div><h3>Combos</h3><p>Bundle dishes at a set price.</p></div>
+          </div>
           <div class="action" id="offersAction">
             <span class="ico">🎉</span><div><h3>Happy hour &amp; offers</h3><p>Time-limited discounts.</p></div>
           </div>
@@ -439,6 +445,9 @@
       <div class="tools-group" data-open="1">
         <button class="tg-head"><span>▾ Team &amp; tables</span><span class="tg-hint">Staff PINs, tables, waiter assignments</span></button>
         <div class="tg-body">
+          <div class="action" id="fullToggleAction" role="button" tabindex="0" aria-pressed="false">
+            <span class="ico">🚦</span><div><h3 id="fullToggleTitle">Restaurant is full</h3><p id="fullToggleSub">Turn on to show guests a waitlist banner. Existing entries are kept when off.</p></div>
+          </div>
           <div class="action" id="tablesAction">
             <span class="ico">🪑</span><div><h3>Tables &amp; waiters</h3><p>Add tables, assign waiters, print QRs.</p></div>
           </div>
@@ -1879,9 +1888,11 @@ Sub gluten-free bun +1200</code></div>
     if (e.target.closest('#staffAction2'))       openStaffModal();
     if (e.target.closest('#stationsAction'))     openStationsModal();
     if (e.target.closest('#offersAction'))       openOffersModal();
+    if (e.target.closest('#combosAction'))       openCombosModal();
     if (e.target.closest('#reservationsAction')) openReservationsModal();
     if (e.target.closest('#schedulesAction'))    openSchedulesModal();
     if (e.target.closest('#walkinsAction'))      openWalkinsModal();
+    if (e.target.closest('#fullToggleAction'))   toggleRestaurantFull();
     if (e.target.closest('#teamAction'))         openTeamModal();
     if (e.target.closest('#shiftsAction'))       openShiftsModal();
     if (e.target.closest('#prepSheetAction'))    openPrepSheetModal();
@@ -2227,6 +2238,34 @@ Sub gluten-free bun +1200</code></div>
       };
     }, 30);
   }
+
+  // ============= "RESTAURANT IS FULL" TOGGLE (guest waitlist) =============
+  function paintFullToggle(isFull) {
+    const el = $('fullToggleAction'); if (!el) return;
+    el.setAttribute('aria-pressed', isFull ? 'true' : 'false');
+    $('fullToggleTitle').textContent = isFull ? 'Restaurant is full (ON)' : 'Restaurant is full';
+    $('fullToggleSub').textContent = isFull
+      ? 'Guests see a waitlist banner. Tap to pause the waitlist (entries are kept).'
+      : 'Turn on to show guests a waitlist banner. Existing entries are kept when off.';
+    el.style.borderColor = isFull ? '#f87171' : '';
+  }
+  async function loadFullToggle() {
+    try {
+      const slug = CURRENT?.restaurant?.slug; if (!slug) return;
+      const { ok, data } = await mgrFetch(`/api/admin/waitlist?slug=${encodeURIComponent(slug)}`);
+      if (ok) { window.__restFull = data.is_full === true; paintFullToggle(window.__restFull); }
+    } catch {}
+  }
+  async function toggleRestaurantFull() {
+    const slug = CURRENT?.restaurant?.slug; if (!slug) return;
+    const next = !window.__restFull;
+    const { ok, data } = await mgrFetch('/api/admin/waitlist', { method: 'POST', body: JSON.stringify({ slug, is_full: next }) });
+    if (!ok) return toast(data.error || 'Failed', 'err');
+    window.__restFull = next; paintFullToggle(next);
+    toast(next ? 'Marked as full. Guests can join the waitlist.' : 'Waitlist paused.', 'ok');
+  }
+  setTimeout(loadFullToggle, 1500);
+  setInterval(() => { if (!document.hidden) loadFullToggle(); }, 60000);
 
   // ============= WALK-IN / WAITLIST QUEUE =============
   function openWalkinsModal() {
@@ -2676,6 +2715,13 @@ Sub gluten-free bun +1200</code></div>
           <div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:4px">Tagline (shown on menu)</div>
           <input id="brTagline" type="text" value="${(s.tagline || '').replace(/"/g,'&quot;')}" style="width:100%;padding:11px 13px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:14px" placeholder="e.g. Signature dishes, in your palm." />
         </div>
+        <div id="ohSection" style="border-top:1px solid var(--line);padding-top:12px">
+          <div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:4px">Opening hours</div>
+          <div style="font-size:11px;color:var(--ink-faint);margin-bottom:8px">Outside these hours the menu greys out and ordering is paused. Leave every day empty to stay open all the time.</div>
+          <div id="ohRows"></div>
+          <div id="ohErr" style="color:#f87171;font-size:12.5px;min-height:16px"></div>
+          <button type="button" id="ohSave" style="width:100%;margin-top:6px;padding:9px;border-radius:9px;background:rgba(232,197,138,.1);color:#e8c58a;border:1px solid rgba(232,197,138,.3);font-size:12.5px;font-weight:700;cursor:pointer">Save opening hours</button>
+        </div>
         <div id="brErr" style="color:#f87171;font-size:12.5px;min-height:16px"></div>
        </div>
        <div>
@@ -2690,6 +2736,7 @@ Sub gluten-free bun +1200</code></div>
     $('wizOverlay').classList.add('on');
     $('wizClose').onclick = $('brCancel').onclick = () => $('wizOverlay').classList.remove('on');
 
+    initHoursEditor(slug, s.opening_hours);
     const updateSwatch = (hex) => { $('brSwatch').style.background = hex; $('brPrimaryPick').value = hex; };
     $('brPrimary').oninput = (e) => { if (/^#[0-9a-f]{6}$/i.test(e.target.value)) updateSwatch(e.target.value); };
     $('brPrimaryPick').oninput = (e) => { $('brPrimary').value = e.target.value; updateSwatch(e.target.value); };
@@ -2733,6 +2780,124 @@ Sub gluten-free bun +1200</code></div>
       const r = $('brRefreshPreview');
       if (r) r.onclick = () => { $('brPreview').src = `/m/${slug}?preview=1&t=` + Math.random().toString(36).slice(2, 8); };
     }, 20);
+  }
+
+  // ============================================================
+  // Opening hours editor (inside Branding & look). 7 day rows, each with up to
+  // 2 time slots (split shifts). Saved through /api/admin/combos?action=hours.
+  // ============================================================
+  function initHoursEditor(slug, saved) {
+    const DAYS = [['mon','Mon'],['tue','Tue'],['wed','Wed'],['thu','Thu'],['fri','Fri'],['sat','Sat'],['sun','Sun']];
+    const oh = {};
+    for (const [k] of DAYS) {
+      const v = saved && Array.isArray(saved[k]) ? saved[k] : [];
+      oh[k] = v.filter(x => Array.isArray(x) && x.length === 2).slice(0, 2).map(x => [String(x[0]), String(x[1])]);
+    }
+    const inp = 'padding:7px 8px;border-radius:8px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:13px';
+    const draw = () => {
+      $('ohRows').innerHTML = DAYS.map(([k, label]) => `
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+          <span style="width:34px;font-size:12.5px;color:var(--ink-dim)">${label}</span>
+          ${oh[k].length ? oh[k].map((sl, i) => `
+            <input type="time" data-oh="${k}" data-i="${i}" data-f="0" value="${escapeHTML(sl[0])}" aria-label="${label} open ${i + 1}" style="${inp}" />
+            <span style="color:var(--ink-faint)">–</span>
+            <input type="time" data-oh="${k}" data-i="${i}" data-f="1" value="${escapeHTML(sl[1])}" aria-label="${label} close ${i + 1}" style="${inp}" />
+            <button type="button" data-ohdel="${k}" data-i="${i}" aria-label="Remove slot" style="background:none;border:none;color:#f87171;cursor:pointer;font-size:14px">×</button>`).join('')
+            : '<span style="font-size:12px;color:var(--ink-faint)">Closed</span>'}
+          ${oh[k].length < 2 ? `<button type="button" data-ohadd="${k}" style="background:rgba(245,236,216,.05);border:1px solid var(--line);color:var(--ink-dim);padding:4px 8px;border-radius:8px;font-size:11px;cursor:pointer">${oh[k].length ? 'Add second slot' : '+ Add hours'}</button>` : ''}
+        </div>`).join('');
+      $('ohRows').querySelectorAll('[data-oh]').forEach(el => el.onchange = () => { oh[el.dataset.oh][+el.dataset.i][+el.dataset.f] = el.value; });
+      $('ohRows').querySelectorAll('[data-ohadd]').forEach(el => el.onclick = () => {
+        const k = el.dataset.ohadd;
+        oh[k].push(oh[k].length ? ['17:00', '22:00'] : ['09:00', '17:00']);
+        draw();
+      });
+      $('ohRows').querySelectorAll('[data-ohdel]').forEach(el => el.onclick = () => { oh[el.dataset.ohdel].splice(+el.dataset.i, 1); draw(); });
+    };
+    draw();
+    $('ohSave').onclick = async () => {
+      $('ohErr').textContent = '';
+      for (const [k, label] of DAYS) for (const sl of oh[k]) {
+        if (!sl[0] || !sl[1]) { $('ohErr').textContent = label + ': set both open and close times'; return; }
+        if (sl[0] === sl[1]) { $('ohErr').textContent = label + ': open and close times must differ'; return; }
+      }
+      $('ohSave').disabled = true;
+      try {
+        const { ok, data } = await mgrFetch(`/api/admin/combos?action=hours&slug=${encodeURIComponent(slug)}`, {
+          method: 'POST', body: JSON.stringify({ slug, opening_hours: oh })
+        });
+        if (!ok) throw new Error(data.error || 'Save failed');
+        toast('Opening hours saved', 'ok');
+      } catch (e) { $('ohErr').textContent = e.message; }
+      finally { $('ohSave').disabled = false; }
+    };
+  }
+
+  // ============================================================
+  // Combos manager — bundle dishes at a set price.
+  // ============================================================
+  function openCombosModal() {
+    const slug = CURRENT.restaurant.slug;
+    const dishList = (CURRENT.dishes || []).filter(d => d.id);
+    const dishById = Object.fromEntries(dishList.map(d => [d.id, d]));
+    const btn = 'padding:6px 8px;border-radius:8px;font-size:11px;cursor:pointer';
+    openListModal({
+      title: 'Combos',
+      subtitle: 'Bundle two or more dishes at one price. Guests see the saving on the menu and the kitchen gets the individual dishes.',
+      loadItems: async () => {
+        const r = await mgrFetch(`/api/admin/combos?slug=${encodeURIComponent(slug)}`);
+        if (!r.ok) throw new Error(r.data.error || 'Could not load combos');
+        return r.data.combos || [];
+      },
+      renderRow: c => {
+        const names = (c.item_ids || []).map(id => dishById[id]?.name).filter(Boolean).join(' + ');
+        const price = ((c.price_cents || 0) / 100).toFixed(2);
+        return `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 12px;border-radius:9px;background:rgba(245,236,216,${c.active === false ? '.015' : '.03'});margin-bottom:6px;opacity:${c.active === false ? .55 : 1}">
+          <div style="min-width:0"><div style="font-weight:600;font-size:14px">${escapeHTML(c.name)} · <span style="color:#e8c58a">${escapeHTML(price)}</span>${c.active === false ? ' <span style="font-size:9px;color:var(--ink-faint)">(hidden)</span>' : ''}</div>
+            <div style="color:var(--ink-dim);font-size:12px;margin-top:2px">${escapeHTML(names || 'Dishes unavailable')}</div></div>
+          <div style="display:flex;gap:4px;flex-shrink:0">
+            <button data-cbtoggle="${c.id}" data-active="${c.active === false ? 'false' : 'true'}" style="background:rgba(245,236,216,.05);color:var(--ink-dim);border:1px solid var(--line);${btn}">${c.active === false ? 'Show' : 'Hide'}</button>
+            <button data-del="/api/admin/combos?id=${c.id}&slug=${encodeURIComponent(slug)}" style="background:rgba(248,113,113,.1);color:#f87171;border:1px solid rgba(248,113,113,.25);${btn}">Delete</button>
+          </div></div>`;
+      },
+      addForm: `${inputRow('Combo name (e.g. Burger & fries)', 'cbName', 'Lunch deal')}
+        ${inputRow('Description (optional)', 'cbDesc', '')}
+        ${dishList.length >= 2 ? `<div style="margin:10px 0 8px"><div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:6px">Dishes in the combo (pick 2 or more)</div>
+          <div style="max-height:130px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;padding:8px;border:1px solid var(--line);border-radius:8px">${dishList.map(d => `<label style="display:flex;align-items:center;gap:8px;padding:5px 4px;cursor:pointer;font-size:13px"><input type="checkbox" class="cbDish" data-id="${d.id}" style="accent-color:#d4a574" />${escapeHTML(d.name)}</label>`).join('')}</div></div>`
+          : '<div style="color:var(--ink-faint);font-size:12.5px;margin:8px 0">Add at least two dishes first.</div>'}
+        ${inputRow('Combo price', 'cbPrice', '89.00', 'number')}
+        <div style="margin-bottom:8px"><div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:4px">Photo (optional)</div>
+          <input type="file" id="cbThumb" accept="image/*" style="width:100%;padding:8px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink-dim);font-size:12.5px" /></div>
+        <button class="wiz-primary" id="addSubmit" style="width:100%;padding:11px;border-radius:9px;border:none;font-weight:700;cursor:pointer;margin-top:4px">+ Add combo</button>`,
+      onAdd: async () => {
+        const name = $('cbName').value.trim();
+        const description = $('cbDesc').value.trim();
+        const item_ids = [...document.querySelectorAll('.cbDish')].filter(x => x.checked).map(x => x.dataset.id);
+        const priceNum = parseFloat($('cbPrice').value);
+        if (!name) throw new Error('Name required');
+        if (item_ids.length < 2) throw new Error('Pick at least 2 dishes');
+        if (!Number.isFinite(priceNum) || priceNum < 0) throw new Error('Enter a valid price');
+        const file = $('cbThumb').files?.[0];
+        const thumb_url = file ? await uploadAsset(file, 'combo') : undefined;
+        const { ok, data } = await mgrFetch(`/api/admin/combos?slug=${encodeURIComponent(slug)}`, {
+          method: 'POST', body: JSON.stringify({ slug, name, description, item_ids, price_cents: Math.round(priceNum * 100), thumb_url })
+        });
+        if (!ok) throw new Error(data.error || 'Failed');
+        $('cbName').value = ''; $('cbDesc').value = ''; $('cbPrice').value = ''; $('cbThumb').value = '';
+        document.querySelectorAll('.cbDish').forEach(x => { x.checked = false; });
+        toast('Combo added', 'ok');
+      }
+    });
+    // Hide/show toggle (delegated on the modal body; re-opening the modal replaces the body node's listeners via fresh render)
+    $('wizBody').onclick = async (e) => {
+      const b = e.target.closest('[data-cbtoggle]');
+      if (!b) return;
+      const { ok, data } = await mgrFetch(`/api/admin/combos?id=${b.dataset.cbtoggle}&slug=${encodeURIComponent(slug)}`, {
+        method: 'PATCH', body: JSON.stringify({ active: b.dataset.active === 'false' })
+      });
+      if (!ok) { $('listErr').textContent = data.error || 'Failed'; return; }
+      openCombosModal();
+    };
   }
 
   async function uploadAsset(file, kind) {
@@ -3082,6 +3247,7 @@ Sub gluten-free bun +1200</code></div>
       clickCmd('reservationsAction', 'Reservations', 'Live now', ['booking', 'reserve']),
       clickCmd('brandingAction', 'Branding & look', 'Your menu', ['logo', 'colour', 'color', 'cover']),
       clickCmd('categoriesAction', 'Categories', 'Your menu', ['starters', 'mains', 'desserts']),
+      clickCmd('combosAction', 'Combos', 'Your menu', ['bundle', 'meal deal', 'set menu']),
       clickCmd('offersAction', 'Happy hour & offers', 'Your menu', ['discount', 'promo']),
       clickCmd('schedulesAction', 'Menu scheduler', 'Your menu', ['breakfast', 'lunch', 'dinner', 'schedule']),
       clickCmd('tablesAction', 'Tables & waiters', 'Team & tables', ['table', 'assign', 'qr']),
@@ -3096,6 +3262,23 @@ Sub gluten-free bun +1200</code></div>
       clickCmd('reqBtn', 'Send a dish request', 'Support', ['request', 'change'])
     ]);
   });
+})();
+</script>
+<script>
+// PWA install button
+(function(){
+  try {
+    let deferred = null;
+    const btn = document.getElementById('pwaInstall');
+    if (!btn) return;
+    window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; btn.style.display = ''; });
+    btn.addEventListener('click', async () => {
+      if (!deferred) return;
+      try { deferred.prompt(); await deferred.userChoice; } catch (_) {}
+      deferred = null; btn.style.display = 'none';
+    });
+    window.addEventListener('appinstalled', () => { deferred = null; btn.style.display = 'none'; });
+  } catch (_) {}
 })();
 </script>
 </body>

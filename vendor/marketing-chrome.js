@@ -11,6 +11,7 @@
   const NAV_HTML = `
     <nav class="ar-nav">
       <a href="/how">How</a>
+      <a href="/discover">Discover</a>
       <a href="/#features">Features</a>
       <a href="/plans">Pricing</a>
       <a href="/faq">FAQ</a>

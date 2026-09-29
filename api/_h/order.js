@@ -1,9 +1,11 @@
 // POST /api/order
-// Body: { r: slug, table: label|null, items: [{dish_slug, qty, note}], note? }
+// Body: { r: slug, table: label|null, items: [{dish_slug, qty, note} | {combo_id, qty}], note? }
 // Public — gated by restaurant_settings.orders_enabled.
 
 import { supabase } from '../_db.js';
 import { sendPush } from './push/_send.js';
+import { computeOpenState } from './dish.js';
+import { loyaltyConfig } from './customer/loyalty.js';
 
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -11,7 +13,7 @@ export default async function handler(req, res) {
 
   let body = {};
   try { body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body; } catch {}
-  const { r, table, items, note, tip_cents, client_order_id, customer_token } = body || {};
+  const { r, table, items, note, tip_cents, client_order_id, customer_token, redeem_loyalty } = body || {};
   if (!r) return res.status(400).json({ error: 'Missing r' });
   if (!Array.isArray(items) || !items.length) return res.status(400).json({ error: 'No items' });
 
@@ -56,6 +58,16 @@ export default async function handler(req, res) {
     .select('orders_enabled, default_currency').eq('restaurant_id', restaurant.id).maybeSingle();
   const ordersEnabled = settings ? (settings.orders_enabled !== false) : true;
   if (!ordersEnabled) return res.status(403).json({ error: 'Ordering is not enabled for this restaurant' });
+  // Outside opening hours (empty opening_hours = always open).
+  // Separate query: if the opening_hours migration hasn't run, a combined select
+  // would error and null the row above (silently re-enabling ordering).
+  try {
+    const { data: hrs, error: hrsErr } = await supabase.from('restaurant_settings')
+      .select('opening_hours, timezone').eq('restaurant_id', restaurant.id).maybeSingle();
+    if (!hrsErr && hrs && !computeOpenState(hrs.opening_hours, hrs.timezone).is_open) {
+      return res.status(403).json({ error: 'closed', message: 'This kitchen is closed right now.' });
+    }
+  } catch {}
 
   // Resolve table
   let table_id = null, table_label = table || null;
@@ -157,6 +169,50 @@ export default async function handler(req, res) {
     };
   }).filter(Boolean);
 
+  // Combo line items: expand into one row per constituent dish, storing combo_id
+  // on each. The combo's set price is spread across the rows (proportional to
+  // each dish's current price) so the order total equals the combo price.
+  const comboItems = items.filter(i => i && i.combo_id);
+  if (comboItems.length) {
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const comboIds = [...new Set(comboItems.map(i => String(i.combo_id)).filter(id => UUID_RE.test(id)))];
+    const { data: combos = [] } = comboIds.length
+      ? await supabase.from('combos').select('id, name, item_ids, price_cents, active').eq('restaurant_id', restaurant.id).in('id', comboIds)
+      : { data: [] };
+    const comboById = Object.fromEntries((combos || []).map(c => [c.id, c]));
+    const allIds = [...new Set((combos || []).flatMap(c => Array.isArray(c.item_ids) ? c.item_ids : []))];
+    const { data: cdishes = [] } = allIds.length
+      ? await supabase.from('dishes').select('id, name, price_cents, price, stock_count, active').eq('restaurant_id', restaurant.id).in('id', allIds)
+      : { data: [] };
+    const dishById = Object.fromEntries((cdishes || []).map(d => [d.id, d]));
+    for (const ci of comboItems) {
+      const c = comboById[String(ci.combo_id)];
+      const ids = Array.isArray(c?.item_ids) ? c.item_ids : [];
+      const ds = ids.map(id => dishById[id]);
+      if (!c || c.active === false || !ids.length || ds.some(d => !d || d.active === false)) {
+        return res.status(409).json({ error: 'combo_unavailable', message: 'A combo in your cart is no longer available. Please update your cart.' });
+      }
+      const qty = Math.max(1, Math.min(99, parseInt(ci.qty || 1) || 1));
+      const bases = ds.map(d => d.price_cents ?? parsePrice(d.price) ?? 0);
+      const baseSum = bases.reduce((a, b) => a + b, 0);
+      const target = Math.max(0, c.price_cents || 0);
+      let assigned = 0;
+      ds.forEach((d, idx) => {
+        let cents;
+        if (idx === ds.length - 1) cents = target - assigned;
+        else cents = baseSum > 0 ? Math.round(target * bases[idx] / baseSum) : Math.floor(target / ds.length);
+        cents = Math.max(0, cents);
+        assigned += cents;
+        resolved.push({
+          dish_id: d.id, dish_name: d.name, qty, stock_count: d.stock_count,
+          price_cents: cents, modifiers: [],
+          note: String(ci.note || '').slice(0, 200) || null,
+          combo_id: c.id
+        });
+      });
+    }
+  }
+
   if (!resolved.length) return res.status(400).json({ error: 'No valid dishes in cart' });
 
   // Stock check — reject if any tracked item can't be fulfilled
@@ -172,7 +228,38 @@ export default async function handler(req, res) {
   const subtotal = resolved.reduce((s, it) => s + (it.price_cents || 0) * it.qty, 0);
   const currency = settings?.default_currency || 'ZAR';
   const tipC = Math.max(0, Math.min(500_00, parseInt(tip_cents) || 0));   // cap at R500 to prevent runaway typos
-  const totalC = subtotal + tipC;
+
+  // Loyalty + referral discounts. All best-effort: if the loyalty tables/columns
+  // are not migrated yet the order simply proceeds with no discount.
+  const REFERRAL_PCT = 10, REFERRAL_CAP_CENTS = 5000, REFERRAL_BONUS_STAMPS = 2;
+  let loyaltyCfg = { enabled: false, threshold: 10, reward_value_cents: 0 };
+  let loyaltyDiscount = 0, referralDiscount = 0, referrerId = null;
+  if (customer_id) {
+    try {
+      const { data: ls } = await supabase.from('restaurant_settings')
+        .select('loyalty_threshold, loyalty_reward_cents, loyalty_enabled').eq('restaurant_id', restaurant.id).maybeSingle();
+      loyaltyCfg = loyaltyConfig(ls);
+      if (redeem_loyalty === true && loyaltyCfg.enabled && loyaltyCfg.reward_value_cents > 0) {
+        const { data: cnt } = await supabase.raw(
+          'select count(*)::int as n from loyalty_stamps where customer_id = $1 and restaurant_id = $2', [customer_id, restaurant.id]);
+        if ((cnt?.[0]?.n || 0) >= loyaltyCfg.threshold) {
+          loyaltyDiscount = Math.min(loyaltyCfg.reward_value_cents, subtotal);
+        }
+      }
+    } catch {}
+    try {
+      const { data: rc } = await supabase.from('customers').select('referred_by').eq('id', customer_id).maybeSingle();
+      if (rc?.referred_by && rc.referred_by !== customer_id) {
+        const { data: prior } = await supabase.raw(
+          'select 1 from orders where customer_id = $1 limit 1', [customer_id]);
+        if (!prior?.length) {
+          referrerId = rc.referred_by;
+          referralDiscount = Math.min(Math.round((subtotal - loyaltyDiscount) * REFERRAL_PCT / 100), REFERRAL_CAP_CENTS);
+        }
+      }
+    } catch {}
+  }
+  const totalC = Math.max(0, subtotal - loyaltyDiscount - referralDiscount) + tipC;
 
   const { data: order, error: oerr } = await supabase.from('orders').insert({
     restaurant_id: restaurant.id,
@@ -185,7 +272,9 @@ export default async function handler(req, res) {
     currency,
     guest_note: String(note || '').slice(0, 500) || null,
     client_order_id: client_order_id ? String(client_order_id).slice(0, 60) : null,
-    customer_id
+    customer_id,
+    ...(loyaltyDiscount > 0 ? { loyalty_redeemed: true, loyalty_discount_cents: loyaltyDiscount } : {}),
+    ...(referralDiscount > 0 ? { referral_discount_cents: referralDiscount } : {})
   }).select().single();
   if (oerr) return res.status(500).json({ error: 'Could not save order' });
 
@@ -196,7 +285,8 @@ export default async function handler(req, res) {
     qty: it.qty,
     price_cents: it.price_cents,
     modifiers: it.modifiers || [],
-    note: it.note
+    note: it.note,
+    ...(it.combo_id ? { combo_id: it.combo_id } : {})
   }));
   const itemsRes = await supabase.from('order_items').insert(rows);
   if (itemsRes.error) {
@@ -204,6 +294,32 @@ export default async function handler(req, res) {
     console.error('order_items insert failed:', itemsRes.error);
     await supabase.from('orders').delete().eq('id', order.id);
     return res.status(500).json({ error: 'Could not save order items — please try again' });
+  }
+
+  // Loyalty: consume stamps on redemption, then award this order's stamp.
+  // Referral: first order at this restaurant clears referred_by (single use)
+  // and gives the referrer bonus stamps. Best-effort, never fails the order.
+  if (customer_id) {
+    try {
+      if (loyaltyDiscount > 0) {
+        await supabase.raw(
+          `delete from loyalty_stamps where id in (
+             select id from loyalty_stamps where customer_id = $1 and restaurant_id = $2
+             order by earned_at desc limit $3)`,
+          [customer_id, restaurant.id, loyaltyCfg.threshold]);
+      }
+      if (loyaltyCfg.enabled) {
+        await supabase.from('loyalty_stamps').insert({ customer_id, restaurant_id: restaurant.id, order_id: order.id });
+      }
+      if (referrerId) {
+        const { data: cleared } = await supabase.raw(
+          'update customers set referred_by = null where id = $1 and referred_by is not null returning id', [customer_id]);
+        if (cleared?.length && loyaltyCfg.enabled) {
+          await supabase.from('loyalty_stamps').insert(
+            Array.from({ length: REFERRAL_BONUS_STAMPS }, () => ({ customer_id: referrerId, restaurant_id: restaurant.id, order_id: order.id })));
+        }
+      }
+    } catch (e) { console.warn('loyalty/referral bookkeeping failed:', e.message); }
   }
 
   // Decrement stock for tracked dishes (best-effort — but LOG when it fails so
@@ -242,7 +358,7 @@ export default async function handler(req, res) {
     tag: 'order-' + order.id
   }).catch(() => {});
 
-  return res.status(200).json({ ok: true, order_id: order.id });
+  return res.status(200).json({ ok: true, order_id: order.id, total_cents: totalC, loyalty_discount_cents: loyaltyDiscount, referral_discount_cents: referralDiscount });
 }
 
 function parsePrice(str) {

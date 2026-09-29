@@ -51,7 +51,9 @@ export default async function handler(req, res) {
         .select('id, reserved_at, duration_minutes, status')
         .eq('restaurant_id', rest.id)
         .in('status', ['pending', 'confirmed'])
-        .gte('reserved_at', new Date(when.getTime() - Math.max(newDurMs, 90 * 60 * 1000)).toISOString())
+        // Look back a full 240 min (max stored duration) so a long existing booking that
+        // started well before this one is still counted (tests/reservation-slot.test.js).
+        .gte('reserved_at', new Date(when.getTime() - 240 * 60 * 1000).toISOString())
         .lte('reserved_at', new Date(when.getTime() + Math.max(newDurMs, 90 * 60 * 1000)).toISOString())
     ]);
     const capacity = Math.max(1, tbls.length || 20);

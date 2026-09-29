@@ -1,6 +1,42 @@
 // Guest menu / single-dish lookup.
 import { supabase } from '../_db.js';
 
+// ---- Opening hours ---------------------------------------------------------
+// hours: {mon:[["09:00","22:00"]], ...}. Empty/absent (or no slots anywhere)
+// => always open. A slot whose close <= open spans midnight into the next day.
+const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+const toMinutes = t => { const [h, m] = String(t).split(':').map(Number); return (h || 0) * 60 + (m || 0); };
+export function computeOpenState(hours, timezone, now = new Date()) {
+  const open = { is_open: true, next_open: null };
+  if (!hours || typeof hours !== 'object' || Array.isArray(hours)) return open;
+  const hasSlots = DAY_KEYS.some(k => Array.isArray(hours[k]) && hours[k].length);
+  if (!hasSlots) return open;
+  let wd, mins;
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', { timeZone: timezone || 'Africa/Johannesburg', weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(now);
+    const get = t => parts.find(p => p.type === t)?.value;
+    wd = DAY_KEYS.indexOf(String(get('weekday')).toLowerCase().slice(0, 3));
+    mins = (parseInt(get('hour'), 10) % 24) * 60 + parseInt(get('minute'), 10);
+  } catch { return open; }
+  if (wd < 0 || !Number.isFinite(mins)) return open;
+  const slotsOf = d => (Array.isArray(hours[DAY_KEYS[(d + 7) % 7]]) ? hours[DAY_KEYS[(d + 7) % 7]] : [])
+    .filter(s => Array.isArray(s) && s.length === 2)
+    .map(([o, c]) => { const a = toMinutes(o); let b = toMinutes(c); if (b <= a) b += 1440; return [a, b]; });
+  // Currently inside a slot today, or a slot that spilled over from yesterday?
+  for (const [a, b] of slotsOf(wd)) if (mins >= a && mins < b) return open;
+  for (const [, b] of slotsOf(wd - 1)) if (b > 1440 && mins < b - 1440) return open;
+  // Find the next slot start within the coming week.
+  for (let off = 0; off <= 7; off++) {
+    const starts = slotsOf(wd + off).map(([a]) => a).filter(a => off > 0 || a > mins).sort((x, y) => x - y);
+    if (starts.length) {
+      const a = starts[0];
+      const hh = String(Math.floor(a / 60)).padStart(2, '0'), mm = String(a % 60).padStart(2, '0');
+      return { is_open: false, next_open: { day: DAY_KEYS[(wd + off) % 7], time: `${hh}:${mm}`, days_ahead: off } };
+    }
+  }
+  return { is_open: false, next_open: null };
+}
+
 export default async function handler(req, res) {
   const { r, d } = req.query;
   if (!r) return res.status(400).json({ error: 'Missing r param' });
@@ -190,8 +226,45 @@ export default async function handler(req, res) {
     })().catch(() => {})
   ]);
 
+  // Combos + open/closed state — optional, degrade silently if tables/columns missing.
+  let combos = [];
+  try {
+    const cq = await supabase.from('combos').select('id, slug, name, description, item_ids, price_cents, thumb_url')
+      .eq('restaurant_id', restaurant.id).eq('active', true).order('sort_order').order('created_at');
+    if (!cq.error) {
+      const allDishes = await supabase.from('dishes').select('id, name, price_cents, price, active').eq('restaurant_id', restaurant.id);
+      const byId = Object.fromEntries((allDishes.data || []).map(x => [x.id, x]));
+      combos = (cq.data || []).map(c => {
+        const ids = Array.isArray(c.item_ids) ? c.item_ids : [];
+        const items = ids.map(id => byId[id]);
+        // Hide a combo whose dishes were deleted or deactivated — it can't be ordered.
+        if (!ids.length || items.some(x => !x || x.active === false)) return null;
+        const sum = items.reduce((s, x) => s + (x.price_cents ?? parsePrice(x.price) ?? 0), 0);
+        return {
+          id: c.id, slug: c.slug, name: c.name, description: c.description,
+          item_ids: ids, item_names: items.map(x => x.name),
+          price_cents: c.price_cents, thumb_url: c.thumb_url,
+          savings_cents: Math.max(0, sum - (c.price_cents || 0))
+        };
+      }).filter(Boolean);
+    }
+  } catch {}
+  let openState = { is_open: true, next_open: null }, openingHours = {}, timezone = null;
+  try {
+    const st = await supabase.from('restaurant_settings').select('opening_hours, timezone').eq('restaurant_id', restaurant.id).maybeSingle();
+    if (!st.error && st.data) {
+      openingHours = st.data.opening_hours || {};
+      timezone = st.data.timezone || null;
+      openState = computeOpenState(openingHours, timezone);
+    }
+  } catch {}
+
   return res.status(200).json({
     restaurant: { name: restaurant.name, slug: restaurant.slug },
+    is_open: openState.is_open,
+    next_open: openState.next_open,
+    timezone,
+    combos,
     orders_7d: orders7d,
     wait_estimate,
     dishes: visibleDishes.map(x => {

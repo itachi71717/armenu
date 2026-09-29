@@ -12,6 +12,8 @@
 <meta property="og:url" content="https://armenu.co.za/admin/" />
 <link rel="canonical" href="https://armenu.co.za/admin/" />
 <link rel="manifest" href="/manifest.json" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="ARMenu Admin" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -212,6 +214,7 @@
     <button type="button" class="nav-item" data-view="audit"><span class="ico">◈</span> Audit log</button>
     <button type="button" class="nav-item" data-view="migrate"><span class="ico">⚙</span> Run migration</button>
     <div class="nav-section">Account</div>
+    <button type="button" class="nav-item" id="pwaInstall" style="display:none" aria-label="Install as app"><span class="ico">📱</span> Install as app</button>
     <button type="button" class="nav-item" id="signOut"><span class="ico">↗</span> Sign out</button>
   </aside>
 
@@ -382,6 +385,8 @@
 
 <script>
 (function(){
+  // Local escaper (this IIFE is a separate <script>) — tests/xss-in-admin-render.test.js
+  function escapeHTML(x) { return String(x == null ? '' : x).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
   // Bind after DOM ready — the existing view-switch delegator will show/hide us.
   document.addEventListener('DOMContentLoaded', function () {
     var statusEl = document.getElementById('migStatus');
@@ -396,7 +401,7 @@
         var r = await fetch('/api/admin/migrate', { credentials: 'include' });
         var j = await r.json();
         if (!r.ok) {
-          statusEl.innerHTML = '<div style="color:#f87171;font-weight:600">Cannot check migration status: ' + (j.error || r.status) + '</div>';
+          statusEl.innerHTML = '<div style="color:#f87171;font-weight:600">Cannot check migration status: ' + escapeHTML(j.error || r.status) + '</div>';
           return;
         }
         if (j.ok) {
@@ -405,12 +410,12 @@
         } else {
           statusEl.innerHTML = '<div style="color:#f0b060;font-weight:600;font-size:16px">⚠ ' + j.missing.length + ' item(s) missing on the live DB:</div>' +
             '<ul style="margin-top:10px;padding-left:24px;color:var(--ink-dim);font-family:var(--mono);font-size:12px;line-height:1.6">' +
-            j.missing.map(function(m){return '<li>' + m + '</li>';}).join('') + '</ul>';
+            j.missing.map(function(m){return '<li>' + escapeHTML(m) + '</li>';}).join('') + '</ul>';
           btn.textContent = 'Apply schema.sql →';
         }
         btn.disabled = false;
       } catch (e) {
-        statusEl.innerHTML = '<div style="color:#f87171">Network error: ' + (e.message || e) + '</div>';
+        statusEl.innerHTML = '<div style="color:#f87171">Network error: ' + escapeHTML(e.message || e) + '</div>';
       }
     }
 
@@ -609,7 +614,7 @@
           <div style="color:${actorColor};font-family:var(--mono);font-size:11px;font-weight:700">${escapeHTML(e.actor || 'system')}</div>
           <div style="color:var(--accent-2);font-family:var(--mono);font-size:12px">${escapeHTML(e.action)}</div>
           <div style="color:var(--ink);font-size:13px">${e.target ? '<b>' + escapeHTML(e.target) + '</b>' : ''} ${e.metadata && Object.keys(e.metadata).length ? '<span style="color:var(--ink-faint);font-size:11px">' + escapeHTML(JSON.stringify(e.metadata)) + '</span>' : ''}</div>
-          <div style="color:var(--ink-faint);font-family:var(--mono);font-size:10px">${e.ip || ''}</div>
+          <div style="color:var(--ink-faint);font-family:var(--mono);font-size:10px">${escapeHTML(e.ip || '')}</div>
         </div>`;
       }).join('');
       const moreBtn = has_more
@@ -619,7 +624,7 @@
       const lm = $('audLoadMore');
       if (lm) lm.onclick = () => loadAudit(true);
     } catch (e) {
-      $('audRows').innerHTML = '<div style="padding:40px;text-align:center;color:#f87171">' + (e.message || 'Failed to load') + '</div>';
+      $('audRows').innerHTML = '<div style="padding:40px;text-align:center;color:#f87171">' + escapeHTML(e.message || 'Failed to load') + '</div>';
     }
   }
   function escapeHTML(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -882,7 +887,7 @@
         sel.innerHTML = '<option value="">No restaurants — add one first</option>';
         return;
       }
-      sel.innerHTML = o.clients.map(c => `<option value="${c.slug}">${c.name}</option>`).join('');
+      sel.innerHTML = o.clients.map(c => `<option value="${escapeHTML(c.slug)}">${escapeHTML(c.name)}</option>`).join('');
     } catch (e) { if (e.message !== 'unauth') toast(e.message, 'err'); }
   }
 
@@ -894,7 +899,7 @@
     const box = $('ndPreview');
     if (url) {
       box.classList.remove('empty');
-      box.innerHTML = `<model-viewer src="${url}" alt="Preview" auto-rotate camera-controls shadow-intensity="1.4" exposure="1.05" interaction-prompt="none"></model-viewer>`;
+      box.innerHTML = `<model-viewer src="${escapeHTML(url)}" alt="Preview" auto-rotate camera-controls shadow-intensity="1.4" exposure="1.05" interaction-prompt="none"></model-viewer>`;
     } else {
       box.classList.add('empty');
       box.textContent = 'Pick a .glb to preview';
@@ -1190,6 +1195,23 @@
       { id: 'quick-add-dish', label: 'Add new dish', hint: 'Dashboard', keywords: ['new', 'dish'], run: function () { document.querySelector('[data-go="add-dish"]')?.click(); } }
     ]);
   });
+})();
+</script>
+<script>
+// PWA install button
+(function(){
+  try {
+    let deferred = null;
+    const btn = document.getElementById('pwaInstall');
+    if (!btn) return;
+    window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; btn.style.display = ''; });
+    btn.addEventListener('click', async () => {
+      if (!deferred) return;
+      try { deferred.prompt(); await deferred.userChoice; } catch (_) {}
+      deferred = null; btn.style.display = 'none';
+    });
+    window.addEventListener('appinstalled', () => { deferred = null; btn.style.display = 'none'; });
+  } catch (_) {}
 })();
 </script>
 </body>

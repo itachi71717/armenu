@@ -7,6 +7,7 @@ const PAGES = [
   ['/how.html', 'monthly', '0.8'],
   ['/why.html', 'monthly', '0.8'],
   ['/dishes.html', 'weekly', '0.8'],
+  ['/discover', 'daily', '0.7'],
   ['/faq.html', 'monthly', '0.7'],
   ['/plans.html', 'monthly', '0.8'],
   ['/contact.html', 'monthly', '0.9'],

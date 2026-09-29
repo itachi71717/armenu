@@ -30,6 +30,8 @@ export default async function handler(req, res) {
     if (!existing) return res.status(404).json({ error: 'not found' });
     const guard = assertScope(req, existing.restaurant_id);
     if (guard) return res.status(guard.status).json({ error: guard.error });
+    // Only allow known statuses (tests/waiter-call-scope.test.js) — previously any string was written.
+    if (body.status && !['open', 'acknowledged', 'closed'].includes(body.status)) return res.status(400).json({ error: 'bad status' });
     const patch = { status: body.status || 'closed' };
     if (patch.status === 'closed') patch.closed_at = new Date().toISOString();
     await supabaseAdmin.from('waiter_calls').update(patch).eq('id', id);
