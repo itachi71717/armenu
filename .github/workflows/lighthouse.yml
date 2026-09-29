@@ -1,0 +1,45 @@
+name: Lighthouse
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Write Lighthouse config
+        run: |
+          cat > lighthouserc.json <<'JSON'
+          {
+            "ci": {
+              "collect": {
+                "url": ["https://armenu.co.za/m/demo", "https://armenu.co.za/"],
+                "numberOfRuns": 3,
+                "settings": { "preset": "desktop", "chromeFlags": "--no-sandbox" }
+              },
+              "assert": {
+                "assertions": {
+                  "largest-contentful-paint": ["error", { "maxNumericValue": 3000, "aggregationMethod": "median" }],
+                  "cumulative-layout-shift": ["error", { "maxNumericValue": 0.1, "aggregationMethod": "median" }],
+                  "total-blocking-time": ["error", { "maxNumericValue": 300, "aggregationMethod": "median" }]
+                }
+              },
+              "upload": { "target": "filesystem", "outputDir": ".lighthouseci" }
+            }
+          }
+          JSON
+      - name: Run Lighthouse CI
+        run: npx --yes @lhci/cli@0.14.x autorun --config=lighthouserc.json
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-reports
+          path: .lighthouseci/
+          retention-days: 14

@@ -7,6 +7,7 @@ const ROUTES = {
   'scan':         'scan',
   'settings':     'settings',
   'order':        'order',
+  'order-status': 'order-status',
   'waiter-call':  'waiter-call',
   'review':       'review',
   'events':       'events',
@@ -21,6 +22,7 @@ const ROUTES = {
   'customer/loyalty':   'customer/loyalty',
   'customer/my-usual':  'customer/my-usual',
   'customer/referral':  'customer/referral',
+  'customer/menu-presence': 'customer/menu-presence',
 
   'push/subscribe': 'push/subscribe',
   'push/vapid-key': 'push/vapid-key',
@@ -43,6 +45,7 @@ const ROUTES = {
   'admin/offers':        'admin/offers',
   'admin/combos':        'admin/combos',
   'admin/analytics':     'admin/analytics',
+  'admin/benchmarks':    'admin/benchmarks',
   'admin/ai-generate':   'admin/ai-generate',
   'admin/ai-menu-reader':'admin/ai-menu-reader',
   'admin/billing':       'admin/billing',
@@ -53,6 +56,8 @@ const ROUTES = {
   'admin/overview':      'admin/overview',
   'admin/pending':       'admin/pending',
   'admin/upload-url':    'admin/upload-url',
+  'admin/compress-image':'admin/upload-url',
+  'admin/backup-cron':   'admin/backup-cron',
   'admin/reservations':  'admin/reservations',
   'admin/schedules':     'admin/schedules',
   'admin/categories/reorder': 'admin/categories-reorder',
@@ -66,6 +71,12 @@ const ROUTES = {
   'admin/migrate':            'admin/migrate',
   'admin/shifts':             'admin/shifts',
   'admin/prep-sheet':         'admin/prep-sheet',
+  'admin/bulk-import':        'admin/bulk-import',
+  'admin/bulk-price':         'admin/bulk-price',
+  'admin/duplicate-dish':     'admin/duplicate-dish',
+  'admin/menu-templates':     'admin/menu-templates',
+  'admin/staff-performance':  'admin/staff-performance',
+  'admin/daily-summary-cron': 'admin/daily-summary-cron',
 
   'staff/login':  'staff/login',
   'staff/orders': 'staff/orders',
@@ -81,6 +92,7 @@ const ROUTES = {
   'portal/dashboard':      'portal/dashboard',
   'portal/team':           'portal/team',
   'portal/transfer':       'portal/transfer',
+  'portal/menu-preview':   'portal/menu-preview',
 
   'paddle/webhook': 'paddle/webhook'
 };
@@ -149,7 +161,8 @@ export default async function handler(req, res) {
   //
   // Master admin (x-admin-secret == ADMIN_SECRET) bypasses this check.
   // ============================================================
-  if (key.startsWith('admin/')) {
+  // backup-cron authenticates itself with CRON_SECRET (Vercel Cron has no admin session).
+  if (key.startsWith('admin/') && key !== 'admin/backup-cron') {
     // Master-admin can arrive via signed cookie (new) OR the legacy header.
     // Guard the header comparison so undefined===undefined can never grant.
     const _adminSecret = process.env.ADMIN_SECRET;

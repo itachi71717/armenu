@@ -362,6 +362,7 @@
       <span class="pill scan-pill" id="navScans">0 scans this week</span>
       <span class="pill" id="navDishCount">0 dishes live</span>
       <button class="pill" id="navCredits" style="cursor:pointer;background:linear-gradient(135deg,rgba(232,197,138,.15),rgba(212,165,116,.06));border:1px solid rgba(232,197,138,.28);color:#e8c58a">◊ — credits</button>
+      <button class="btn" id="previewMenuBtn" title="Open your menu in preview mode in a new tab">🔍 Preview live menu</button>
       <button class="btn" id="pwaInstall" style="display:none" aria-label="Install as app">📱 Install as app</button>
       <button class="btn" id="signOutBtn">Sign out</button>
     </div>
@@ -406,6 +407,9 @@
           <div class="action" id="analyticsAction">
             <span class="ico">📈</span><div><h3>Analytics</h3><p>Revenue, busiest hours, top dishes, returning guests.</p></div>
           </div>
+          <div class="action" id="staffPerfAction">
+            <span class="ico">🏅</span><div><h3>Staff performance</h3><p>Orders handled, speed, tables and tips per waiter.</p></div>
+          </div>
           <a class="action" id="kitchenAction" href="#" style="text-decoration:none">
             <span class="ico">🔥</span><div><h3>Kitchen display</h3><p>Live ticket board for the kitchen tablet.</p></div>
           </a>
@@ -438,6 +442,24 @@
           </div>
           <div class="action" id="schedulesAction">
             <span class="ico">⏰</span><div><h3>Menu scheduler</h3><p>Auto-switch breakfast / lunch / dinner.</p></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tools-group" data-open="1">
+        <button class="tg-head"><span>▾ Bulk actions</span><span class="tg-hint">Import, reprice, duplicate, templates</span></button>
+        <div class="tg-body">
+          <div class="action" id="bulkImportAction" title="Columns: Name,Price,Description,Category,Allergens,Dietary&#10;Example: Ribeye 300g,225,Aged 21 days,Mains,,halal">
+            <span class="ico">📥</span><div><h3>Import CSV</h3><p>Bulk-add dishes from a spreadsheet.</p></div>
+          </div>
+          <div class="action" id="bulkPriceAction">
+            <span class="ico">💲</span><div><h3>Bulk price update</h3><p>Raise or cut prices by % or amount.</p></div>
+          </div>
+          <div class="action" id="duplicateDishAction">
+            <span class="ico">📑</span><div><h3>Duplicate dish</h3><p>Clone a dish, then tweak the copy.</p></div>
+          </div>
+          <div class="action" id="menuTemplatesAction">
+            <span class="ico">🎨</span><div><h3>Menu templates</h3><p>Start from a proven menu structure.</p></div>
           </div>
         </div>
       </div>
@@ -525,6 +547,21 @@
       </div>
     </div>
     <div id="anBody" style="color:var(--ink-dim)">Loading…</div>
+  </div>
+</div>
+
+<!-- Staff performance modal (filled by openStaffPerfModal) -->
+<div class="modal an-modal" id="staffPerfModal">
+  <div class="an-card">
+    <div class="an-head">
+      <h3>🏅 Staff performance</h3>
+      <div class="an-range" id="spRange">
+        <button class="btn" data-r="7d">7d</button><button class="btn on" data-r="30d">30d</button>
+        <button class="btn" id="spPrint">🖨 Print</button>
+        <button class="btn" id="spClose">Close</button>
+      </div>
+    </div>
+    <div id="spBody" style="color:var(--ink-dim)">Loading…</div>
   </div>
 </div>
 
@@ -1890,13 +1927,98 @@ Sub gluten-free bun +1200</code></div>
     if (e.target.closest('#combosAction'))       openCombosModal();
     if (e.target.closest('#reservationsAction')) openReservationsModal();
     if (e.target.closest('#schedulesAction'))    openSchedulesModal();
+    if (e.target.closest('#bulkImportAction'))   openBulkImportModal();
+    if (e.target.closest('#bulkPriceAction'))    openBulkPriceModal();
+    if (e.target.closest('#duplicateDishAction')) openDuplicateDishModal();
+    if (e.target.closest('#menuTemplatesAction')) openMenuTemplatesModal();
     if (e.target.closest('#walkinsAction'))      openWalkinsModal();
     if (e.target.closest('#fullToggleAction'))   toggleRestaurantFull();
     if (e.target.closest('#teamAction'))         openTeamModal();
     if (e.target.closest('#shiftsAction'))       openShiftsModal();
     if (e.target.closest('#prepSheetAction'))    openPrepSheetModal();
     if (e.target.closest('#analyticsAction'))    openAnalyticsModal();
+    if (e.target.closest('#staffPerfAction'))    openStaffPerfModal();
   });
+
+  // ============= MENU PREVIEW (opens /m/<slug>?preview=1 in a new tab) =============
+  $('previewMenuBtn').addEventListener('click', async () => {
+    // Open the tab synchronously so popup blockers allow it, then point it at the signed URL.
+    const w = window.open('about:blank', '_blank');
+    try {
+      const slug = CURRENT?.restaurant?.slug;
+      const { ok, data } = await authFetch('/api/portal/menu-preview' + (slug ? `?slug=${encodeURIComponent(slug)}` : ''));
+      if (!ok || !data.url) throw new Error(data?.error || 'Preview unavailable');
+      if (w) w.location.href = data.url; else window.location.href = data.url;
+    } catch (err) {
+      if (w) w.close();
+      toast('Could not open preview — ' + err.message, 'err');
+    }
+  });
+
+  // ============= STAFF PERFORMANCE =============
+  let spRange = '30d', spData = null, spSort = 'orders_handled', spAsc = false;
+  const spMoney = c => 'R' + ((c || 0) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const spRows = () => {
+    const rows = [...(spData?.staff || [])];
+    rows.sort((a, b) => {
+      const av = a[spSort], bv = b[spSort];
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;   // rows without data always sink to the bottom
+      if (bv == null) return -1;
+      return spAsc ? av - bv : bv - av;
+    });
+    return rows;
+  };
+  function spRender() {
+    const body = $('spBody');
+    if (!spData) return;
+    if (!spData.staff.length) { body.innerHTML = 'No staff-attributed orders in this range.'; return; }
+    const arrow = k => spSort === k ? (spAsc ? ' ▴' : ' ▾') : '';
+    const fallback = spData.attribution === 'waiter_calls'
+      ? '<p style="font-size:12px;color:var(--ink-faint);margin-bottom:8px">Orders are not attributed to staff yet, so counts show waiter calls answered instead.</p>' : '';
+    body.innerHTML = fallback + `<table class="an-tbl" id="spTable"><tr><th>Staff</th><th>Role</th>
+      <th class="srt" data-s="orders_handled" style="cursor:pointer">Orders${arrow('orders_handled')}</th>
+      <th class="srt" data-s="avg_time_to_ready_min" style="cursor:pointer">Avg time to ready${arrow('avg_time_to_ready_min')}</th>
+      <th>Tables</th><th>Tips</th></tr>
+      ${spRows().map(x => `<tr><td>${escapeHTML(x.staff_name)}</td><td>${escapeHTML(x.role)}</td><td>${x.orders_handled}</td>
+        <td>${x.avg_time_to_ready_min == null ? '—' : x.avg_time_to_ready_min + ' min'}</td><td>${x.tables_served}</td><td>${spMoney(x.tips_collected_cents)}</td></tr>`).join('')}</table>`;
+    body.querySelectorAll('th.srt').forEach(th => th.onclick = () => {
+      const k = th.dataset.s;
+      if (spSort === k) spAsc = !spAsc; else { spSort = k; spAsc = k === 'avg_time_to_ready_min'; }
+      spRender();
+    });
+  }
+  let _spSeq = 0;
+  async function spLoad() {
+    const seq = ++_spSeq;
+    $('spBody').textContent = 'Loading…';
+    try {
+      const { ok, data } = await mgrFetch(`/api/admin/staff-performance?slug=${encodeURIComponent(CURRENT.restaurant.slug)}&range=${spRange}`);
+      if (seq !== _spSeq) return;
+      if (!ok) throw new Error(data.error || 'Failed to load');
+      spData = data; spRender();
+    } catch (e) { if (seq === _spSeq) $('spBody').innerHTML = `<span style="color:#f87171">${escapeHTML(e.message)}</span>`; }
+  }
+  function openStaffPerfModal() {
+    $('staffPerfModal').classList.add('show');
+    spLoad();
+  }
+  $('spClose').onclick = () => $('staffPerfModal').classList.remove('show');
+  $('spRange').addEventListener('click', e => {
+    const b = e.target.closest('[data-r]'); if (!b) return;
+    spRange = b.dataset.r;
+    $('spRange').querySelectorAll('[data-r]').forEach(x => x.classList.toggle('on', x === b));
+    spLoad();
+  });
+  $('spPrint').onclick = async () => {
+    if (!spData) return;
+    const brand = await fetchBrand();
+    const rows = spRows();
+    printNow(`${brandHead(brand, 'Staff performance — last ' + (spRange === '7d' ? '7' : '30') + ' days')}
+      <table><tr><th>Staff</th><th>Role</th><th>Orders</th><th>Avg time to ready</th><th>Tables</th><th>Tips</th></tr>
+      ${rows.map(x => `<tr><td>${escapeHTML(x.staff_name)}</td><td>${escapeHTML(x.role)}</td><td>${x.orders_handled}</td>
+        <td>${x.avg_time_to_ready_min == null ? '—' : x.avg_time_to_ready_min + ' min'}</td><td>${x.tables_served}</td><td>${spMoney(x.tips_collected_cents)}</td></tr>`).join('')}</table>`);
+  };
 
   // ============= SHIFTS + PREP SHEET (printable, white-label) =============
   const SH_START = 8, SH_END = 23, SH_ROW = 34;   // grid covers 08:00-23:00
@@ -2118,6 +2240,7 @@ Sub gluten-free bun +1200</code></div>
     body.innerHTML = `<div class="an-grid">
       <div class="an-box wide"><h4>Revenue</h4>
         <div class="an-kpis"><div><b>${anMoney(rev)}</b><span>Total revenue</span></div><div><b>${ord}</b><span>Orders</span></div><div><b>${anMoney(ord ? rev / ord : 0)}</b><span>Avg order value</span></div></div>
+        <div id="anBench" style="margin:0 0 12px;padding:10px 12px;border-radius:10px;background:rgba(255,176,102,.08);border:1px solid rgba(255,176,102,.25);font-size:13px;display:none"></div>
         ${anLineSvg(d.revenue_series)}</div>
       <div class="an-box wide"><h4>Busy times (avg orders, ${escapeHTML(d.timezone)})</h4>
         <div class="an-heat"><span></span>${Array.from({ length: 24 }, (_, h) => `<em style="text-align:center">${h % 3 ? '' : h}</em>`).join('')}
@@ -2128,6 +2251,24 @@ Sub gluten-free bun +1200</code></div>
       <div class="an-box wide"><h4>Returning guests (new customers by first-order week)</h4>${d.cohort_retention.length ? `<table class="an-tbl"><tr><th>Cohort week</th><th>New</th><th>W1</th><th>W2</th><th>W3</th></tr>${d.cohort_retention.map(c => `<tr><td>${c.cohort_week}</td><td>${c.size}</td><td>${pct(c.w1_return, c.size)}</td><td>${pct(c.w2_return, c.size)}</td><td>${pct(c.w3_return, c.size)}</td></tr>`).join('')}</table>` : 'No identified new customers in the last 4 weeks.'}</div>
     </div>`;
     body.querySelectorAll('th.srt').forEach(th => th.onclick = () => { anCatSort = th.dataset.s; anRender(); });
+    anBenchRender();
+  }
+  // Peer benchmarks (last 30 days, independent of the range picker). Best-effort.
+  let anBench = null;
+  function anBenchRender() {
+    const el = $('anBench'), b = anBench;
+    if (!el || !b || !b.my_avg_order_cents) return;
+    const diff = b.platform_avg_order_cents ? Math.round((b.my_avg_order_cents - b.platform_avg_order_cents) * 100 / b.platform_avg_order_cents) : null;
+    const top = b.my_ranking_percentile != null ? ` Your average order is higher than ${b.my_ranking_percentile}% of restaurants.` : '';
+    el.innerHTML = `<b>🏆 vs South African average</b> <span style="color:var(--ink-faint)">(last 30 days)</span><br>Your avg order ${anMoney(b.my_avg_order_cents)} vs platform ${anMoney(b.platform_avg_order_cents)}${diff == null ? '' : ` (${diff >= 0 ? '+' : ''}${diff}%)`}.${top}<br><span style="color:var(--ink-faint)">Repeat guests ${b.my_repeat_rate_pct}% vs ${b.platform_repeat_rate_pct}% · ${b.my_orders_last_7d} orders in the last 7 days</span>`;
+    el.style.display = 'block';
+  }
+  async function anBenchLoad() {
+    try {
+      const { ok, data } = await mgrFetch(`/api/admin/benchmarks?slug=${encodeURIComponent(CURRENT.restaurant.slug)}`);
+      anBench = ok ? data : null;
+    } catch { anBench = null; }
+    anBenchRender();
   }
   let _anSeq = 0;
   async function anLoad() {
@@ -2144,6 +2285,7 @@ Sub gluten-free bun +1200</code></div>
   function openAnalyticsModal() {
     $('analyticsModal').classList.add('show');
     anLoad();
+    anBenchLoad();
   }
   $('anClose').onclick = () => $('analyticsModal').classList.remove('show');
   $('anRange').addEventListener('click', e => {
@@ -2438,6 +2580,152 @@ Sub gluten-free bun +1200</code></div>
     }
     html += '</div>';
     box.insertAdjacentHTML('afterbegin', html);
+  }
+
+
+  // ============================================================
+  // Bulk actions: CSV import, bulk price, duplicate dish, menu templates
+  // ============================================================
+  function bulkShell(kicker, title, bodyHtml, actionsHtml) {
+    $('wizKicker').textContent = kicker;
+    $('wizTitle').textContent = title;
+    $('wizProgress').innerHTML = '';
+    $('wizBody').innerHTML = bodyHtml;
+    $('wizActions').innerHTML = actionsHtml;
+    $('wizOverlay').classList.add('on');
+    $('wizClose').onclick = () => $('wizOverlay').classList.remove('on');
+  }
+  const bulkInputCss = 'width:100%;padding:10px 12px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:13px;box-sizing:border-box';
+  async function bulkRefreshMe() { try { await loadMe(); } catch {} }
+
+  function openBulkImportModal() {
+    const slug = CURRENT.restaurant.slug;
+    const example = 'Name,Price,Description,Category,Allergens,Dietary\nRibeye 300g,225,"Aged 21 days, flame-grilled",Mains,,halal';
+    bulkShell('Bulk actions', 'Import dishes from CSV',
+      `<p style="color:var(--ink-dim);margin-bottom:8px">Paste CSV text (max 200 rows). Columns: <span title="${escapeHTML(example)}" style="border-bottom:1px dotted var(--ink-faint);cursor:help;font-family:var(--mono);font-size:12px">Name,Price,Description,Category,Allergens,Dietary &#9432;</span></p>
+       <pre style="font-size:11px;color:var(--ink-faint);white-space:pre-wrap;margin:0 0 8px">${escapeHTML(example)}</pre>
+       <textarea id="bulkCsv" rows="8" style="${bulkInputCss};font-family:var(--mono)" placeholder="${escapeHTML(example)}"></textarea>
+       <div id="bulkPreview" style="max-height:26vh;overflow-y:auto;margin-top:10px;font-size:12.5px"></div>
+       <div id="bulkErr" style="color:#f87171;font-size:12.5px;min-height:16px;margin-top:8px"></div>`,
+      `<button class="wiz-secondary" id="bulkCancel">Close</button><button class="wiz-secondary" id="bulkPrev">Preview</button><button class="wiz-primary" id="bulkGo" disabled>Import</button>`);
+    $('bulkCancel').onclick = () => $('wizOverlay').classList.remove('on');
+    const call = async preview => (await mgrFetch('/api/admin/bulk-import', { method: 'POST', body: JSON.stringify({ slug, csv_text: $('bulkCsv').value, preview }) }));
+    $('bulkCsv').oninput = () => { $('bulkGo').disabled = true; };
+    $('bulkPrev').onclick = async () => {
+      $('bulkErr').textContent = '';
+      const { ok, data } = await call(true);
+      if (!ok) { $('bulkErr').textContent = data.error || 'Preview failed'; return; }
+      const rows = (data.parsed || []).map(p => `<div style="padding:6px 0;border-bottom:1px solid var(--line)"><b>${escapeHTML(p.name)}</b> · R${(p.price_cents / 100).toFixed(2)} · ${escapeHTML(p.category)}${p.warnings.length ? `<div style="color:#e8c58a;font-size:11px">${p.warnings.map(escapeHTML).join(' · ')}</div>` : ''}</div>`).join('');
+      const errs = (data.errors || []).map(e => `<div style="color:#f87171">${escapeHTML(e)}</div>`).join('');
+      $('bulkPreview').innerHTML = `<div style="margin-bottom:6px;color:var(--ink-dim)">${(data.parsed || []).length} valid row(s)</div>${errs}${rows}`;
+      $('bulkGo').disabled = !(data.parsed || []).length;
+    };
+    $('bulkGo').onclick = async () => {
+      $('bulkGo').disabled = true; $('bulkErr').textContent = '';
+      const { ok, data } = await call(false);
+      if (!ok) { $('bulkErr').textContent = data.error || 'Import failed'; return; }
+      toast(`Imported ${data.count} dish${data.count === 1 ? '' : 'es'}`, 'ok');
+      $('wizOverlay').classList.remove('on');
+      bulkRefreshMe();
+    };
+  }
+
+  async function openBulkPriceModal() {
+    const slug = CURRENT.restaurant.slug;
+    let cats = [];
+    try { cats = (await mgrFetch(`/api/admin/categories?slug=${slug}`)).data.categories || []; } catch {}
+    bulkShell('Bulk actions', 'Bulk price update',
+      `<p style="color:var(--ink-dim);margin-bottom:12px">Prices always stay between R1 and R10000.</p>
+       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+         <select id="bpType" style="${bulkInputCss}"><option value="percent">Percent (+10 = +10%)</option><option value="fixed">Fixed amount (rands)</option></select>
+         <input id="bpValue" type="number" step="0.01" placeholder="e.g. 10 or -5" style="${bulkInputCss}" />
+       </div>
+       <select id="bpTarget" style="${bulkInputCss}"><option value="all">All dishes</option>${cats.map(c => `<option value="${escapeHTML(c.id)}">${escapeHTML(c.name)}</option>`).join('')}</select>
+       <div id="bpErr" style="color:#f87171;font-size:12.5px;min-height:16px;margin-top:8px"></div>`,
+      `<button class="wiz-secondary" id="bpCancel">Close</button><button class="wiz-primary" id="bpGo">Apply</button>`);
+    $('bpCancel').onclick = () => $('wizOverlay').classList.remove('on');
+    $('bpGo').onclick = async () => {
+      const type = $('bpType').value;
+      let value = parseFloat($('bpValue').value);
+      if (!Number.isFinite(value) || value === 0) { $('bpErr').textContent = 'Enter a non-zero value'; return; }
+      if (type === 'fixed') value = Math.round(value * 100);
+      if (!confirm('Apply this price change to ' + ($('bpTarget').value === 'all' ? 'ALL dishes' : 'this category') + '?')) return;
+      $('bpGo').disabled = true;
+      const { ok, data } = await mgrFetch('/api/admin/bulk-price', { method: 'POST', body: JSON.stringify({ slug, adjustment: { type, value, target: $('bpTarget').value } }) });
+      $('bpGo').disabled = false;
+      if (!ok) { $('bpErr').textContent = data.error || 'Failed'; return; }
+      toast(`Updated ${data.affected} dish${data.affected === 1 ? '' : 'es'}`, 'ok');
+      $('wizOverlay').classList.remove('on');
+      bulkRefreshMe();
+    };
+  }
+
+  function openDuplicateDishModal() {
+    const slug = CURRENT.restaurant.slug;
+    const dishes = CURRENT.dishes || [];
+    bulkShell('Bulk actions', 'Duplicate dish',
+      `<p style="color:var(--ink-dim);margin-bottom:12px">Creates a copy with all the same details. The copy is named "(copy)" so you can edit it.</p>
+       <select id="dupDish" style="${bulkInputCss}">${dishes.map(d => `<option value="${escapeHTML(d.id)}">${escapeHTML(d.name)}</option>`).join('')}</select>
+       <div id="dupErr" style="color:#f87171;font-size:12.5px;min-height:16px;margin-top:8px"></div>`,
+      `<button class="wiz-secondary" id="dupCancel">Close</button><button class="wiz-primary" id="dupGo"${dishes.length ? '' : ' disabled'}>Duplicate</button>`);
+    $('dupCancel').onclick = () => $('wizOverlay').classList.remove('on');
+    $('dupGo').onclick = async () => {
+      $('dupGo').disabled = true;
+      const { ok, data } = await mgrFetch(`/api/admin/duplicate-dish?id=${encodeURIComponent($('dupDish').value)}&slug=${encodeURIComponent(slug)}`, { method: 'POST' });
+      $('dupGo').disabled = false;
+      if (!ok) { $('dupErr').textContent = data.error || 'Failed'; return; }
+      toast('Dish duplicated', 'ok');
+      $('wizOverlay').classList.remove('on');
+      bulkRefreshMe();
+    };
+  }
+
+  async function openMenuTemplatesModal() {
+    const slug = CURRENT.restaurant.slug;
+    let templates = [];
+    try { templates = (await mgrFetch('/api/admin/menu-templates?slug=' + encodeURIComponent(slug))).data.templates || []; } catch {}
+    bulkShell('Bulk actions', '🎨 Menu templates',
+      `<p style="color:var(--ink-dim);margin-bottom:12px">Tap a template to preview it. "Use this structure" adds its categories and placeholder dishes, which you can then edit.</p>
+       <div id="tplGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px">${templates.map((t, i) => `<button type="button" data-tpl="${i}" style="text-align:left;padding:12px;border-radius:12px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);cursor:pointer"><b>${escapeHTML(t.name)}</b><div style="color:var(--ink-faint);font-size:12px;margin-top:4px">${escapeHTML(t.tagline)}</div></button>`).join('')}</div>
+       <div id="tplPreview" style="max-height:30vh;overflow-y:auto;font-size:12.5px"></div>
+       <div id="tplErr" style="color:#f87171;font-size:12.5px;min-height:16px;margin-top:8px"></div>`,
+      `<button class="wiz-secondary" id="tplCancel">Close</button><button class="wiz-primary" id="tplGo" disabled>Use this structure</button>`);
+    $('tplCancel').onclick = () => $('wizOverlay').classList.remove('on');
+    let picked = null;
+    $('tplGrid').onclick = e => {
+      const b = e.target.closest('[data-tpl]'); if (!b) return;
+      picked = templates[+b.dataset.tpl];
+      $('tplGrid').querySelectorAll('[data-tpl]').forEach(x => x.style.borderColor = x === b ? '#e8c58a' : '');
+      $('tplPreview').innerHTML = `<div style="color:var(--ink-faint);font-style:italic;margin-bottom:8px">Hero photo: ${escapeHTML(picked.hero_photo_hint)}</div>` + picked.categories.map(c => `<div style="margin-bottom:10px"><b>${escapeHTML(c.name)}</b> <span style="color:#e8c58a">${escapeHTML(c.tagline || '')}</span>${c.items.map(i => `<div style="color:var(--ink-dim)">· ${escapeHTML(i.name)} <span style="color:var(--ink-faint)">${escapeHTML(i.price_hint)}</span> ${escapeHTML(i.desc)}</div>`).join('')}</div>`).join('');
+      $('tplGo').disabled = false;
+    };
+    $('tplGo').onclick = async () => {
+      if (!picked || !confirm(`Add the ${picked.name} structure to your menu?`)) return;
+      $('tplGo').disabled = true; $('tplErr').textContent = '';
+      let cats = [];
+      try { cats = (await mgrFetch(`/api/admin/categories?slug=${slug}`)).data.categories || []; } catch {}
+      const byName = new Map(cats.map(c => [String(c.name).trim().toLowerCase(), c.id]));
+      let added = 0, sort = cats.length + 1;
+      for (const c of picked.categories) {
+        let cid = byName.get(c.name.toLowerCase());
+        if (!cid) {
+          const r = await mgrFetch(`/api/admin/categories?slug=${slug}`, { method: 'POST', body: JSON.stringify({ name: c.name, sort_order: sort++ }) });
+          if (!r.ok) { $('tplErr').textContent = `Category "${c.name}": ${r.data.error || 'failed'}`; continue; }
+          cid = r.data.category?.id;
+        }
+        for (const i of c.items) {
+          const r = await mgrFetch('/api/admin/dishes', { method: 'POST', body: JSON.stringify({
+            restaurant_slug: slug, name: i.name, price: i.price_hint, description: i.desc, category_id: cid,
+            glb_url: 'https://armenu.co.za/vendor/models/dish.glb'
+          }) });
+          if (r.ok) added++; else $('tplErr').textContent = `"${i.name}": ${r.data.error || 'failed'}`;
+        }
+      }
+      toast(`Added ${added} placeholder dishes`, 'ok');
+      if (!$('tplErr').textContent) $('wizOverlay').classList.remove('on');
+      $('tplGo').disabled = false;
+      bulkRefreshMe();
+    };
   }
 
   function openSchedulesModal() {
@@ -2753,6 +3041,11 @@ Sub gluten-free bun +1200</code></div>
           <div id="loyErr" style="color:#f87171;font-size:12.5px;min-height:16px"></div>
           <button type="button" id="loySave" style="width:100%;margin-top:2px;padding:9px;border-radius:9px;background:rgba(232,197,138,.1);color:#e8c58a;border:1px solid rgba(232,197,138,.3);font-size:12.5px;font-weight:700;cursor:pointer">Save loyalty settings</button>
         </div>
+        <div id="dsSection" style="border-top:1px solid var(--line);padding-top:12px">
+          <div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:4px">Daily summary</div>
+          <label style="display:flex;gap:8px;align-items:center;font-size:13px;cursor:pointer"><input type="checkbox" id="dsOn" disabled /> 📧 Send me a daily summary at 10pm</label>
+          <div id="dsErr" style="color:#f87171;font-size:12.5px;min-height:16px"></div>
+        </div>
         <div id="brErr" style="color:#f87171;font-size:12.5px;min-height:16px"></div>
        </div>
        <div>
@@ -2768,6 +3061,25 @@ Sub gluten-free bun +1200</code></div>
     $('wizClose').onclick = $('brCancel').onclick = () => $('wizOverlay').classList.remove('on');
 
     initHoursEditor(slug, s.opening_hours);
+    (async () => {
+      const cb = $('dsOn');
+      try {
+        const { ok, data } = await mgrFetch(`/api/admin/daily-summary-cron?slug=${encodeURIComponent(slug)}`);
+        if (ok) cb.checked = data.enabled === true;
+      } catch (e) {}
+      cb.disabled = false;
+      cb.onchange = async () => {
+        $('dsErr').textContent = '';
+        const want = cb.checked;
+        cb.disabled = true;
+        try {
+          const { ok, data } = await mgrFetch(`/api/admin/daily-summary-cron?slug=${encodeURIComponent(slug)}`, { method: 'PATCH', body: JSON.stringify({ enabled: want }) });
+          if (!ok) throw new Error(data.error || 'Save failed');
+          toast(want ? 'Daily summary is on' : 'Daily summary is off', 'ok');
+        } catch (e) { cb.checked = !want; $('dsErr').textContent = e.message; }
+        finally { cb.disabled = false; }
+      };
+    })();
     $('loySave').onclick = async () => {
       $('loyErr').textContent = '';
       const on = $('loyOn').checked;

@@ -108,6 +108,16 @@
       ]
     }
   ],
+  "crons": [
+    {
+      "path": "/api/admin/backup-cron",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/admin/daily-summary-cron",
+      "schedule": "0 20 * * *"
+    }
+  ],
   "functions": {
     "api/index.js": {
       "includeFiles": "backend/schema.sql"

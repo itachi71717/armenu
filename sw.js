@@ -156,6 +156,8 @@ self.addEventListener('fetch', (event) => {
   const sameOrigin = url.origin === self.location.origin;
 
   if (sameOrigin) {
+    // Manager preview requests carry a portal token — never cache them.
+    if (url.searchParams.has('portal_token')) return;
     if (url.pathname === '/api/dish' || url.pathname === '/api/settings') {
       event.respondWith(apiSWR(event).catch(() => fetch(req)));
       return;

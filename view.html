@@ -401,6 +401,8 @@
         See it life-size on your table →
       </button>
       <button id="addToCartBtn" style="display:none;padding:14px 18px;border-radius:14px;background:rgba(232,197,138,.12);border:1.5px solid rgba(232,197,138,.35);color:#e8c58a;font-family:inherit;font-size:14px;font-weight:800;cursor:pointer">+ Add</button>
+      <button id="snapBtn" type="button" aria-label="Save a snapshot of this view" title="Save snapshot" style="padding:14px 16px;border-radius:14px;background:rgba(232,197,138,.12);border:1.5px solid rgba(232,197,138,.35);color:#e8c58a;font-family:inherit;font-size:16px;cursor:pointer">📸</button>
+      <button id="waShareBtn" type="button" aria-label="Share to WhatsApp" title="Share to WhatsApp" style="padding:14px 16px;border-radius:14px;background:rgba(232,197,138,.12);border:1.5px solid rgba(232,197,138,.35);color:#e8c58a;font-family:inherit;font-size:13px;font-weight:800;cursor:pointer">WhatsApp</button>
       <button id="heartBtn" class="heart-btn" type="button" aria-pressed="false" aria-label="Favourite this dish">♥</button>
     </div>
     <div class="hint">Tap AR, then point at the table. <em>Your meal appears at real size.</em></div>
@@ -972,6 +974,43 @@
     window.addEventListener('resize', update);
     setTimeout(update, 400);
     setTimeout(update, 1500);
+  })();
+</script>
+
+<script>
+  // ============ AR SCENE SNAPSHOT + WHATSAPP SHARE ============
+  (function () {
+    function slugify(t) {
+      return String(t || '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'dish';
+    }
+    function say(msg, type) {
+      try { if (window.ArmenuFX && window.ArmenuFX.toast) { window.ArmenuFX.toast(msg, { type: type || 'success' }); return; } } catch (e) {}
+      var b = document.getElementById('snapBtn'); if (b) { b.title = msg; b.setAttribute('aria-label', msg); }
+    }
+    var snapBtn = document.getElementById('snapBtn');
+    var waBtn = document.getElementById('waShareBtn');
+    if (snapBtn) snapBtn.addEventListener('click', async function () {
+      var mv = document.getElementById('mv');
+      if (!mv || typeof mv.toDataURL !== 'function') { say('Snapshot is not available yet', 'error'); return; }
+      try {
+        var url = mv.toDataURL('image/png');
+        var venue = (document.getElementById('venue') || {}).textContent || '';
+        var dish = (document.getElementById('dish') || {}).textContent || '';
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = slugify(venue) + '-' + slugify(dish) + '.png';
+        document.body.appendChild(a); a.click(); a.remove();
+        say('Snapshot saved \uD83D\uDCF8');
+      } catch (e) { say('Could not take a snapshot', 'error'); }
+    });
+    // data: URLs do not work in wa.me links, so share the page URL (its og:image gives the preview).
+    if (waBtn) waBtn.addEventListener('click', function () {
+      var venue = (document.getElementById('venue') || {}).textContent || '';
+      var dish = (document.getElementById('dish') || {}).textContent || '';
+      var text = 'Check out ' + dish + (venue ? ' at ' + venue : '') + ' in AR: ' + location.href;
+      window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank', 'noopener');
+    });
   })();
 </script>
 </body>

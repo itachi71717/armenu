@@ -94,6 +94,9 @@ export default async function handler(req, res) {
       if (toFlip.length) Promise.resolve(supabaseAdmin.from('orders').update({ rush }).in('id', toFlip)).catch(() => {});
       for (const o of result) if (o.status !== 'served') o.rush = rush;
     } catch { /* rush is best-effort */ }
+    // Review-request sweep (no cron on serverless): staff boards poll this
+    // endpoint every few seconds, so due review pushes are fired from here.
+    try { await sweepReviewPushes(session.restaurant_id); } catch { /* best-effort */ }
     return res.status(200).json({ orders: result });
   }
 
@@ -218,10 +221,60 @@ export default async function handler(req, res) {
     if (body.status === 'ready' && order.status !== 'ready' && order.customer_id) {
       notifyGuestReady(session.restaurant_id, id, order.customer_id).catch(() => {});
     }
+    // Auto review-request: schedule a push 2h after the order is served.
+    if (body.status === 'served' && order.status !== 'served' && order.customer_id) {
+      try { await scheduleReviewPush(id, order.customer_id); } catch { /* best-effort */ }
+    }
     return res.status(200).json({ ok: true });
   }
 
   return res.status(405).end();
+}
+
+// Lazily add the review-push columns (idempotent; cached per warm instance).
+let _reviewColsReady = null;
+function ensureReviewCols() {
+  if (!_reviewColsReady) {
+    _reviewColsReady = (async () => {
+      const a = await supabaseAdmin.raw('alter table orders add column if not exists review_push_at timestamptz');
+      const b = await supabaseAdmin.raw('alter table orders add column if not exists review_push_sent boolean not null default false');
+      if (a.error || b.error) throw new Error((a.error || b.error).message);
+    })().catch(e => { _reviewColsReady = null; throw e; });
+  }
+  return _reviewColsReady;
+}
+
+// Only schedule when the diner actually has an active push subscription.
+async function scheduleReviewPush(orderId, customer_id) {
+  await ensureReviewCols();
+  const { data: subs } = await supabase.raw(
+    'select 1 from push_subscriptions where customer_id = $1 and active = true limit 1', [customer_id]);
+  if (!subs || !subs.length) return;
+  await supabaseAdmin.raw(
+    "update orders set review_push_at = now() + interval '2 hours', review_push_sent = false where id = $1 and review_push_sent = false",
+    [orderId]);
+}
+
+// Fire due review pushes for one restaurant. Idempotent: the sent flag is
+// claimed atomically (UPDATE ... WHERE sent = false RETURNING) before sending.
+async function sweepReviewPushes(restaurant_id) {
+  await ensureReviewCols();
+  const { data: due } = await supabase.raw(
+    'select id, customer_id from orders where restaurant_id = $1 and review_push_sent = false and review_push_at is not null and review_push_at < now() and customer_id is not null limit 10',
+    [restaurant_id]);
+  if (!due || !due.length) return;
+  const { data: rest } = await supabase.from('restaurants').select('name, slug').eq('id', restaurant_id).maybeSingle();
+  for (const o of due) {
+    const { data: claimed } = await supabaseAdmin.raw(
+      'update orders set review_push_sent = true where id = $1 and review_push_sent = false returning id', [o.id]);
+    if (!claimed || !claimed.length) continue; // another poller won
+    sendPushToCustomer(o.customer_id, {
+      title: `How was ${rest?.name || 'your meal'}?`,
+      body: 'Rate your meal in 30s ↗',
+      url: `/m/${rest?.slug || ''}#rate-${o.id}`,
+      tag: 'review-' + o.id
+    }, { restaurant_id }).catch(() => {});
+  }
 }
 
 async function notifyGuestReady(restaurant_id, orderId, customer_id) {

@@ -1,5 +1,6 @@
 // Guest menu / single-dish lookup.
 import { supabase } from '../_db.js';
+import { verifyManagerToken } from './portal/manager-token.js';
 
 // ---- Opening hours ---------------------------------------------------------
 // hours: {mon:[["09:00","22:00"]], ...}. Empty/absent (or no slots anywhere)
@@ -49,6 +50,15 @@ export default async function handler(req, res) {
   if (!rest.data) return res.status(404).json({ error: 'Restaurant not found' });
   const restaurant = rest.data;
 
+  // Manager preview: a valid portal token scoped to THIS restaurant unlocks inactive/scheduled
+  // dishes and flags the response so menu.html can show the PREVIEW MODE banner.
+  let preview = false;
+  if (req.query.preview === '1' && req.query.portal_token) {
+    const v = verifyManagerToken(String(req.query.portal_token));
+    preview = !!(v && String(v.restaurant_id) === String(restaurant.id));
+    if (preview) res.setHeader('Cache-Control', 'no-store');
+  }
+
   // Column sets — try new (v2/v3) first, fall back to old if columns missing
   const NEW_LIST = 'slug, name, price, price_cents, description, thumb_url, glb_url, category_id, translations, allergens, sort_order, stock_count, modifiers';
   const OLD_LIST = 'slug, name, price, thumb_url, glb_url';
@@ -89,11 +99,10 @@ export default async function handler(req, res) {
   }
 
   // --- FULL MENU ---
-  let q = await supabase.from('dishes').select(NEW_LIST + ', id')
-    .eq('restaurant_id', restaurant.id).eq('active', true).order('sort_order').order('name');
+  const fullMenuQ = (cols) => { let b = supabase.from('dishes').select(cols).eq('restaurant_id', restaurant.id); if (!preview) b = b.eq('active', true); return b; };
+  let q = await fullMenuQ(NEW_LIST + ', id').order('sort_order').order('name');
   if (q.error && missing(q.error)) {
-    q = await supabase.from('dishes').select(OLD_LIST)
-      .eq('restaurant_id', restaurant.id).eq('active', true).order('name');
+    q = await fullMenuQ(OLD_LIST).order('name');
   }
   if (q.error) return res.status(502).json({ error: 'Backend temporarily unavailable' });
   const dishes = q.data || [];
@@ -193,7 +202,7 @@ export default async function handler(req, res) {
     return `R ${rand.toFixed(0)}`;
   };
 
-  const visibleDishes = dishes.filter(dishVisible);
+  const visibleDishes = preview ? dishes : dishes.filter(dishVisible);
 
   // Popularity (last 7d) + wait estimate: optional, run in parallel, degrade silently.
   const popCounts = {};
@@ -264,6 +273,7 @@ export default async function handler(req, res) {
   } catch {}
 
   return res.status(200).json({
+    ...(preview ? { preview: true } : {}),
     restaurant: { name: restaurant.name, slug: restaurant.slug },
     is_open: openState.is_open,
     next_open: openState.next_open,

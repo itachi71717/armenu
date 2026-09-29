@@ -529,3 +529,15 @@ create table if not exists customer_saved_combos (
   created_at    timestamptz default now()
 );
 create index if not exists idx_saved_combos_customer_rest on customer_saved_combos(customer_id, restaurant_id);
+
+-- Feature batch (auto review push, daily summary, live viewers). The API also
+-- creates these lazily; this block keeps fresh databases in sync.
+alter table orders add column if not exists review_push_at timestamptz;
+alter table orders add column if not exists review_push_sent boolean not null default false;
+alter table restaurant_settings add column if not exists daily_summary_enabled boolean default false;
+create table if not exists menu_presence (
+  token           text primary key,
+  restaurant_slug text,
+  last_seen       timestamptz default now()
+);
+create index if not exists menu_presence_slug_seen on menu_presence (restaurant_slug, last_seen);
