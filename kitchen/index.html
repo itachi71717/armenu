@@ -4,6 +4,11 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="theme-color" content="#0a0806" />
+<link rel="manifest" href="/manifest.json" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Kitchen" />
 <title>Kitchen · ARMenu</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 <style>
@@ -143,6 +148,8 @@
   </div>
   <div class="h-meta"><span class="live-dot"></span> Live · <span id="clock">--:--</span> · <span id="orderCount">0 orders</span>
     <span class="help" tabindex="0" id="helpIcon" aria-label="Keyboard shortcuts">?<span class="help-chip">1-9: mark item · Enter: ready · Esc: next</span></span></div>
+  <button class="signout" id="pwaInstall" style="display:none" aria-label="Install as app">📱 Install as app</button>
+  <label class="signout" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="voiceToggle" /> 🔊 Voice announcements</label>
   <button class="signout" id="signout">Sign out</button>
 </header>
 
@@ -184,6 +191,17 @@ try { session = JSON.parse(localStorage.getItem('armenu_kitchen_session') || 'nu
 })();
 let poll = null, es = null, tickTimer = null;
 let previousIds = new Set();
+let voiceSeeded = false;
+function voiceOn(){ try { return localStorage.getItem('armenu_kitchen_voice') === '1'; } catch (_) { return false; } }
+function announceOrders(orders){
+  try {
+    if (!voiceOn() || !('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') return;
+    for (const o of orders) {
+      const t = o.table_label ? String(o.table_label).trim() : '';
+      window.speechSynthesis.speak(new SpeechSynthesisUtterance(t ? 'New order, table ' + t : 'New order'));
+    }
+  } catch (_) {}
+}
 // Station / multi-screen state
 let stationName = '', isExpo = false;
 // Board state
@@ -312,7 +330,7 @@ function signOut() {
   hideOfflineBanner();
   resetUnreadOrders();
   stationName = ''; isExpo = false; lastOrders = []; focusedOrderId = null; rushOrderTimes = [];
-  recallSeen = new Set(); recallSeeded = false; previousIds = new Set();
+  recallSeen = new Set(); recallSeeded = false; previousIds = new Set(); voiceSeeded = false;
   renderStationChips(); updateRushBanner();
   $('loginBtn').disabled = false; $('loginBtn').textContent = 'Enter kitchen →';
   $('login').style.display = 'grid';
@@ -453,6 +471,10 @@ async function refresh() {
     let newCount = 0;
     for (const id of currIds) if (!previousIds.has(id)) newCount++;
     if (newCount > 0) { beep(rushActive()); fireOrderNotification(newCount); bumpUnreadOrders(newCount); }
+    try {
+      if (voiceSeeded) announceOrders(kitchen.filter(o => !previousIds.has(o.id)));
+      voiceSeeded = true;
+    } catch (_) {}
     previousIds = currIds;
     // Recalled items: chime + notification once per recall event (silent on first load)
     let newRecalls = 0;
@@ -660,6 +682,36 @@ if ('wakeLock' in navigator) {
 if (session?.token) onIn();
 </script>
 <link rel="stylesheet" href="/vendor/armenu-fx.css">
+<script>
+(function(){
+  try {
+    const cb = document.getElementById('voiceToggle');
+    if (!cb) return;
+    if (!('speechSynthesis' in window)) { cb.parentNode.style.display = 'none'; return; }
+    try { cb.checked = localStorage.getItem('armenu_kitchen_voice') === '1'; } catch (_) {}
+    cb.addEventListener('change', () => {
+      try { localStorage.setItem('armenu_kitchen_voice', cb.checked ? '1' : '0'); } catch (_) {}
+      try { if (cb.checked) window.speechSynthesis.speak(new SpeechSynthesisUtterance('Voice on')); else window.speechSynthesis.cancel(); } catch (_) {}
+    });
+  } catch (_) {}
+})();
+
+// PWA install button
+(function(){
+  try {
+    let deferred = null;
+    const btn = document.getElementById('pwaInstall');
+    if (!btn) return;
+    window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; btn.style.display = ''; });
+    btn.addEventListener('click', async () => {
+      if (!deferred) return;
+      try { deferred.prompt(); await deferred.userChoice; } catch (_) {}
+      deferred = null; btn.style.display = 'none';
+    });
+    window.addEventListener('appinstalled', () => { deferred = null; btn.style.display = 'none'; });
+  } catch (_) {}
+})();
+</script>
 <script defer src="/vendor/armenu-fx.js"></script>
 <script defer src="/vendor/armenu-cmdk.js"></script>
 </body>

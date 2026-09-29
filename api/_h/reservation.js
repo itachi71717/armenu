@@ -11,7 +11,11 @@ import { sendMail, buildIcs } from '../_lib/mailer.js';
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
   const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
-  const { r, guest_name, guest_phone, guest_email, party_size, reserved_at, notes } = body;
+  const { r, guest_name, guest_phone, guest_email, party_size, reserved_at, notes, preferences } = body;
+  // Sanitise preferences: array of short strings (e.g. ["window","quiet"])
+  const cleanPrefs = Array.isArray(preferences)
+    ? preferences.filter(p => typeof p === 'string' && p.length < 40).slice(0, 8)
+    : [];
 
   if (!r || !guest_name || !reserved_at) {
     return res.status(400).json({ error: 'restaurant slug, guest_name and reserved_at required' });
@@ -77,6 +81,7 @@ export default async function handler(req, res) {
     reserved_at: when.toISOString(),
     duration_minutes: newDurMin,
     notes: notes || null,
+    preferences: cleanPrefs,
     status: 'pending'
   }).select().single();
   if (error) return res.status(500).json({ error: error.message });

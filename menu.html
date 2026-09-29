@@ -232,10 +232,69 @@
   .order-hist-row .ohr-meta{color:var(--ink-faint);font-size:11.5px;margin-top:2px}
   .order-hist-row .ohr-total{color:var(--accent-2);font-weight:700;white-space:nowrap}
 
+  .recs{margin:26px 0 0}
+  .recs-row{display:flex;gap:12px;overflow-x:auto;padding:2px 2px 8px;scroll-snap-type:x proximity}
+  .rec-card{flex:0 0 168px;scroll-snap-align:start;border-radius:14px;border:1px solid var(--line);overflow:hidden;background:linear-gradient(180deg,rgba(255,239,220,.025),rgba(255,239,220,.005));display:flex;flex-direction:column}
+  .rec-card .rec-thumb{aspect-ratio:4/3;background:rgba(255,239,220,.04) center/cover no-repeat;display:flex;align-items:center;justify-content:center;color:var(--ink-faint);font-size:26px}
+  .rec-card .rec-body{padding:10px 12px 12px;display:flex;flex-direction:column;gap:3px}
+  .rec-card .rec-name{font-weight:600;font-size:13.5px;color:var(--ink);line-height:1.3}
+  .rec-card .rec-rest{font-size:11px;color:var(--ink-faint)}
+  .rec-card .rec-price{font-size:12.5px;color:var(--accent-2);font-weight:600}
+  .rec-card .rec-link{margin-top:4px;font-size:12px;color:var(--accent);text-decoration:none;font-weight:600}
+  .rec-card .rec-link:hover{color:var(--accent-2)}
   .foot-hint{text-align:center;padding:32px 24px 0;color:var(--ink-faint);font-size:12px;line-height:1.6}
   .foot-hint em{font-family:var(--serif);font-style:italic;color:var(--ink-dim);font-size:13px}
   .foot-hint .powered{margin-top:18px;padding-top:18px;border-top:1px solid var(--line);font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase}
   .foot-hint .powered a{color:var(--accent-2)}
+
+  /* --- search filters + count --- */
+  .diet-chip{flex-shrink:0;min-height:44px;padding:0 14px;border-radius:999px;background:rgba(255,239,220,.04);border:1px solid var(--line);color:var(--ink-dim);font-size:11.5px;font-weight:600;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center}
+  .diet-chip.on{background:rgba(232,197,138,.18);color:#e8c58a;border-color:rgba(232,197,138,.4)}
+  .filter-count{margin-top:8px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--ink-faint)}
+
+  /* --- compare --- */
+  .cmp-btn{position:absolute;top:12px;right:12px;z-index:3;min-width:32px;height:32px;padding:0 9px;border-radius:999px;display:flex;align-items:center;justify-content:center;gap:3px;background:rgba(10,8,6,.55);border:1px solid rgba(255,239,220,.2);backdrop-filter:blur(6px);color:#f5efe6;font-size:11px;font-weight:700;line-height:1;box-shadow:0 4px 12px rgba(0,0,0,.35);cursor:pointer;transition:transform .15s ease}
+  .cmp-btn:active{transform:scale(.9)}
+  .cmp-btn.on{background:var(--accent);border-color:var(--accent-2);color:#fff}
+  .dish .ar-tag,.dish .stock-tag{top:auto;bottom:12px}
+  .cmp-chip{position:fixed;right:14px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:31;padding:11px 18px;min-height:44px;border-radius:999px;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;font-weight:700;font-size:13px;box-shadow:0 8px 22px rgba(0,0,0,.45);display:none;cursor:pointer;border:none}
+  .cmp-chip.on{display:inline-flex;align-items:center}
+  .cmp-cols{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(150px,1fr);gap:10px;overflow-x:auto;padding-bottom:6px;-webkit-overflow-scrolling:touch}
+  .cmp-col{display:flex;flex-direction:column;gap:8px;padding:10px;border-radius:14px;border:1px solid var(--line);background:rgba(255,239,220,.03);min-width:0}
+  .cmp-photo{aspect-ratio:4/3;border-radius:10px;background:#1a1410 center/cover no-repeat;display:grid;place-items:center;font-family:var(--serif);font-style:italic;font-size:34px;color:var(--ink-faint)}
+  .cmp-name{font-weight:700;font-size:14px;line-height:1.2}
+  .cmp-price{color:var(--accent);font-weight:700;font-size:14px}
+  .cmp-desc{font-size:12px;color:var(--ink-dim);line-height:1.35}
+  .cmp-lbl{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:2px}
+  .cmp-col .diet-chips{margin-top:0}
+  .cmp-col button.cmp-add{padding:10px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;font-weight:700;font-size:12px;margin-top:auto}
+  .cmp-col button.cmp-add:disabled{opacity:.4}
+  .cmp-col button.cmp-rm{align-self:flex-start;background:none;color:var(--ink-faint);font-size:11px;text-decoration:underline;padding:4px 0;min-height:32px}
+  .cmp-clear{width:100%;margin-top:12px;padding:12px;border-radius:12px;background:rgba(255,239,220,.06);color:var(--ink);border:1px solid var(--line);font-weight:600;font-size:13px}
+
+  /* --- collapsible categories --- */
+  .cat-section{margin-bottom:14px;scroll-margin-top:118px}
+  .cat-section>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 4px;min-height:44px;font-family:var(--serif);font-style:italic;font-size:20px;border-bottom:1px solid var(--line);margin-bottom:12px}
+  .cat-section>summary::-webkit-details-marker{display:none}
+  .cat-section>summary::after{content:"\25BE";font-style:normal;font-size:16px;color:var(--ink-faint);transition:transform .2s ease}
+  .cat-section:not([open])>summary::after{transform:rotate(-90deg)}
+  .cat-section>summary .cat-n{font-family:var(--mono);font-style:normal;font-size:11px;color:var(--ink-faint);margin-left:auto;margin-right:8px}
+
+  /* --- reservation --- */
+  .rv-strip{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 8px;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity}
+  .rv-day{flex:0 0 auto;scroll-snap-align:start;width:58px;min-height:64px;border-radius:12px;background:rgba(255,239,220,.04);border:1px solid var(--line);color:var(--ink-dim);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer}
+  .rv-day .dw{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase}
+  .rv-day .dn{font-size:18px;font-weight:700;color:var(--ink)}
+  .rv-day .dm{font-size:10px}
+  .rv-day.on{background:rgba(232,197,138,.18);border-color:rgba(232,197,138,.5);color:#e8c58a}
+  .rv-day.on .dn{color:#e8c58a}
+  .rv-slots{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:6px}
+  .rv-slot{min-height:44px;border-radius:10px;background:rgba(255,239,220,.04);border:1px solid var(--line);color:var(--ink-dim);font-size:13px;font-weight:600;cursor:pointer}
+  .rv-slot.on{background:rgba(232,197,138,.18);border-color:rgba(232,197,138,.5);color:#e8c58a}
+  .rv-slot:disabled{opacity:.3;cursor:not-allowed}
+  .rv-prefs{display:flex;flex-wrap:wrap;gap:6px}
+  .rv-pref{min-height:44px;padding:0 14px;border-radius:999px;background:rgba(255,239,220,.04);border:1px solid var(--line);color:var(--ink-dim);font-size:12.5px;font-weight:600;cursor:pointer}
+  .rv-pref.on{background:rgba(232,197,138,.18);border-color:rgba(232,197,138,.5);color:#e8c58a}
 </style>
 <script src="/vendor/armenu-errorbar.js" defer></script>
 <script src="/vendor/armenu-sounds.js" defer></script>
@@ -273,7 +332,9 @@
     <button type="button" id="menuSearchClear" aria-label="Clear search" style="display:none;background:none;border:none;color:var(--ink-faint);font-size:14px;cursor:pointer;padding:6px 8px;min-width:44px;min-height:44px">✕</button>
   </div>
   <div id="dietChips" style="display:flex;gap:6px;flex-wrap:wrap;overflow-x:auto"></div>
+  <div class="filter-count" id="menuFilterCount" role="status" aria-live="polite" style="display:none"></div>
 </div>
+<button type="button" class="cmp-chip" id="cmpChip" aria-label="Open dish comparison">Compare (0)</button>
 
 <!-- Skeleton action bar: shown only while settings are still loading, so the
      bottom of the screen doesn't pop in abruptly once real actions arrive -->
@@ -312,8 +373,30 @@ const state = {
   categories: [],
   activeCategory: null,
   cart: [],    // [{slug,name,qty,price_cents,note?}]
-  lang: 'en'
+  lang: 'en',
+  searchQuery: '',
+  dietFilters: new Set()   // active dietary filters (a dish must satisfy ALL)
 };
+
+// ---- Search / dietary filters persisted in the URL (?q=…&diet=vegan,halal) ----
+const DIET_KEYS = ['vegan', 'vegetarian', 'halal', 'gluten-free', 'dairy-free', 'nut-free'];
+(function initFiltersFromUrl() {
+  try {
+    const q = params.get('q');
+    if (q) state.searchQuery = q.slice(0, 80);
+    const dv = params.get('diet');
+    if (dv) dv.split(',').map(s => s.trim().toLowerCase()).filter(k => DIET_KEYS.includes(k)).forEach(k => state.dietFilters.add(k));
+  } catch {}
+})();
+function syncFiltersToUrl() {
+  try {
+    const u = new URL(location.href);
+    const q = (state.searchQuery || '').trim();
+    if (q) u.searchParams.set('q', q); else u.searchParams.delete('q');
+    if (state.dietFilters.size) u.searchParams.set('diet', [...state.dietFilters].join(',')); else u.searchParams.delete('diet');
+    history.replaceState(null, '', u.pathname + u.search + u.hash);
+  } catch {}
+}
 
 function toast(msg, kind='ok') {
   const t = $('toast');
@@ -362,7 +445,52 @@ async function refreshCustomer() {
     }
   } catch {}
   syncHeartButtons();
+  loadRecommendations(); // fire-and-forget
 }
+
+// ============ "YOU MIGHT LIKE" (cross-restaurant collaborative filtering) ============
+let recommendations = [];
+let _recsLoadedOnce = false;
+function hasCookieConsent() {
+  try {
+    const raw = localStorage.getItem('armenu_cookie_consent_v1');
+    if (!raw) return false;
+    const c = JSON.parse(raw);
+    return !!(c && c.choice && c.choice !== 'essential');
+  } catch { return false; }
+}
+function loadRecommendations() {
+  if (_recsLoadedOnce || !customerToken || !r || !hasCookieConsent()) return;
+  _recsLoadedOnce = true;
+  fetch('/api/customer/recommendations?token=' + encodeURIComponent(customerToken) + '&r=' + encodeURIComponent(r) + '&limit=6')
+    .then(res => res.ok ? res.json() : null)
+    .then(d => {
+      recommendations = d && Array.isArray(d.recommendations) ? d.recommendations : [];
+      renderRecommendations();
+    })
+    .catch(() => {});
+}
+function renderRecommendations() {
+  const slot = document.getElementById('recsSlot');
+  if (!slot) return;
+  if (!recommendations.length || !hasCookieConsent()) { slot.innerHTML = ''; return; }
+  const sym = state.settings?.locale?.currency_symbol || 'R';
+  slot.innerHTML = `<section class="recs" aria-label="You might like">
+    <div class="section-label">You might like</div>
+    <div class="recs-row">${recommendations.map(x => {
+      const price = fmtPrice(x.price_cents, sym);
+      const thumb = x.thumb_url
+        ? `<div class="rec-thumb" style="background-image:url('${escapeHTML(encodeURI(String(x.thumb_url)).replace(/'/g, '%27'))}')" role="img" aria-label="${escapeHTML(x.dish_name)}"></div>`
+        : `<div class="rec-thumb" aria-hidden="true">${escapeHTML((x.dish_name || '?')[0])}</div>`;
+      return `<div class="rec-card">${thumb}<div class="rec-body">
+        <div class="rec-name">${escapeHTML(x.dish_name)}</div>
+        <div class="rec-rest">${escapeHTML(x.restaurant_name)}</div>
+        ${price ? `<div class="rec-price">${escapeHTML(price)}</div>` : ''}
+        <a class="rec-link" href="/m/${encodeURIComponent(x.restaurant_slug)}#dish-${encodeURIComponent(x.dish_slug)}">🔗 See it</a>
+      </div></div>`;
+    }).join('')}</div></section>`;
+}
+window.addEventListener('armenu:consent', () => loadRecommendations());
 refreshCustomer();
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refreshCustomer(); });
 
@@ -609,6 +737,7 @@ async function boot() {
     state._raw = JSON.stringify([state.settings, state.menu]);
     state.lang = state.settings.locale.default_lang || 'en';
     applyBranding();
+    applySeo();
     render();
     wireActions();
     renderLastOrderBanner();
@@ -616,6 +745,61 @@ async function boot() {
   } catch (e) {
     showError('Could not load menu.', 'Check your internet and try again.', true);
   }
+}
+
+function applySeo() {
+  try {
+    const st = state.settings || {};
+    const rest = st.restaurant || state.menu?.restaurant || {};
+    const slug = rest.slug || r;
+    const origin = 'https://armenu.co.za';
+    const ogUrl = origin + '/api/og?r=' + encodeURIComponent(slug);
+    const setMeta = (attr, key, val) => {
+      let m = document.querySelector('meta[' + attr + '="' + key + '"]');
+      if (!m) { m = document.createElement('meta'); m.setAttribute(attr, key); document.head.appendChild(m); }
+      m.setAttribute('content', val);
+    };
+    setMeta('property', 'og:image', ogUrl);
+    setMeta('name', 'twitter:image', ogUrl);
+    if (rest.name) setMeta('property', 'og:title', rest.name + ' · Menu');
+    setMeta('property', 'og:url', origin + '/m/' + encodeURIComponent(slug));
+    const dishes = Array.isArray(state.menu?.dishes) ? state.menu.dishes : [];
+    const ccy = st.locale?.currency || 'ZAR';
+    const prices = dishes.map(d => d.price_cents).filter(n => typeof n === 'number' && n > 0);
+    const ld = {
+      '@context': 'https://schema.org',
+      '@type': 'Restaurant',
+      name: rest.name || 'Restaurant',
+      image: (st.branding && (st.branding.cover || st.branding.logo)) || ogUrl,
+      url: origin + '/m/' + encodeURIComponent(slug)
+    };
+    const cuisine = st.cuisine || rest.cuisine;
+    if (cuisine) ld.servesCuisine = cuisine;
+    if (prices.length) {
+      const lo = Math.min(...prices), hi = Math.max(...prices);
+      const sym = st.locale?.currency_symbol || 'R';
+      ld.priceRange = sym + Math.round(lo / 100) + (hi > lo ? '-' + sym + Math.round(hi / 100) : '');
+    }
+    const addr = st.address || rest.address;
+    if (addr) ld.address = typeof addr === 'string' ? { '@type': 'PostalAddress', streetAddress: addr } : Object.assign({ '@type': 'PostalAddress' }, addr);
+    if (dishes.length) {
+      ld.hasMenu = {
+        '@type': 'Menu',
+        hasMenuItem: dishes.slice(0, 100).map(d => {
+          const it = { '@type': 'MenuItem', name: d.name || d.slug };
+          if (d.description) it.description = d.description;
+          if (d.thumb_url) it.image = d.thumb_url;
+          if (typeof d.price_cents === 'number' && d.price_cents > 0) {
+            it.offers = { '@type': 'Offer', price: (d.price_cents / 100).toFixed(2), priceCurrency: ccy };
+          }
+          return it;
+        })
+      };
+    }
+    let tag = document.getElementById('ldRestaurant');
+    if (!tag) { tag = document.createElement('script'); tag.type = 'application/ld+json'; tag.id = 'ldRestaurant'; document.head.appendChild(tag); }
+    tag.textContent = JSON.stringify(ld).replace(/</g, '\\u003c');
+  } catch {}
 }
 
 function lighten(hex, amt) {
@@ -812,27 +996,41 @@ function render() {
     return;
   }
 
-  let activeItems = state.categories.find(c => c.key === state.activeCategory)?.items || dishes;
-  // Client-side search filter
+  // Client-side search + dietary filtering (a dish must satisfy ALL active filters)
   const q = (state.searchQuery || '').trim().toLowerCase();
-  if (q) activeItems = activeItems.filter(d =>
-    (d.name || '').toLowerCase().includes(q) ||
-    (d.description || '').toLowerCase().includes(q));
-  // Client-side dietary filter
-  const diet = state.dietFilter;
-  if (diet) {
-    activeItems = activeItems.filter(d => {
-      const al = (d.allergens || '').toLowerCase();
-      if (diet === 'vegetarian')  return !al.match(/\b(beef|pork|chicken|fish|meat|lamb|prawn|shrimp)\b/) || al.includes('vegetarian');
-      if (diet === 'vegan')       return al.includes('vegan') || (!al.match(/\b(beef|pork|chicken|fish|meat|lamb|prawn|shrimp|dairy|egg|cheese|milk|butter|honey)\b/));
-      if (diet === 'gluten-free') return !al.match(/\b(gluten|wheat|barley|rye)\b/) || al.includes('gluten-free');
-      if (diet === 'dairy-free')  return !al.match(/\b(dairy|milk|cheese|butter|cream|yogurt)\b/) || al.includes('dairy-free');
-      if (diet === 'halal')       return al.includes('halal') && !al.match(/\b(pork|bacon|ham|alcohol|wine|beer)\b/);
-      if (diet === 'kosher')      return al.includes('kosher');
-      return true;
-    });
+  const filtersActive = !!q || state.dietFilters.size > 0;
+  const activeDiets = [...state.dietFilters];
+  const dishVisible = d => dishMatchesSearch(d, q) && activeDiets.every(k => dishMatchesDiet(d, k));
+  const matchTotal = dishes.filter(dishVisible).length;
+  const collapsible = state.categories.length >= 4;
+  let activeItems = (state.categories.find(c => c.key === state.activeCategory)?.items || dishes).filter(dishVisible);
+  const countEl = $('menuFilterCount');
+  if (countEl) {
+    countEl.style.display = filtersActive ? '' : 'none';
+    countEl.textContent = `${matchTotal} of ${dishes.length} dishes visible`;
   }
-  const dishesHtml = activeItems.map((d, i) => renderDish(d, i)).join('');
+  const noMatchHtml = '<div class="empty-state" data-icon="🔍"><h3>No dishes match</h3><p>Try removing a filter or changing your search.</p></div>';
+  let menuBodyHtml, menuCount;
+  if (collapsible) {
+    // 4+ categories: every category is a <details>; first two open by default,
+    // collapse state remembered per restaurant in sessionStorage. While a
+    // search/filter is active, sections with matches are forced open.
+    const saved = catOpenMap();
+    let idx = 0;
+    menuBodyHtml = state.categories.map((c, ci) => {
+      const items = c.items.filter(dishVisible);
+      if (!items.length) return '';
+      const open = filtersActive ? true : (saved[c.key] !== undefined ? saved[c.key] : ci < 2);
+      const html = items.map(d => renderDish(d, idx++)).join('');
+      return `<details class="cat-section" data-cat-section="${escapeHTML(c.key)}" id="cat-sec-${ci}"${open ? ' open' : ''}>
+        <summary>${escapeHTML(c.name)}<span class="cat-n">${items.length}</span></summary>
+        <div class="dishes">${html}</div></details>`;
+    }).join('') || noMatchHtml;
+    menuCount = matchTotal;
+  } else {
+    menuBodyHtml = activeItems.length ? `<div class="dishes">${activeItems.map((d, i) => renderDish(d, i)).join('')}</div>` : noMatchHtml;
+    menuCount = activeItems.length;
+  }
 
   $('content').innerHTML = `
     ${cover}
@@ -846,8 +1044,9 @@ function render() {
     </section>
     ${chipsHtml}
     <main>
-      <div class="section-label">Menu · ${activeItems.length} dish${activeItems.length === 1 ? '' : 'es'}</div>
-      <div class="dishes">${dishesHtml}</div>
+      <div class="section-label">Menu · ${menuCount} dish${menuCount === 1 ? '' : 'es'}</div>
+      ${menuBodyHtml}
+      <div id="recsSlot"></div>
       <div class="foot-hint">
         ${ui('footHint')}
         <div class="powered">${ui('poweredBy')} <a href="https://armenu.co.za" target="_blank" rel="noopener">ARMenu</a></div>
@@ -856,8 +1055,24 @@ function render() {
 
   // Wire chips
   document.querySelectorAll('.cat-chip').forEach(el => el.addEventListener('click', () => {
-    state.activeCategory = el.dataset.cat; render(); updateActionbar();
+    state.activeCategory = el.dataset.cat;
+    if (!collapsible) { render(); updateActionbar(); return; }
+    // Collapsible layout: highlight the chip, open the section if collapsed, jump to it.
+    document.querySelectorAll('.cat-chip').forEach(c => c.classList.toggle('active', c === el));
+    const sec = [...document.querySelectorAll('details.cat-section')].find(d => d.dataset.catSection === el.dataset.cat);
+    if (!sec) { toast('No dishes match your filters in this category', 'ok'); return; }
+    if (!sec.open) { sec.open = true; if (!filtersActive) saveCatOpen(el.dataset.cat, true); }
+    sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }));
+  document.querySelectorAll('details.cat-section').forEach(det => det.addEventListener('toggle', () => {
+    if (!filtersActive) saveCatOpen(det.dataset.catSection, det.open);
+  }));
+  // Wire compare toggles
+  document.querySelectorAll('[data-cmp]').forEach(el => el.addEventListener('click', (e) => {
+    e.preventDefault(); e.stopPropagation();
+    toggleCompare(el.dataset.cmp);
+  }));
+  updateCompareUi();
 
   // Wire dish buttons
   document.querySelectorAll('[data-add]').forEach(el => el.addEventListener('click', () => addToCart(el.dataset.add)));
@@ -867,6 +1082,7 @@ function render() {
     toggleFavourite(el.dataset.heart, el);
   }));
   syncHeartButtons();
+  renderRecommendations();
 
   updateActionbar();
   wireCategoryStuck();
@@ -947,6 +1163,114 @@ function popChip(d) {
   return '';
 }
 
+// ============ SEARCH / DIETARY MATCHING ============
+function tagList(v) { return Array.isArray(v) ? v.join(',') : String(v || ''); }
+function dishTagText(d) { return (tagList(d.allergens) + ',' + tagList(d.dietary_prefs)).toLowerCase(); }
+// Search covers name, translated name, description (ingredients live there),
+// allergens and dietary prefs. Every whitespace-separated term must match.
+function dishMatchesSearch(d, q) {
+  if (!q) return true;
+  const tr = d.translations && typeof d.translations === 'object'
+    ? Object.values(d.translations).map(t => (t && (t.name || '') + ' ' + (t && t.description || ''))).join(' ') : '';
+  const hay = ((d.name || '') + ' ' + (d.description || '') + ' ' + tr + ' ' + dishTagText(d).replace(/[,;_]+/g, ' ')).toLowerCase();
+  return q.split(/\s+/).filter(Boolean).every(t => hay.includes(t));
+}
+const RE_MEAT = /\b(beef|pork|bacon|ham|chicken|fish|meat|lamb|prawns?|shrimp|salmon|tuna|steak|turkey|duck|anchov\w*)\b/;
+const RE_ANIMAL = /\b(dairy|egg|eggs|cheese|milk|butter|honey|cream|yogh?urt|mayo|mayonnaise)\b/;
+const RE_GLUTEN = /\b(gluten|wheat|barley|rye|flour|bread|pasta|noodles?)\b/;
+const RE_DAIRY = /\b(dairy|milk|cheese|butter|cream|yogh?urt|lactose)\b/;
+const RE_NUTS = /\b(nuts?|peanuts?|almonds?|cashews?|walnuts?|pecans?|hazelnuts?|pistachios?|tree[ _]nuts?)\b/;
+function dishMatchesDiet(d, key) {
+  const tags = dishTagText(d);
+  // Ingredients are parsed from the description; positive tags ("dairy-free") are stripped first.
+  const all = (tags + ' ' + (d.description || '').toLowerCase()).replace(/(dairy|gluten|nut)[- ]free/g, ' ');
+  const tagged = (...k) => k.some(x => tags.includes(x));
+  switch (key) {
+    case 'vegan':       return tagged('vegan') || (!RE_MEAT.test(all) && !RE_ANIMAL.test(all));
+    case 'vegetarian':  return tagged('vegetarian', 'vegan') || !RE_MEAT.test(all);
+    case 'halal':       return tagged('halal') && !/\b(pork|bacon|ham|alcohol|wine|beer)\b/.test(all);
+    case 'gluten-free': return tagged('gluten-free', 'gluten free') || !RE_GLUTEN.test(all);
+    case 'dairy-free':  return tagged('dairy-free', 'dairy free', 'vegan') || !RE_DAIRY.test(all);
+    case 'nut-free':    return tagged('nut-free', 'nut free') || !RE_NUTS.test(all);
+    default: return true;
+  }
+}
+
+// ============ COLLAPSIBLE CATEGORY STATE (sessionStorage, per restaurant) ============
+function catOpenMap() {
+  try { const o = JSON.parse(sessionStorage.getItem('armenu_cats_' + r) || '{}'); return o && typeof o === 'object' ? o : {}; } catch { return {}; }
+}
+function saveCatOpen(key, open) {
+  try { const o = catOpenMap(); o[key] = !!open; sessionStorage.setItem('armenu_cats_' + r, JSON.stringify(o)); } catch {}
+}
+
+// ============ DISH COMPARISON TRAY (localStorage, max 3) ============
+const CMP_MAX = 3;
+function loadCompare() {
+  try {
+    const a = JSON.parse(localStorage.getItem('armenu_compare_' + r) || '[]');
+    return Array.isArray(a) ? a.filter(x => typeof x === 'string').slice(0, CMP_MAX) : [];
+  } catch { return []; }
+}
+function saveCompare(a) { try { localStorage.setItem('armenu_compare_' + r, JSON.stringify(a)); } catch {} }
+function toggleCompare(slug) {
+  const a = loadCompare();
+  const i = a.indexOf(slug);
+  if (i >= 0) a.splice(i, 1);
+  else {
+    if (a.length >= CMP_MAX) return toast(`You can compare up to ${CMP_MAX} dishes`, 'err');
+    a.push(slug);
+  }
+  saveCompare(a);
+  updateCompareUi();
+  if ($('sheet').classList.contains('on') && $('sheetBody').querySelector('.cmp-cols')) openCompare();
+}
+function updateCompareUi() {
+  const a = loadCompare();
+  document.querySelectorAll('[data-cmp]').forEach(el => {
+    const on = a.includes(el.dataset.cmp);
+    el.classList.toggle('on', on);
+    el.setAttribute('aria-pressed', on ? 'true' : 'false');
+    el.textContent = on ? '✓ compare' : '+ compare';
+  });
+  const chip = $('cmpChip');
+  if (chip) { chip.textContent = `Compare (${a.length})`; chip.classList.toggle('on', a.length > 0); }
+}
+function openCompare() {
+  const all = state.menu?.dishes || [];
+  const sym = state.settings?.locale?.currency_symbol || 'R';
+  const dishes = loadCompare().map(s => all.find(d => d.slug === s)).filter(Boolean);
+  if (!dishes.length) { closeSheet(); updateCompareUi(); return; }
+  const canOrder = !!state.settings?.features?.orders;
+  const cols = dishes.map(d => {
+    const nm = d.translations?.[state.lang]?.name || d.name;
+    const desc = d.translations?.[state.lang]?.description || d.description || '';
+    const tags = String(dishTagText(d)).split(/[,;]+/).map(s => s.trim()).filter(Boolean);
+    const pos = [...new Set(tags.filter(t => POSITIVE_TAGS[t]).map(t => POSITIVE_TAGS[t]))];
+    const con = [...new Set(tags.filter(t => !POSITIVE_TAGS[t] && ALLERGEN_ICONS[t]).map(t => ALLERGEN_ICONS[t] + ' ' + t))];
+    const price = d.price_cents ? fmtPrice(d.price_cents, sym) : (d.price || '—');
+    const sold = d.sold_out === true;
+    const chipRow = arr => arr.length ? `<div class="diet-chips"><span class="${arr === pos ? 'diet-pos' : 'diet-warn'}">${arr.map(escapeHTML).join(' · ')}</span></div>` : '<div class="cmp-desc">—</div>';
+    return `<div class="cmp-col">
+      <div class="cmp-photo"${d.thumb ? ` style="background-image:url('${escapeHTML(d.thumb)}')"` : ''}>${d.thumb ? '' : escapeHTML((nm || '?')[0])}</div>
+      <div class="cmp-name">${escapeHTML(nm)}</div>
+      <div class="cmp-price">${escapeHTML(price)}</div>
+      <div><div class="cmp-lbl">Description</div><div class="cmp-desc">${escapeHTML(desc) || '—'}</div></div>
+      <div><div class="cmp-lbl">Allergens</div>${chipRow(con)}</div>
+      <div><div class="cmp-lbl">Dietary</div>${chipRow(pos)}</div>
+      <div><div class="cmp-lbl">Popularity</div>${popChip(d) || '<div class="cmp-desc">—</div>'}</div>
+      ${canOrder ? `<button type="button" class="cmp-add" data-cmp-add="${escapeHTML(d.slug)}"${sold ? ' disabled' : ''}>${sold ? 'Sold out' : '+ Add to cart'}</button>` : ''}
+      <button type="button" class="cmp-rm" data-cmp-rm="${escapeHTML(d.slug)}">Remove</button>
+    </div>`;
+  }).join('');
+  openSheet(`<h3>Compare dishes</h3><div class="sh-sub">${dishes.length} of ${CMP_MAX} selected</div>
+    <div class="cmp-cols">${cols}</div>
+    <button type="button" class="cmp-clear" id="cmpClear">Clear all</button>`);
+  $('sheetBody').querySelectorAll('[data-cmp-add]').forEach(b => b.onclick = () => addToCart(b.dataset.cmpAdd));
+  $('sheetBody').querySelectorAll('[data-cmp-rm]').forEach(b => b.onclick = () => toggleCompare(b.dataset.cmpRm));
+  $('cmpClear').onclick = () => { saveCompare([]); updateCompareUi(); closeSheet(); };
+}
+
 function renderDish(d, idx) {
   const sym = state.settings.locale.currency_symbol || 'R';
   const price = d.price_cents ? fmtPrice(d.price_cents, sym) : (d.price || '');
@@ -971,6 +1295,7 @@ function renderDish(d, idx) {
     : '';
   return `
     <div class="dish${soldOut ? ' sold-out' : ''}" data-fx="reveal" id="dish-${escapeHTML(d.slug)}">
+      <button type="button" class="cmp-btn" data-cmp="${escapeHTML(d.slug)}" aria-pressed="false" aria-label="Compare ${escapeHTML(nameTr)}">+ compare</button>
       <button type="button" class="heart-btn${isFav ? ' on' : ''}" data-heart="${escapeHTML(d.slug)}" aria-pressed="${isFav ? 'true' : 'false'}" aria-label="Favourite ${escapeHTML(nameTr)}">♥</button>
       <a href="/view.html?r=${encodeURIComponent(r)}&d=${encodeURIComponent(d.slug)}${table ? '&t=' + encodeURIComponent(table) : ''}" class="thumb-link" aria-label="${escapeHTML(thumbAriaLabel)}">
         <div class="thumb" data-fx="spotlight" ${thumbAttrs} ${thumbBgAttr}>
@@ -1037,63 +1362,130 @@ function wireMenuFilters() {
   const s = $('menuSearch');
   if (s && !s.dataset.wired) {
     s.dataset.wired = '1';
+    s.value = state.searchQuery || '';
+    $('menuSearchClear').style.display = s.value ? 'inline-block' : 'none';
     s.oninput = (e) => {
       state.searchQuery = e.target.value;
       $('menuSearchClear').style.display = e.target.value ? 'inline-block' : 'none';
+      syncFiltersToUrl();
       render();
     };
     $('menuSearchClear').onclick = () => { s.value = ''; state.searchQuery = ''; s.dispatchEvent(new Event('input')); };
   }
-  // Dietary chips
+  // Dietary chips — multi-select, a dish must satisfy ALL active chips
   const chips = $('dietChips');
   if (chips && !chips.children.length) {
     const opts = [
-      { key: 'vegetarian', label: '🥬 Veg' },
       { key: 'vegan', label: '🌱 Vegan' },
+      { key: 'vegetarian', label: '🥬 Vegetarian' },
+      { key: 'halal', label: '☪ Halal' },
       { key: 'gluten-free', label: '🌾 GF' },
       { key: 'dairy-free', label: '🥛 Dairy-free' },
-      { key: 'halal', label: '☪ Halal' }
+      { key: 'nut-free', label: '🥜 Nut-free' }
     ];
-    chips.innerHTML = opts.map(o => `<button data-diet="${o.key}" style="flex-shrink:0;min-height:44px;padding:0 14px;border-radius:999px;background:rgba(255,239,220,.04);border:1px solid var(--line);color:var(--ink-dim);font-size:11.5px;font-weight:600;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center">${o.label}</button>`).join('');
+    chips.innerHTML = opts.map(o => `<button type="button" class="diet-chip" data-diet="${o.key}" aria-pressed="false">${o.label}</button>`).join('');
     chips.addEventListener('click', (e) => {
       const b = e.target.closest('[data-diet]'); if (!b) return;
-      const same = state.dietFilter === b.dataset.diet;
-      state.dietFilter = same ? null : b.dataset.diet;
-      chips.querySelectorAll('[data-diet]').forEach(c => {
-        const on = c.dataset.diet === state.dietFilter;
-        c.style.background = on ? 'rgba(232,197,138,.18)' : 'rgba(255,239,220,.04)';
-        c.style.color = on ? '#e8c58a' : 'var(--ink-dim)';
-        c.style.borderColor = on ? 'rgba(232,197,138,.4)' : 'var(--line)';
-      });
+      const k = b.dataset.diet;
+      if (state.dietFilters.has(k)) state.dietFilters.delete(k); else state.dietFilters.add(k);
+      syncDietChips();
+      syncFiltersToUrl();
       render();
     });
   }
+  syncDietChips();
+}
+function syncDietChips() {
+  document.querySelectorAll('#dietChips [data-diet]').forEach(c => {
+    const on = state.dietFilters.has(c.dataset.diet);
+    c.classList.toggle('on', on);
+    c.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
 }
 
 // ============ RESERVATION ============
+const RV_PREFS = ['Window', 'Quiet', 'Booster seat', 'Outside'];
+const RV_OPEN_MIN = 11 * 60, RV_LAST_MIN = 21 * 60 + 30;   // 11:00 – 21:30, 30-min slots
+function rvPad(n) { return String(n).padStart(2, '0'); }
 function openReserve() {
-  const now = new Date();
-  now.setMinutes(now.getMinutes() + 30 - (now.getMinutes() % 30));
-  const isoLocal = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const days = Array.from({ length: 14 }, (_, i) => { const d = new Date(today); d.setDate(today.getDate() + i); return d; });
+  const dayKey = d => d.getFullYear() + '-' + rvPad(d.getMonth() + 1) + '-' + rvPad(d.getDate());
+  let selDay = null, selTime = null;
+  const prefs = new Set();
+  const stripHtml = days.map((d, i) => `<button type="button" class="rv-day" data-rvday="${i}" aria-pressed="false">
+      <span class="dw">${i === 0 ? 'Today' : d.toLocaleDateString('en-ZA', { weekday: 'short' })}</span>
+      <span class="dn">${d.getDate()}</span>
+      <span class="dm">${d.toLocaleDateString('en-ZA', { month: 'short' })}</span></button>`).join('');
   openSheet(`
     <h3>Book a table</h3>
-    <div class="sh-sub">${state.settings.restaurant.name} · we'll confirm on WhatsApp</div>
+    <div class="sh-sub">${escapeHTML(state.settings.restaurant.name)} · we'll confirm on WhatsApp</div>
     <div class="field"><label>Your name</label><input id="rvName" type="text" placeholder="Full name" /></div>
     <div class="field"><label>WhatsApp phone</label><input id="rvPhone" type="tel" placeholder="071 234 5678" /></div>
     <div class="field"><label>Email (optional, for confirmation)</label><input id="rvEmail" type="email" placeholder="you@email.com" /></div>
     <div class="field"><label>Party size</label><input id="rvSize" type="number" min="1" max="20" value="2" /></div>
-    <div class="field"><label>Date &amp; time</label><input id="rvWhen" type="datetime-local" value="${isoLocal}" min="${isoLocal}" /></div>
+    <div class="field"><label>Pick a day</label><div class="rv-strip" id="rvStrip" role="group" aria-label="Pick a day">${stripHtml}</div></div>
+    <div class="field" id="rvSlotWrap" style="display:none"><label>Pick a time</label><div class="rv-slots" id="rvSlots" role="group" aria-label="Pick a time"></div></div>
+    <input id="rvWhen" type="hidden" value="" />
+    <div class="field"><label>Table preference (optional)</label><div class="rv-prefs" id="rvPrefs">${RV_PREFS.map(p => `<button type="button" class="rv-pref" data-pref="${escapeHTML(p)}" aria-pressed="false">${escapeHTML(p)}</button>`).join('')}</div></div>
     <div class="field"><label>Anything else? (optional)</label><textarea id="rvNotes" rows="2" placeholder="High chair, allergies, occasion…"></textarea></div>
     <button class="submit" id="rvSubmit">Request booking →</button>
   `);
+  function syncWhen() {
+    $('rvWhen').value = (selDay !== null && selTime) ? dayKey(days[selDay]) + 'T' + selTime : '';
+  }
+  function renderSlots() {
+    const wrap = $('rvSlotWrap'), box = $('rvSlots');
+    if (selDay === null) { wrap.style.display = 'none'; return; }
+    wrap.style.display = '';
+    const base = days[selDay];
+    const cutoff = Date.now() + 30 * 60 * 1000;
+    let html = '';
+    let stillValid = false;
+    for (let m = RV_OPEN_MIN; m <= RV_LAST_MIN; m += 30) {
+      const t = new Date(base); t.setHours(Math.floor(m / 60), m % 60, 0, 0);
+      const label = rvPad(t.getHours()) + ':' + rvPad(t.getMinutes());
+      const past = t.getTime() < cutoff;
+      const on = label === selTime && !past;
+      if (on) stillValid = true;
+      html += `<button type="button" class="rv-slot${on ? ' on' : ''}" data-rvtime="${label}" aria-pressed="${on}"${past ? ' disabled' : ''}>${label}</button>`;
+    }
+    box.innerHTML = html;
+    if (!stillValid) selTime = null;
+    syncWhen();
+  }
+  $('rvStrip').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-rvday]'); if (!b) return;
+    selDay = parseInt(b.dataset.rvday, 10);
+    $('rvStrip').querySelectorAll('.rv-day').forEach(x => { const on = x === b; x.classList.toggle('on', on); x.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+    renderSlots();
+  });
+  $('rvSlotWrap').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-rvtime]'); if (!b || b.disabled) return;
+    selTime = b.dataset.rvtime;
+    $('rvSlots').querySelectorAll('.rv-slot').forEach(x => { const on = x === b; x.classList.toggle('on', on); x.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+    syncWhen();
+  });
+  $('rvPrefs').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-pref]'); if (!b) return;
+    const p = b.dataset.pref;
+    if (prefs.has(p)) prefs.delete(p); else prefs.add(p);
+    b.classList.toggle('on', prefs.has(p));
+    b.setAttribute('aria-pressed', prefs.has(p) ? 'true' : 'false');
+  });
   $('rvSubmit').onclick = async () => {
     const name = $('rvName').value.trim();
     const phone = $('rvPhone').value.trim();
     const email = $('rvEmail').value.trim();
     const size = parseInt($('rvSize').value) || 2;
     const when = $('rvWhen').value;
-    const notes = $('rvNotes').value.trim();
-    if (!name || !when) return toast('Name and date/time required', 'err');
+    const preferences = RV_PREFS.filter(p => prefs.has(p));
+    let notes = $('rvNotes').value.trim();
+    // The reservation API stores free-text notes today; mirror the chips there
+    // so the restaurant sees them even before the preferences column is read.
+    if (preferences.length) notes = (notes ? notes + '\n' : '') + 'Table preference: ' + preferences.join(', ');
+    if (!name) return toast('Name required', 'err');
+    if (!when) return toast('Pick a day and a time', 'err');
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return toast('That email doesn\'t look valid', 'err');
     // Require at least one contact channel — otherwise the guest has no
     // way to be reached with the restaurant's confirmation/decline.
@@ -1104,7 +1496,7 @@ function openReserve() {
       res = await fetch('/api/reservation', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ r, guest_name: name, guest_phone: phone, guest_email: email, party_size: size, reserved_at: new Date(when).toISOString(), notes })
+        body: JSON.stringify({ r, guest_name: name, guest_phone: phone, guest_email: email, party_size: size, reserved_at: new Date(when).toISOString(), notes, preferences })
       });
       data = await res.json().catch(() => ({}));
     } catch (netErr) {
@@ -1119,15 +1511,25 @@ function openReserve() {
       : (phone
         ? 'The restaurant will confirm by phone or WhatsApp.'
         : 'The restaurant has received your request. Please check back or contact them directly.');
+    const canOrder = !!state.settings?.features?.orders;
     $('sheet').innerHTML = `
       <div style="padding:28px 24px;text-align:center">
         <div style="font-size:52px;margin-bottom:8px">✓</div>
         <h2 style="margin:0 0 8px;font-size:22px">Booking received</h2>
         <p style="color:#8b8580;font-size:13.5px;line-height:1.55;margin:0 0 20px">${emailNote}</p>
         ${data.ics_data_url ? `<a href="${data.ics_data_url}" download="reservation-${data.reservation_id}.ics" style="display:inline-block;padding:12px 22px;border-radius:10px;background:linear-gradient(135deg,#e8c58a,#d4a574);color:#0a0806;font-weight:700;text-decoration:none;margin-bottom:10px">📅 Add to calendar</a><br>` : ''}
-        <button id="rvDone" style="margin-top:10px;padding:10px 18px;background:rgba(245,239,220,.05);color:#e8c58a;border:1px solid rgba(232,197,138,.3);border-radius:9px;font-weight:600;cursor:pointer">Done</button>
+        ${canOrder ? `<p style="margin:16px 0 8px;font-size:14px;font-weight:600">Want to order in advance?</p>
+        <button id="rvMenu" style="padding:11px 20px;min-height:44px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;font-weight:700;cursor:pointer;border:none">Go to menu</button><br>` : ''}
+        <button id="rvDone" style="margin-top:10px;padding:10px 18px;min-height:44px;background:rgba(245,239,220,.05);color:#e8c58a;border:1px solid rgba(232,197,138,.3);border-radius:9px;font-weight:600;cursor:pointer">Done</button>
       </div>`;
     document.getElementById('rvDone').onclick = closeSheet;
+    const gm = document.getElementById('rvMenu');
+    if (gm) gm.onclick = () => {
+      closeSheet();
+      const m = document.querySelector('main');
+      if (m) m.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      toast('Pick your dishes, then tap Order', 'ok');
+    };
   };
 }
 
@@ -1371,7 +1773,36 @@ async function submitOrder() {
     toast('Order sent. kitchen has it ✓', 'ok');
     renderLastOrderBanner();
     showOrderConfirmation(lastOrder);
+    enableOrderReadyPush();   // fire-and-forget; never blocks the order flow
   } catch (e) { toast(e.message, 'err'); btn.disabled = false; btn.textContent = 'Send to kitchen →'; }
+}
+
+// Quietly ask for notification permission after an order and register a
+// customer-scoped push subscription so the guest is pinged when it's ready.
+// Every failure path is swallowed — push is a nicety, not part of ordering.
+function b64ToUint8(b64) {
+  const pad = '='.repeat((4 - b64.length % 4) % 4);
+  const raw = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/'));
+  return Uint8Array.from(raw, c => c.charCodeAt(0));
+}
+async function enableOrderReadyPush() {
+  try {
+    if (!customerToken || !('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return;
+    if (Notification.permission === 'denied') return;
+    if (Notification.permission !== 'granted') {
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') return;
+    }
+    const kr = await fetch('/api/push/vapid-key').then(x => x.json()).catch(() => null);
+    if (!kr || !kr.publicKey) return;
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToUint8(kr.publicKey) });
+    await fetch('/api/push/subscribe', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ subscription: sub.toJSON(), customer_token: customerToken, r })
+    });
+  } catch {}
 }
 
 // Big check-mark confirmation shown right after the guest submits an order.
@@ -1740,6 +2171,7 @@ function wireActions() {
   };
 }
 
+$('cmpChip').onclick = openCompare;
 boot();
 </script>
 <link rel="stylesheet" href="/vendor/armenu-fx.css">

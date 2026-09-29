@@ -67,7 +67,7 @@ export function toPgArrayLiteral(arr) {
 // Columns typed jsonb — arrays legitimately serialize as JSON here. If a
 // column is neither in PG_ARRAY_COLS nor JSONB_ARRAY_COLS and receives an
 // array, we log a warning (dev-time signal that PG_ARRAY_COLS is stale).
-const JSONB_ARRAY_COLS = new Set(['modifiers', 'translations', 'metadata', 'keys']);
+const JSONB_ARRAY_COLS = new Set(['modifiers', 'translations', 'metadata', 'keys', 'preferences']);
 export function encodeVal(colName, v) {
   if (v == null) return v;
   if (v instanceof Date) return v;

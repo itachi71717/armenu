@@ -6,6 +6,7 @@
 import { supabase, supabaseAdmin, toPgArrayLiteral } from '../../_db.js';
 import { verifyToken } from './login.js';
 import { auditLog } from '../_audit.js';
+import { sendPushToCustomer } from '../push/_send.js';
 
 const VALID = ['new','prep','ready','served','cancelled'];
 const PAID_BY_MAX = 40;
@@ -184,7 +185,7 @@ export default async function handler(req, res) {
     const { id } = req.query;
     if (!VALID.includes(body.status)) return res.status(400).json({ error: 'bad status' });
     // Confirm order belongs to this staff's restaurant
-    const { data: order } = await supabase.from('orders').select('restaurant_id, total_cents, tip_cents, status').eq('id', id).single();
+    const { data: order } = await supabase.from('orders').select('restaurant_id, total_cents, tip_cents, status, customer_id').eq('id', id).single();
     if (!order || order.restaurant_id !== session.restaurant_id) return res.status(404).json({ error: 'not found' });
     const patch = { status: body.status, updated_at: new Date().toISOString() };
     if (body.status === 'cancelled') {
@@ -205,10 +206,25 @@ export default async function handler(req, res) {
         }
       }).catch(() => {});
     }
+    // Guest "order ready" push - fire-and-forget, never blocks or fails the update.
+    if (body.status === 'ready' && order.status !== 'ready' && order.customer_id) {
+      notifyGuestReady(session.restaurant_id, id, order.customer_id).catch(() => {});
+    }
     return res.status(200).json({ ok: true });
   }
 
   return res.status(405).end();
+}
+
+async function notifyGuestReady(restaurant_id, orderId, customer_id) {
+  const { data: rest } = await supabase.from('restaurants').select('name, slug').eq('id', restaurant_id).maybeSingle();
+  const num = String(orderId || '').replace(/-/g, '').slice(-6).toUpperCase();
+  await sendPushToCustomer(customer_id, {
+    title: 'Your order is ready',
+    body: `${rest?.name || 'Your restaurant'} — order #${num}`,
+    url: rest?.slug ? '/m/' + rest.slug : '/',
+    tag: 'order-ready-' + orderId
+  }, { restaurant_id });
 }
 
 // Split-bill v2: per-item payer assignment + partial payment tracking.

@@ -207,6 +207,24 @@
   .modal-card h3{font-family:var(--serif);font-style:italic;font-size:24px;font-weight:400;margin-bottom:6px}
   .modal-card p{color:var(--ink-dim);font-size:13px;margin-bottom:20px}
   .modal-card .qr-img{width:280px;height:280px;background:#fff;padding:14px;border-radius:14px;margin:0 auto 20px;display:block}
+  .an-modal .an-card{width:min(1040px,100%);max-height:92vh;overflow-y:auto;padding:24px;border-radius:20px;background:#13100c;border:1px solid var(--line);text-align:left}
+  .an-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+  .an-head h3{font-family:var(--serif);font-style:italic;font-size:24px;font-weight:400}
+  .an-range{display:flex;gap:6px}.an-range .btn.on{background:rgba(255,87,34,.2);border-color:rgba(255,87,34,.5)}
+  .an-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .an-box{padding:16px;border-radius:14px;background:rgba(255,239,220,.03);border:1px solid var(--line);min-width:0;overflow-x:auto}
+  .an-box.wide{grid-column:1/-1}
+  .an-box h4{font-size:13px;font-weight:600;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px}
+  .an-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
+  .an-kpis b{display:block;font-size:22px}.an-kpis span{font-size:11px;color:var(--ink-faint)}
+  .an-heat{display:grid;grid-template-columns:34px repeat(24,minmax(12px,1fr));gap:2px;min-width:520px;font-size:10px;color:var(--ink-faint)}
+  .an-heat i{aspect-ratio:1;border-radius:3px;background:rgba(255,87,34,var(--a,0));border:1px solid var(--line);display:block}
+  .an-heat em{font-style:normal;align-self:center}
+  .an-tbl{width:100%;border-collapse:collapse;font-size:13px}
+  .an-tbl th,.an-tbl td{padding:6px 8px;text-align:right;border-bottom:1px solid var(--line)}
+  .an-tbl th:first-child,.an-tbl td:first-child{text-align:left}
+  .an-tbl th.srt{cursor:pointer;color:var(--accent-2)}
+  @media(max-width:760px){.an-grid{grid-template-columns:1fr}.an-kpis b{font-size:18px}.an-modal .an-card{padding:16px}}
   .modal-card .modal-actions{display:flex;gap:10px}
   .modal-card .modal-actions .btn{flex:1;justify-content:center;padding:12px}
 
@@ -246,6 +264,44 @@
   .wa-qr-block .wa-qr-label{font-family:var(--mono);font-size:10px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.14em;margin-bottom:10px}
   .wa-qr-block img{width:160px;height:160px;background:#fff;padding:8px;border-radius:10px;display:block;margin:0 auto 10px}
   .wa-qr-block .wa-cta{display:inline-flex;align-items:center;gap:6px;color:#25D366;font-weight:600;font-size:13px}
+  /* ---- Shifts + prep sheet (screen) ---- */
+  .sh-nav{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+  .sh-nav .sh-label{flex:1;text-align:center;font-weight:600;font-size:14px}
+  .sh-nav button,.sh-btn{background:rgba(232,197,138,.1);color:#e8c58a;border:1px solid rgba(232,197,138,.28);padding:8px 12px;border-radius:9px;font-size:12px;cursor:pointer}
+  .sh-grid{display:grid;grid-template-columns:44px repeat(7,minmax(0,1fr));border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:11px}
+  .sh-grid .sh-h{padding:6px 2px;text-align:center;font-family:var(--mono);font-size:10px;letter-spacing:.06em;color:var(--ink-faint);border-bottom:1px solid var(--line);background:rgba(245,236,216,.04)}
+  .sh-hours div{height:34px;padding:2px 4px;color:var(--ink-faint);font-family:var(--mono);font-size:10px;border-top:1px solid rgba(245,236,216,.06);box-sizing:border-box}
+  .sh-col{position:relative;border-left:1px solid rgba(245,236,216,.06);background-image:linear-gradient(rgba(245,236,216,.06) 1px,transparent 1px);background-size:100% 34px}
+  .sh-block{position:absolute;left:2px;right:2px;border-radius:6px;padding:2px 4px;overflow:hidden;cursor:pointer;background:rgba(255,87,34,.28);border:1px solid rgba(255,87,34,.6);color:var(--ink);line-height:1.2;font-size:10.5px}
+  .sh-block b{display:block;font-size:11px}
+  .sh-form{display:none;margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:10px}
+  .sh-form label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);margin:8px 0 3px}
+  .sh-form input,.sh-form select{width:100%;padding:9px 10px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:13px}
+  .sh-form .sh-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .pp-table{width:100%;border-collapse:collapse;font-size:13px}
+  .pp-table th,.pp-table td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line)}
+  .pp-table th{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint)}
+  #printRoot{display:none}
+  /* ---- Print: white paper, restaurant branding only (no ARMenu) ---- */
+  @media print{
+    @page{margin:12mm}
+    html,body{background:#fff !important;color:#000 !important}
+    body > *:not(#printRoot){display:none !important}
+    #printRoot{display:block !important;color:#000;background:#fff;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+    #printRoot .pr-head{display:flex;align-items:center;gap:14px;margin-bottom:12px;border-bottom:2px solid #000;padding-bottom:8px}
+    #printRoot .pr-head img{max-height:56px;max-width:160px}
+    #printRoot .pr-head h1{font-size:20px;margin:0;color:#000}
+    #printRoot .pr-head p{margin:2px 0 0;font-size:13px;color:#000}
+    #printRoot table{width:100%;border-collapse:collapse;color:#000}
+    #printRoot th,#printRoot td{border:1px solid #000;padding:6px 8px;text-align:left;font-size:13px;color:#000}
+    #printRoot th{background:#eee !important}
+    #printRoot .pr-grid{display:grid;grid-template-columns:44px repeat(7,1fr);border:1px solid #000;font-size:10px;color:#000}
+    #printRoot .pr-grid .pr-h{border-bottom:1px solid #000;border-left:1px solid #000;padding:4px 2px;text-align:center;font-weight:700;background:#eee !important}
+    #printRoot .pr-hours div{height:34px;border-top:1px solid #bbb;padding:1px 3px;box-sizing:border-box}
+    #printRoot .pr-col{position:relative;border-left:1px solid #000;background-image:linear-gradient(#bbb 1px,transparent 1px);background-size:100% 34px}
+    #printRoot .pr-block{position:absolute;left:1px;right:1px;border:1px solid #000;background:#ddd !important;padding:1px 3px;overflow:hidden;line-height:1.15;color:#000;font-size:9.5px}
+    #printRoot .pr-block b{display:block}
+  }
 </style>
 <script src="/vendor/armenu-dirty.js" defer></script>
 <script src="/vendor/armenu-errorbar.js" defer></script>
@@ -344,6 +400,9 @@
       <div class="tools-group" data-open="1">
         <button class="tg-head"><span>▾ Live now</span><span class="tg-hint">Real-time services running tonight</span></button>
         <div class="tg-body">
+          <div class="action" id="analyticsAction">
+            <span class="ico">📈</span><div><h3>Analytics</h3><p>Revenue, busiest hours, top dishes, returning guests.</p></div>
+          </div>
           <a class="action" id="kitchenAction" href="#" style="text-decoration:none">
             <span class="ico">🔥</span><div><h3>Kitchen display</h3><p>Live ticket board for the kitchen tablet.</p></div>
           </a>
@@ -385,6 +444,12 @@
           </div>
           <div class="action" id="stationsAction">
             <span class="ico">🍳</span><div><h3>Kitchen stations</h3><p>Hot, Cold, Dessert… route dishes to screens.</p></div>
+          </div>
+          <div class="action" id="shiftsAction">
+            <span class="ico">🗓</span><div><h3>Staff shifts</h3><p>Weekly rota for kitchen and waiters. Print it.</p></div>
+          </div>
+          <div class="action" id="prepSheetAction">
+            <span class="ico">🍲</span><div><h3>Prep sheet</h3><p>What to prep, based on your past orders.</p></div>
           </div>
           <div class="action" id="staffAction2">
             <span class="ico">👥</span><div><h3>Staff PINs</h3><p>Waiter + kitchen tablet PINs.</p></div>
@@ -437,6 +502,20 @@
       <button class="btn" id="qrClose">Close</button>
       <a class="btn btn-primary" id="qrDownload" download>Download PNG</a>
     </div>
+  </div>
+</div>
+
+<!-- Analytics modal (filled by openAnalyticsModal) -->
+<div class="modal an-modal" id="analyticsModal">
+  <div class="an-card">
+    <div class="an-head">
+      <h3>Analytics</h3>
+      <div class="an-range" id="anRange">
+        <button class="btn" data-r="7d">7d</button><button class="btn on" data-r="30d">30d</button><button class="btn" data-r="90d">90d</button>
+        <button class="btn" id="anClose">Close</button>
+      </div>
+    </div>
+    <div id="anBody" style="color:var(--ink-dim)">Loading…</div>
   </div>
 </div>
 
@@ -1804,11 +1883,252 @@ Sub gluten-free bun +1200</code></div>
     if (e.target.closest('#schedulesAction'))    openSchedulesModal();
     if (e.target.closest('#walkinsAction'))      openWalkinsModal();
     if (e.target.closest('#teamAction'))         openTeamModal();
+    if (e.target.closest('#shiftsAction'))       openShiftsModal();
+    if (e.target.closest('#prepSheetAction'))    openPrepSheetModal();
+    if (e.target.closest('#analyticsAction'))    openAnalyticsModal();
   });
+
+  // ============= SHIFTS + PREP SHEET (printable, white-label) =============
+  const SH_START = 8, SH_END = 23, SH_ROW = 34;   // grid covers 08:00-23:00
+  const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const pad2 = n => String(n).padStart(2, '0');
+  const ymd = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  function mondayOf(d) {
+    const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
+    return x;
+  }
+  const hm = d => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  function weekLabel(ws) {
+    const we = new Date(ws); we.setDate(we.getDate() + 6);
+    const f = d => d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+    return `${f(ws)} – ${f(we)} ${we.getFullYear()}`;
+  }
+  async function fetchBrand() {
+    let s = {};
+    try { s = (await mgrFetch(`/api/admin/settings?slug=${CURRENT.restaurant.slug}`)).data.settings || {}; } catch (e) {}
+    return { name: CURRENT.restaurant.name || '', logo: s.logo_url || '' };
+  }
+  function brandHead(brand, subtitle) {
+    return `<div class="pr-head">${brand.logo ? `<img src="${escapeHTML(brand.logo)}" alt="" />` : ''}
+      <div><h1>${escapeHTML(brand.name)}</h1><p>${escapeHTML(subtitle)}</p></div></div>`;
+  }
+  function printNow(html) {
+    let root = $('printRoot');
+    if (!root) { root = document.createElement('div'); root.id = 'printRoot'; document.body.appendChild(root); }
+    root.innerHTML = html;
+    const imgs = Array.from(root.querySelectorAll('img'));
+    Promise.all(imgs.map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; })))
+      .then(() => window.print());
+  }
+  // Lay shifts into per-day columns. cls = 'sh' (screen) or 'pr' (print).
+  function shiftGridHTML(ws, shifts, cls, withIds) {
+    const hours = [];
+    for (let h = SH_START; h < SH_END; h++) hours.push(`<div>${pad2(h)}:00</div>`);
+    const cols = DAY_NAMES.map((n, i) => {
+      const day = new Date(ws); day.setDate(day.getDate() + i);
+      const blocks = shifts.filter(s => ymd(new Date(s.starts_at)) === ymd(day)).map(s => {
+        const a = new Date(s.starts_at), b = new Date(s.ends_at);
+        const sh = a.getHours() + a.getMinutes() / 60;
+        const eh = (b - a) / 36e5 + sh;
+        const top = (Math.max(sh, SH_START) - SH_START) * SH_ROW;
+        const h = Math.max((Math.min(eh, SH_END) - Math.max(sh, SH_START)) * SH_ROW, 18);
+        return `<div class="${cls}-block" ${withIds ? `data-shift="${s.id}"` : ''} style="top:${top}px;height:${h}px" title="${escapeHTML(s.notes || '')}">
+          <b>${escapeHTML(s.staff_name || 'Staff')}</b>${escapeHTML(s.role || s.staff_role || '')}<br>${hm(a)}–${hm(b)}${s.notes ? '<br><i>' + escapeHTML(s.notes) + '</i>' : ''}</div>`;
+      }).join('');
+      return `<div class="${cls}-col" style="height:${(SH_END - SH_START) * SH_ROW}px">${blocks}</div>`;
+    });
+    const heads = DAY_NAMES.map((n, i) => {
+      const day = new Date(ws); day.setDate(day.getDate() + i);
+      return `<div class="${cls}-h">${n} ${day.getDate()}</div>`;
+    }).join('');
+    return `<div class="${cls}-grid"><div class="${cls}-h"></div>${heads}
+      <div class="${cls}-hours">${hours.join('')}</div>${cols.join('')}</div>`;
+  }
+
+  async function openShiftsModal() {
+    const slug = CURRENT.restaurant.slug;
+    let ws = mondayOf(new Date());
+    let shifts = [], staff = [];
+    const brand = await fetchBrand();
+    $('wizKicker').textContent = 'Team';
+    $('wizTitle').textContent = 'Staff shifts';
+    $('wizProgress').innerHTML = '';
+    $('wizBody').innerHTML = `
+      <div class="sh-nav">
+        <button id="shPrev">←</button><div class="sh-label" id="shLabel"></div><button id="shNext">→</button>
+      </div>
+      <div id="shGridWrap" style="max-height:46vh;overflow:auto"></div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="wiz-secondary" id="shAddToggle" style="flex:1">+ Add shift</button>
+        <button class="wiz-secondary" id="shPrint" style="flex:1">🖨 Print week</button>
+      </div>
+      <div class="sh-form" id="shForm">
+        <label>Staff member</label><select id="shStaff"></select>
+        <div class="sh-row"><div><label>Date</label><input type="date" id="shDate" /></div>
+          <div><label>Role</label><input id="shRole" placeholder="e.g. Grill, Waiter" /></div></div>
+        <div class="sh-row"><div><label>Start</label><input type="time" id="shStart" value="09:00" /></div>
+          <div><label>End</label><input type="time" id="shEnd" value="17:00" /></div></div>
+        <label>Notes</label><input id="shNotes" placeholder="optional" />
+        <button class="wiz-primary" id="shSave" style="width:100%;padding:11px;border-radius:9px;border:none;font-weight:700;cursor:pointer;margin-top:12px">Save shift</button>
+      </div>
+      <div id="shErr" style="color:#f87171;font-size:12.5px;min-height:16px;margin-top:8px"></div>
+      <div style="font-size:11px;color:var(--ink-faint);margin-top:4px">Tap a shift block to remove it.</div>`;
+    $('wizActions').innerHTML = `<button class="wiz-secondary" id="shClose">Close</button>`;
+    $('wizOverlay').classList.add('on');
+    $('wizClose').onclick = $('shClose').onclick = () => $('wizOverlay').classList.remove('on');
+
+    async function load() {
+      const from = ws.toISOString();
+      const to = new Date(ws.getFullYear(), ws.getMonth(), ws.getDate() + 7).toISOString();
+      $('shLabel').textContent = weekLabel(ws);
+      const { ok, data } = await mgrFetch(`/api/admin/shifts?slug=${slug}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+      shifts = ok ? (data.shifts || []) : [];
+      if (!ok) $('shErr').textContent = data.error || 'Could not load shifts';
+      $('shGridWrap').innerHTML = shiftGridHTML(ws, shifts, 'sh', true);
+    }
+    try {
+      const r = await mgrFetch(`/api/admin/staff?slug=${slug}`);
+      staff = (r.data.staff || []).filter(s => s.active !== false);
+    } catch (e) {}
+    $('shStaff').innerHTML = staff.length
+      ? staff.map(s => `<option value="${s.id}" data-role="${escapeHTML(s.role || '')}">${escapeHTML(s.name)} (${escapeHTML(s.role || 'staff')})</option>`).join('')
+      : '<option value="">Add staff PINs first</option>';
+    $('shDate').value = ymd(new Date());
+    $('shPrev').onclick = () => { ws.setDate(ws.getDate() - 7); load(); };
+    $('shNext').onclick = () => { ws.setDate(ws.getDate() + 7); load(); };
+    $('shAddToggle').onclick = () => { const f = $('shForm'); f.style.display = f.style.display === 'block' ? 'none' : 'block'; };
+    $('shPrint').onclick = () => printNow(
+      brandHead(brand, 'Staff shifts · ' + weekLabel(ws)) + shiftGridHTML(ws, shifts, 'pr', false));
+    $('shGridWrap').onclick = async (e) => {
+      const b = e.target.closest('[data-shift]');
+      if (!b || !confirm('Remove this shift?')) return;
+      const { ok, data } = await mgrFetch(`/api/admin/shifts?slug=${slug}&id=${b.dataset.shift}`, { method: 'DELETE' });
+      if (!ok) { $('shErr').textContent = data.error || 'Failed'; return; }
+      load();
+    };
+    $('shSave').onclick = async () => {
+      $('shErr').textContent = '';
+      const staff_id = $('shStaff').value, date = $('shDate').value;
+      const st = $('shStart').value, en = $('shEnd').value;
+      if (!staff_id || !date || !st || !en) { $('shErr').textContent = 'Pick staff, date, start and end'; return; }
+      const a = new Date(`${date}T${st}`); const b = new Date(`${date}T${en}`);
+      if (b <= a) b.setDate(b.getDate() + 1);   // overnight shift
+      const role = $('shRole').value.trim() || $('shStaff').selectedOptions[0]?.dataset.role || '';
+      $('shSave').disabled = true;
+      const { ok, data } = await mgrFetch('/api/admin/shifts', { method: 'POST', body: JSON.stringify({
+        slug, staff_id, role, starts_at: a.toISOString(), ends_at: b.toISOString(), notes: $('shNotes').value.trim() }) });
+      $('shSave').disabled = false;
+      if (!ok) { $('shErr').textContent = data.error || 'Failed'; return; }
+      $('shNotes').value = '';
+      ws = mondayOf(a);
+      load();
+    };
+    load();
+  }
+
+  async function openPrepSheetModal() {
+    const slug = CURRENT.restaurant.slug;
+    const brand = await fetchBrand();
+    const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+    let last = null;
+    $('wizKicker').textContent = 'Kitchen';
+    $('wizTitle').textContent = 'Prep sheet';
+    $('wizProgress').innerHTML = '';
+    $('wizBody').innerHTML = `
+      <p style="color:var(--ink-dim);margin-bottom:12px">Expected quantities are the average of the same weekday over the last 4 weeks.</p>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+        <input type="date" id="ppDate" value="${ymd(tomorrow)}" style="flex:1;padding:9px 10px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:13px" />
+        <button class="wiz-secondary" id="ppLoad">Show</button>
+      </div>
+      <div id="ppBody" style="max-height:44vh;overflow:auto"></div>
+      <div id="ppErr" style="color:#f87171;font-size:12.5px;min-height:16px;margin-top:8px"></div>`;
+    $('wizActions').innerHTML = `<button class="wiz-secondary" id="ppClose">Close</button><button class="wiz-primary" id="ppPrint">🖨 Print tomorrow's prep</button>`;
+    $('wizOverlay').classList.add('on');
+    $('wizClose').onclick = $('ppClose').onclick = () => $('wizOverlay').classList.remove('on');
+    const rowsHTML = (d, forPrint) => `<table ${forPrint ? '' : 'class="pp-table"'}><thead><tr><th>Dish</th><th>Expected qty</th><th>Station</th><th>Category</th></tr></thead><tbody>${
+      d.dishes.map(x => `<tr><td>${escapeHTML(x.dish_name)}</td><td>${x.avg_qty}</td><td>${escapeHTML(x.station_name || '—')}</td><td>${escapeHTML(x.category_name || '—')}</td></tr>`).join('')
+      || '<tr><td colspan="4">No order history for this weekday yet.</td></tr>'}</tbody></table>`;
+    async function load() {
+      $('ppErr').textContent = '';
+      const { ok, data } = await mgrFetch(`/api/admin/prep-sheet?slug=${slug}&date=${encodeURIComponent($('ppDate').value)}`);
+      if (!ok) { $('ppErr').textContent = data.error || 'Could not load'; return; }
+      last = data;
+      $('ppBody').innerHTML = rowsHTML(data, false);
+    }
+    $('ppLoad').onclick = load;
+    $('ppDate').onchange = load;
+    $('ppPrint').onclick = async () => {
+      if (!last || last.generated_for !== $('ppDate').value) await load();
+      if (!last) return;
+      printNow(brandHead(brand, 'Prep sheet for ' + last.generated_for) + rowsHTML(last, true));
+    };
+    load();
+  }
 
   // ============= TEAM MEMBERS (co-managers) =============
   // Uses Clerk-authed /api/portal/team (not mgrFetch), so only the OWNER
   // (restaurants.email) can add / remove teammates.
+  // ============================================================
+  // Analytics modal — all numbers computed server-side (/api/admin/analytics?range=).
+  // ============================================================
+  let anRange = '30d', anData = null, anCatSort = 'revenue_cents';
+  const anMoney = c => 'R' + ((c || 0) / 100).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  function anLineSvg(series) {
+    const W = 600, H = 200, pad = 8, n = series.length;
+    const max = Math.max(1, ...series.map(p => p.revenue_cents));
+    const pts = series.map((p, i) => [pad + (n < 2 ? 0 : i * (W - 2 * pad) / (n - 1)), H - pad - (p.revenue_cents / max) * (H - 2 * pad)]);
+    const d = pts.map((q, i) => (i ? 'L' : 'M') + q[0].toFixed(1) + ' ' + q[1].toFixed(1)).join(' ');
+    const area = d + ` L${pts[n - 1][0].toFixed(1)} ${H - pad} L${pts[0][0].toFixed(1)} ${H - pad} Z`;
+    return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block" role="img" aria-label="Revenue over time">
+      <path d="${area}" fill="rgba(255,87,34,.15)"/><path d="${d}" fill="none" stroke="#ff5722" stroke-width="2" stroke-linejoin="round"/>
+      ${pts.map((q, i) => `<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="${n > 40 ? 0 : 3}" fill="#ffb066"><title>${series[i].date}: ${anMoney(series[i].revenue_cents)} (${series[i].orders_count} orders)</title></circle>`).join('')}
+      </svg><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--ink-faint)"><span>${series[0].date}</span><span>peak ${anMoney(max)}/day</span><span>${series[n - 1].date}</span></div>`;
+  }
+  function anRender() {
+    const d = anData, body = $('anBody');
+    if (!d) return;
+    const rev = d.revenue_series.reduce((a, p) => a + p.revenue_cents, 0);
+    const ord = d.revenue_series.reduce((a, p) => a + p.orders_count, 0);
+    const heat = d.hour_heatmap, mx = Math.max(0.01, ...heat.flatMap(r => r.hours.map(h => h.orders_count)));
+    const slots = heat.flatMap(r => r.hours.map((h, i) => ({ day: r.day, hr: i, v: h.orders_count }))).filter(s => s.v > 0).sort((a, b) => b.v - a.v).slice(0, 3);
+    const hh = h => String(h).padStart(2, '0') + ':00';
+    const cats = [...d.category_performance].sort((a, b) => b[anCatSort] - a[anCatSort]);
+    const pct = (v, size) => v == null ? '<span style="color:var(--ink-faint)">—</span>' : (size ? Math.round(v * 100 / size) : 0) + '%';
+    body.innerHTML = `<div class="an-grid">
+      <div class="an-box wide"><h4>Revenue</h4>
+        <div class="an-kpis"><div><b>${anMoney(rev)}</b><span>Total revenue</span></div><div><b>${ord}</b><span>Orders</span></div><div><b>${anMoney(ord ? rev / ord : 0)}</b><span>Avg order value</span></div></div>
+        ${anLineSvg(d.revenue_series)}</div>
+      <div class="an-box wide"><h4>Busy times (avg orders, ${escapeHTML(d.timezone)})</h4>
+        <div class="an-heat"><span></span>${Array.from({ length: 24 }, (_, h) => `<em style="text-align:center">${h % 3 ? '' : h}</em>`).join('')}
+        ${heat.map(r => `<em>${r.day}</em>` + r.hours.map((h, i) => `<i style="--a:${(h.orders_count / mx * .95).toFixed(2)}" title="${r.day} ${hh(i)}: ${h.orders_count} avg orders"></i>`).join('')).join('')}</div>
+        <p style="margin-top:10px;font-size:13px">Busiest hours: ${slots.length ? slots.map(s => `<b>${s.day} ${hh(s.hr)}</b> (${s.v})`).join(', ') : 'not enough data yet'}</p></div>
+      <div class="an-box"><h4>Top dishes</h4>${d.dish_leaderboard.length ? `<table class="an-tbl"><tr><th>Dish</th><th>Sold</th><th>Revenue</th></tr>${d.dish_leaderboard.map(x => `<tr><td>${escapeHTML(x.dish_name)}</td><td>${x.count}</td><td>${anMoney(x.revenue_cents)}</td></tr>`).join('')}</table>` : 'No orders in this range.'}</div>
+      <div class="an-box"><h4>Categories</h4>${cats.length ? `<table class="an-tbl"><tr><th>Category</th><th class="srt" data-s="count">Sold${anCatSort === 'count' ? ' ▾' : ''}</th><th class="srt" data-s="revenue_cents">Revenue${anCatSort === 'revenue_cents' ? ' ▾' : ''}</th></tr>${cats.map(x => `<tr><td>${escapeHTML(x.category_name)}</td><td>${x.count}</td><td>${anMoney(x.revenue_cents)}</td></tr>`).join('')}</table>` : 'No orders in this range.'}</div>
+      <div class="an-box wide"><h4>Returning guests (new customers by first-order week)</h4>${d.cohort_retention.length ? `<table class="an-tbl"><tr><th>Cohort week</th><th>New</th><th>W1</th><th>W2</th><th>W3</th></tr>${d.cohort_retention.map(c => `<tr><td>${c.cohort_week}</td><td>${c.size}</td><td>${pct(c.w1_return, c.size)}</td><td>${pct(c.w2_return, c.size)}</td><td>${pct(c.w3_return, c.size)}</td></tr>`).join('')}</table>` : 'No identified new customers in the last 4 weeks.'}</div>
+    </div>`;
+    body.querySelectorAll('th.srt').forEach(th => th.onclick = () => { anCatSort = th.dataset.s; anRender(); });
+  }
+  async function anLoad() {
+    $('anBody').textContent = 'Loading…';
+    try {
+      const { ok, data } = await mgrFetch(`/api/admin/analytics?slug=${encodeURIComponent(CURRENT.restaurant.slug)}&range=${anRange}`);
+      if (!ok) throw new Error(data.error || 'Failed to load');
+      anData = data; anRender();
+    } catch (e) { $('anBody').innerHTML = `<span style="color:#f87171">${escapeHTML(e.message)}</span>`; }
+  }
+  function openAnalyticsModal() {
+    $('analyticsModal').classList.add('show');
+    anLoad();
+  }
+  $('anClose').onclick = () => $('analyticsModal').classList.remove('show');
+  $('anRange').addEventListener('click', e => {
+    const b = e.target.closest('[data-r]'); if (!b) return;
+    anRange = b.dataset.r;
+    $('anRange').querySelectorAll('[data-r]').forEach(x => x.classList.toggle('on', x === b));
+    anLoad();
+  });
+
   async function openTeamModal() {
     const rid = CURRENT.restaurant.id || CURRENT.locations?.[0]?.id;
     const isOwner = (CURRENT.locations?.[0]?.role || 'owner') === 'owner';
@@ -2767,6 +3087,7 @@ Sub gluten-free bun +1200</code></div>
       clickCmd('tablesAction', 'Tables & waiters', 'Team & tables', ['table', 'assign', 'qr']),
       clickCmd('stationsAction', 'Kitchen stations', 'Team & tables', ['station', 'kitchen', 'expo', 'screen']),
       clickCmd('staffAction2', 'Staff PINs', 'Team & tables', ['pin', 'waiter', 'kitchen']),
+      clickCmd('analyticsAction', 'Analytics', 'Live now', ['revenue', 'heatmap', 'dishes', 'retention', 'stats']),
       clickCmd('teamAction', 'Team members', 'Team & tables', ['invite', 'manager']),
       clickCmd('printQrAction', 'Print QR codes', 'Print & support', ['qr', 'print']),
       clickCmd('contactAction', 'WhatsApp support', 'Print & support', ['help', 'support']),

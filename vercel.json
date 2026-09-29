@@ -49,6 +49,14 @@
       "destination": "/legal.html"
     },
     {
+      "source": "/status",
+      "destination": "/status.html"
+    },
+    {
+      "source": "/sitemap.xml",
+      "destination": "/api/index?path=sitemap"
+    },
+    {
       "source": "/staff",
       "destination": "/staff/index.html"
     },

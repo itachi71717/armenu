@@ -27,9 +27,28 @@ export async function sendPush(restaurant_id, payload = {}, opts = {}) {
   let q = supabase.from('push_subscriptions')
     .select('id, endpoint, keys, role').eq('restaurant_id', restaurant_id).eq('active', true);
   if (opts.role_filter) q = q.eq('role', opts.role_filter);
+  const { data: rows } = await q;
+  // Guest (diner) subscriptions are customer-scoped - staff broadcasts never reach them.
+  const subs = (rows || []).filter(s => s.role !== 'guest');
+  if (!subs.length) return { sent: 0 };
+  return deliver(subs, payload, restaurant_id);
+}
+
+// Push to one diner's devices (customer_id-scoped subscriptions), optionally
+// limited to a single restaurant. Callers should fire-and-forget.
+export async function sendPushToCustomer(customer_id, payload = {}, opts = {}) {
+  configureOnce();
+  if (!CONFIGURED) return { sent: 0, error: 'VAPID not configured' };
+  if (!customer_id) return { sent: 0 };
+  let q = supabase.from('push_subscriptions')
+    .select('id, endpoint, keys, role').eq('customer_id', customer_id).eq('active', true);
+  if (opts.restaurant_id) q = q.eq('restaurant_id', opts.restaurant_id);
   const { data: subs } = await q;
   if (!subs || !subs.length) return { sent: 0 };
+  return deliver(subs, payload, opts.restaurant_id || null);
+}
 
+async function deliver(subs, payload, restaurant_id) {
   const body = JSON.stringify({
     title: payload.title || 'ARMenu',
     body: payload.body || '',

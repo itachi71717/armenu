@@ -1,6 +1,8 @@
 // POST /api/push/subscribe   { subscription, role?, user_label? }
 //   Auth: Bearer <staff token> OR ?portal_token= OR admin secret.
 //   Saves a PushSubscription tied to the caller's restaurant.
+//   Guest variant: no auth, body { subscription, customer_token, r } -> stored
+//   with role 'guest' and linked to customer_id (for "order ready" pushes).
 // DELETE /api/push/subscribe  { endpoint }   removes a subscription.
 
 import { supabase, supabaseAdmin } from '../../_db.js';
@@ -35,11 +37,62 @@ async function callerContext(req) {
   return null;
 }
 
+const TOKEN_RE = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i;
+
+// customer_token -> customer_id, following any merge chain (mirrors order.js).
+async function resolveCustomerId(token) {
+  if (typeof token !== 'string' || !TOKEN_RE.test(token)) return null;
+  try {
+    let { data: crow } = await supabase.from('customers').select('id, merged_into').eq('token', token).maybeSingle();
+    let hops = 0;
+    while (crow?.merged_into && hops < 5) {
+      const { data: next } = await supabase.from('customers').select('id, merged_into').eq('id', crow.merged_into).maybeSingle();
+      if (!next) break;
+      crow = next;
+      hops++;
+    }
+    return crow ? crow.id : null;
+  } catch { return null; }
+}
+
+// Guest (diner) variant: no staff auth, identified by customer_token.
+async function handleGuestSubscribe(req, res, body) {
+  if (req.method !== 'POST') return res.status(401).json({ error: 'Unauthorized' });
+  const { subscription, r } = body;
+  if (!subscription || !subscription.endpoint || !subscription.keys) {
+    return res.status(400).json({ error: 'subscription required' });
+  }
+  const customer_id = await resolveCustomerId(body.customer_token);
+  if (!customer_id) return res.status(401).json({ error: 'Unauthorized' });
+  if (!r || typeof r !== 'string') return res.status(400).json({ error: 'r required' });
+  const { data: rest } = await supabase.from('restaurants').select('id').eq('slug', r).maybeSingle();
+  if (!rest) return res.status(404).json({ error: 'restaurant not found' });
+  // Never rebind an endpoint that already belongs to staff/manager.
+  const { data: existing } = await supabase.from('push_subscriptions')
+    .select('restaurant_id, role').eq('endpoint', subscription.endpoint).maybeSingle();
+  if (existing && existing.role !== 'guest') {
+    return res.status(409).json({ error: 'endpoint_already_subscribed_elsewhere' });
+  }
+  await supabaseAdmin.from('push_subscriptions').upsert({
+    restaurant_id: rest.id,
+    endpoint: subscription.endpoint,
+    keys: subscription.keys,
+    role: 'guest',
+    customer_id,
+    user_label: null,
+    active: true
+  }, { onConflict: 'endpoint' });
+  return res.status(200).json({ ok: true });
+}
+
 export default async function handler(req, res) {
   const caller = await callerContext(req);
-  if (!caller) return res.status(401).json({ error: 'Unauthorized' });
-
-  const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
+  let body = {};
+  try { body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {}); } catch {}
+  if (!caller) {
+    if (body && body.customer_token) return handleGuestSubscribe(req, res, body);
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
 
   if (req.method === 'DELETE') {
     const endpoint = body.endpoint;

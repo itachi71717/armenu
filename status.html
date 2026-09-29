@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0a0806" />
+<title>System status. ARMenu</title>
+<meta name="description" content="Live status of ARMenu: API, database, media storage, live order updates and push notifications." />
+<meta property="og:title" content="System status. ARMenu" />
+<meta property="og:description" content="Live status of ARMenu services." />
+<meta property="og:image" content="https://armenu.co.za/favicon.svg" />
+<meta property="og:url" content="https://armenu.co.za/status" />
+<link rel="canonical" href="https://armenu.co.za/status" />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/vendor/armenu-a11y.css">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{--bg:#0a0806;--ink:#f5efe6;--ink-dim:#9a9388;--accent:#d4a574;--line:rgba(245,236,216,.1);--ok:#5fd08a;--warn:#f0b34a;--bad:#ef6a5e;--serif:'Instrument Serif',serif;--mono:'JetBrains Mono',monospace}
+  html{-webkit-font-smoothing:antialiased}
+  body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;min-height:100vh}
+  a{color:inherit;text-decoration:none}
+  .ar-hdr{display:flex;justify-content:space-between;align-items:center;padding:16px 32px;border-bottom:1px solid var(--line)}
+  .ar-brand{display:flex;align-items:center;gap:10px;font-family:var(--serif);font-style:italic;font-size:22px}
+  .ar-brand img{width:30px;height:30px}
+  main{max-width:820px;margin:0 auto;padding:64px 20px 96px}
+  h1{font-family:var(--serif);font-weight:400;font-size:clamp(36px,6vw,56px);margin-bottom:8px}
+  .sub{color:var(--ink-dim);margin-bottom:32px}
+  .overall{display:flex;align-items:center;gap:16px;padding:22px 24px;border:1px solid var(--line);border-radius:16px;background:rgba(245,236,216,.03);margin-bottom:28px}
+  .dot{width:16px;height:16px;border-radius:50%;background:var(--ink-dim);flex:none;box-shadow:0 0 0 6px rgba(154,147,136,.15)}
+  .dot.ok{background:var(--ok);box-shadow:0 0 0 6px rgba(95,208,138,.15)}
+  .dot.warn{background:var(--warn);box-shadow:0 0 0 6px rgba(240,179,74,.15)}
+  .dot.bad{background:var(--bad);box-shadow:0 0 0 6px rgba(239,106,94,.15)}
+  .overall b{font-size:20px;display:block}
+  .overall span{color:var(--ink-dim);font-size:14px}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:36px}
+  .stat{border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+  .stat small{display:block;color:var(--ink-dim);font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;margin-bottom:6px}
+  .stat strong{font-size:26px;font-weight:700}
+  h2{font-size:13px;font-family:var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim);margin:0 0 12px;font-weight:500}
+  .list{border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:36px}
+  .row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:15px 20px;border-bottom:1px solid var(--line)}
+  .row:last-child{border-bottom:0}
+  .row .l{display:flex;align-items:center;gap:12px}
+  .row .dot{width:10px;height:10px;box-shadow:none}
+  .row .r{color:var(--ink-dim);font-size:14px}
+  .empty{padding:20px;color:var(--ink-dim);font-size:14px}
+  .inc{padding:14px 20px;border-bottom:1px solid var(--line);font-size:14px}
+  .inc:last-child{border-bottom:0}
+  .inc time{display:block;color:var(--ink-dim);font-family:var(--mono);font-size:11px;margin-bottom:2px}
+  .foot{color:var(--ink-dim);font-size:13px;text-align:center}
+  @media(max-width:600px){.ar-hdr{padding:12px 18px}main{padding-top:40px}}
+</style>
+</head>
+<body>
+<header class="ar-hdr">
+  <a class="ar-brand" href="/"><img src="/favicon.svg" alt="ARMenu" /><span>ARMenu</span></a>
+  <div id="mkNav"></div>
+</header>
+
+<main>
+  <h1>System status</h1>
+  <p class="sub">Live health of the services behind your menu.</p>
+
+  <div class="overall" role="status" aria-live="polite">
+    <div class="dot" id="overallDot"></div>
+    <div><b id="overallText">Checking...</b><span id="overallSub">Contacting the API</span></div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><small>Uptime, last 24h</small><strong id="uptime">-</strong></div>
+    <div class="stat"><small>Database latency</small><strong id="dbms">-</strong></div>
+    <div class="stat"><small>Last checked</small><strong id="checked" style="font-size:18px">-</strong></div>
+  </div>
+
+  <h2>Components</h2>
+  <div class="list" id="components"></div>
+
+  <h2>Recent incidents</h2>
+  <div class="list" id="incidents"><div class="empty">No incidents reported.</div></div>
+
+  <p class="foot">Refreshes every 30 seconds. Uptime figures cover recent checks only.</p>
+</main>
+
+<div id="mkFooter"></div>
+
+<script>
+(function () {
+  var COMPONENTS = [
+    ['API', function (d) { return d ? 'ok' : 'bad'; }],
+    ['Database', function (d) { return d && d.db_ok ? (d.db_ms > 1500 ? 'warn' : 'ok') : 'bad'; }],
+    ['R2 storage', function (d) { return !d ? 'bad' : d.r2_ok === null ? 'na' : (d.r2_ok ? 'ok' : 'bad'); }],
+    ['Live updates (SSE)', function (d) { return d && d.sse_ok ? 'ok' : 'bad'; }],
+    ['Push notifications', function (d) { return !d ? 'bad' : (d.push_ok ? 'ok' : 'na'); }]
+  ];
+  var LABEL = { ok: 'Operational', warn: 'Degraded', bad: 'Down', na: 'Not configured' };
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { var e = document.createElement('div'); e.textContent = s; return e.innerHTML; }
+
+  function render(d) {
+    var states = COMPONENTS.map(function (c) { return c[1](d); });
+    var overall = !d || !d.db_ok ? 'bad' : (states.indexOf('bad') > -1 || states.indexOf('warn') > -1 ? 'warn' : 'ok');
+    $('overallDot').className = 'dot ' + overall;
+    $('overallText').textContent = overall === 'ok' ? 'All systems operational' : overall === 'warn' ? 'Partial degradation' : 'Major outage';
+    $('overallSub').textContent = d ? (overall === 'ok' ? 'Every check passed.' : 'One or more components need attention.') : 'The status API could not be reached.';
+    $('uptime').textContent = d && d.uptime_pct_24h != null ? d.uptime_pct_24h + '%' : 'n/a';
+    $('dbms').textContent = d && d.db_ms != null ? d.db_ms + ' ms' : 'n/a';
+    $('checked').textContent = new Date().toLocaleTimeString();
+    $('components').innerHTML = COMPONENTS.map(function (c, i) {
+      return '<div class="row"><div class="l"><span class="dot ' + (states[i] === 'na' ? '' : states[i]) + '"></span>' + esc(c[0]) + '</div><div class="r">' + LABEL[states[i]] + '</div></div>';
+    }).join('');
+    var errs = (d && d.recent_errors) || [];
+    $('incidents').innerHTML = errs.length
+      ? errs.map(function (e) { return '<div class="inc"><time>' + esc(new Date(e.at).toLocaleString()) + '</time>' + esc(e.message) + '</div>'; }).join('')
+      : '<div class="empty">No incidents reported.</div>';
+  }
+
+  function load() {
+    fetch('/api/status', { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(render)
+      .catch(function () { render(null); });
+  }
+  load();
+  setInterval(load, 30000);
+})();
+</script>
+<script src="/vendor/marketing-chrome.js" defer></script>
+</body>
+</html>

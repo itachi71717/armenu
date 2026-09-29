@@ -16,11 +16,15 @@ const ROUTES = {
   'customer/me':        'customer/me',
   'customer/favourite': 'customer/favourite',
   'customer/rate-dish': 'customer/rate-dish',
+  'customer/recommendations': 'customer/recommendations',
 
   'push/subscribe': 'push/subscribe',
   'push/vapid-key': 'push/vapid-key',
   'sentry-dsn':     'sentry-dsn',
   'health':         'health',
+  'status':         'status',
+  'sitemap':        'sitemap',
+  'og':             'og',
   'features':       'features',
 
   'admin/settings':      'admin/settings',
@@ -53,6 +57,8 @@ const ROUTES = {
   'admin/live':               'admin/live',
   'admin/login':              'admin/login',
   'admin/migrate':            'admin/migrate',
+  'admin/shifts':             'admin/shifts',
+  'admin/prep-sheet':         'admin/prep-sheet',
 
   'staff/login':  'staff/login',
   'staff/orders': 'staff/orders',

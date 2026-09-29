@@ -438,3 +438,24 @@ create table if not exists customer_dish_ratings (
   unique(customer_id, dish_id, order_id)
 );
 create index if not exists idx_dish_ratings_dish on customer_dish_ratings(dish_id, created_at desc);
+
+-- Staff shift rota (printable weekly schedule)
+create table if not exists shifts (
+  id            uuid primary key default gen_random_uuid(),
+  restaurant_id uuid references restaurants(id) on delete cascade,
+  staff_id      uuid references staff(id) on delete cascade,
+  role          text,
+  starts_at     timestamptz,
+  ends_at       timestamptz,
+  notes         text,
+  created_at    timestamptz default now(),
+  created_by    text
+);
+create index if not exists idx_shifts_rest_starts on shifts(restaurant_id, starts_at);
+
+-- Guest order-ready push: link a subscription to the diner (role 'guest').
+alter table push_subscriptions add column if not exists customer_id uuid references customers(id) on delete cascade;
+create index if not exists push_subs_customer on push_subscriptions(customer_id) where customer_id is not null;
+
+-- Reservation table preferences (Window / Quiet / Booster seat / Outside).
+alter table reservations add column if not exists preferences jsonb default '[]'::jsonb;
