@@ -46,7 +46,7 @@ export default async function handler(req, res) {
         dishSlug = dishSlug.slice(0, 44) + '-' + n;
       }
     }
-    const { data, error } = await supabaseAdmin.from('dishes').insert({
+    const dishRowIn = {
       restaurant_id: restaurant.id,
       slug: dishSlug,
       name,
@@ -62,7 +62,14 @@ export default async function handler(req, res) {
       category_id: category_id || null,
       station_id: stationId,
       active: true
-    }).select().single();
+    };
+    // inventory_enabled gates the stock countdown in order.js (default false at the DB).
+    // Falls back to the legacy insert if the column has not been migrated yet.
+    const wantsTrack = 'inventory_enabled' in body ? !!body.inventory_enabled : (stock_count != null && stock_count !== '');
+    let { data, error } = await supabaseAdmin.from('dishes').insert({ ...dishRowIn, inventory_enabled: wantsTrack }).select().single();
+    if (error && /inventory_enabled/i.test(String(error.message || ''))) {
+      ({ data, error } = await supabaseAdmin.from('dishes').insert(dishRowIn).select().single());
+    }
     if (error) return res.status(400).json({ error: error.message });
     auditLog(req, restaurant.id, 'dish.create', { target: data?.slug || name, metadata: { price_cents: parseCents(price), ar_source } }).catch(() => {});
     return res.status(201).json(data);
@@ -105,7 +112,14 @@ export default async function handler(req, res) {
     }
     if ('price' in body) patch.price_cents = parseCents(body.price);
     if ('scale' in body) patch.scale = Math.max(0.1, Math.min(5, parseFloat(body.scale) || 1));
-    await supabaseAdmin.from('dishes').update(patch).eq('id', id);
+    // Stock tracking flag: explicit inventory_enabled wins; otherwise setting a stock_count turns it on.
+    if ('inventory_enabled' in body) patch.inventory_enabled = !!body.inventory_enabled;
+    else if ('stock_count' in body) patch.inventory_enabled = body.stock_count != null && body.stock_count !== '';
+    let upd = await supabaseAdmin.from('dishes').update(patch).eq('id', id);
+    if (upd && upd.error && 'inventory_enabled' in patch && /inventory_enabled/i.test(String(upd.error.message || ''))) {
+      delete patch.inventory_enabled;   // column not migrated yet
+      await supabaseAdmin.from('dishes').update(patch).eq('id', id);
+    }
     auditLog(req, dishRow.restaurant_id, 'dish.update', { target: dishRow.slug || id, metadata: { fields: Object.keys(patch) } }).catch(() => {});
     return res.status(200).json({ ok: true });
   }

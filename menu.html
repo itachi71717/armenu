@@ -11,6 +11,9 @@
 <meta property="og:url" content="https://armenu.co.za/menu.html" />
 <link rel="canonical" href="https://armenu.co.za/menu.html" />
 <link rel="manifest" href="/manifest.json" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="ARMenu" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <meta name="description" content="Browse this restaurant's menu and see every dish in augmented reality on your table." />
 
@@ -320,6 +323,8 @@
   .rv-day.on .dn{color:#e8c58a}
   .rv-slots{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:6px}
   .rv-slot{min-height:44px;border-radius:10px;background:rgba(255,239,220,.04);border:1px solid var(--line);color:var(--ink-dim);font-size:13px;font-weight:600;cursor:pointer}
+  .rv-slots:has(.rv-slot-cap){grid-template-columns:repeat(2,1fr)}
+  .rv-slot-cap{font-size:12px;padding:6px 8px;line-height:1.25}
   .rv-slot.on{background:rgba(232,197,138,.18);border-color:rgba(232,197,138,.5);color:#e8c58a}
   .rv-slot:disabled{opacity:.3;cursor:not-allowed}
   .rv-prefs{display:flex;flex-wrap:wrap;gap:6px}
@@ -348,12 +353,13 @@
 <script src="/vendor/cookie-consent.js" defer></script>
 </head>
 <body>
+<a class="skip-link" href="#content">Skip to menu</a>
 
 <header>
   <div class="brand"><span class="mark"></span><b>AR</b><i>Menu</i></div>
   <div class="header-right">
-    <button class="lang-btn" id="langBtn" style="display:none">EN</button>
-    <button class="lang-btn" id="currencyBtn" title="Convert prices" style="display:none">ZAR</button>
+    <button class="lang-btn" id="langBtn" style="display:none" aria-label="Change language">EN</button>
+    <button class="lang-btn" id="currencyBtn" title="Convert prices" aria-label="Convert prices" style="display:none">ZAR</button>
     <button class="vegan-btn" id="veganBtn" type="button" title="Vegan mode" aria-label="Vegan mode" aria-pressed="false">🌱</button>
     <button class="lang-btn" id="profileBtn" title="Your profile" aria-label="Your profile">👤</button>
     <div class="venue-pill" id="offlineChip" role="status" style="display:none;background:rgba(255,176,102,.15);border-color:rgba(255,176,102,.5)">📶 offline mode — showing last-known menu</div>
@@ -380,7 +386,7 @@
   <button type="button" class="lob-view" id="lastOrderBannerView">View</button>
 </div>
 
-<div id="content">
+<div id="content" tabindex="-1" style="outline:none">
   <div class="state"><div class="spinner"></div><p>Loading the menu…</p></div>
 </div>
 
@@ -412,7 +418,7 @@
 </div>
 
 <div class="sheet-overlay" id="overlay"></div>
-<div class="sheet" id="sheet"><div class="grip"></div><div id="sheetBody"></div></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Dish details" tabindex="-1"><div class="grip"></div><div id="sheetBody"></div></div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1453,11 +1459,19 @@ function render() {
       const i = langList.indexOf(state.lang);
       state.lang = langList[(i + 1) % langList.length];
       btn.textContent = state.lang.toUpperCase();
-      try { localStorage.setItem('armenu_lang_' + r, state.lang); } catch {}
+      try { localStorage.setItem('armenu_lang_' + r, state.lang); localStorage.setItem('armenu_lang_manual', '1'); } catch {}
       render();
     };
     // Load saved language preference
-    try { const saved = localStorage.getItem('armenu_lang_' + r); if (saved && langList.includes(saved)) state.lang = saved; } catch {}
+    let _langSaved = null, _langManual = null;
+    try { _langSaved = localStorage.getItem('armenu_lang_' + r); _langManual = localStorage.getItem('armenu_lang_manual'); } catch {}
+    if (_langSaved && langList.includes(_langSaved)) state.lang = _langSaved;
+    else if (!_langManual && !state._langAutoDone) {
+      // Auto-detect from browser language (primary tag) when dishes carry that translation
+      state._langAutoDone = true;
+      const primary = String((navigator.languages && navigator.languages[0]) || navigator.language || '').toLowerCase().split(/[-_]/)[0];
+      if (primary && primary !== 'en' && (dishes || []).some(d => d.translations && d.translations[primary] && (d.translations[primary].name || d.translations[primary].description))) state.lang = primary;
+    }
     btn.textContent = state.lang.toUpperCase();
   }
   // Currency toggle — only shown if the restaurant charges in ZAR (so tourists get a peek)
@@ -2014,6 +2028,12 @@ function openReserve() {
   const dayKey = d => d.getFullYear() + '-' + rvPad(d.getMonth() + 1) + '-' + rvPad(d.getDate());
   let selDay = null, selTime = null;
   const prefs = new Set();
+  // Capacity preview (feature-flagged, OFF unless restaurant_settings.capacity_preview_enabled).
+  let capOn = false;
+  const capCache = {};
+  const CAP_LBL = { plenty: ['🟢', 'plenty of space'], filling: ['🟡', 'filling up'], nearly_full: ['🟠', 'nearly full'], full: ['🔴', 'full'] };
+  const capSlug = () => (state.settings && state.settings.restaurant && state.settings.restaurant.slug) || r;
+  const capFmt = label => { const [h, m] = label.split(':').map(Number); return ((h % 12) || 12) + ':' + rvPad(m) + (h < 12 ? 'am' : 'pm'); };
   const stripHtml = days.map((d, i) => `<button type="button" class="rv-day" data-rvday="${i}" aria-pressed="false">
       <span class="dw">${i === 0 ? 'Today' : d.toLocaleDateString('en-ZA', { weekday: 'short' })}</span>
       <span class="dn">${d.getDate()}</span>
@@ -2039,6 +2059,16 @@ function openReserve() {
     const wrap = $('rvSlotWrap'), box = $('rvSlots');
     if (selDay === null) { wrap.style.display = 'none'; return; }
     wrap.style.display = '';
+    const capKey = dayKey(days[selDay]);
+    if (capOn && !capCache[capKey]) {
+      capCache[capKey] = 'loading';
+      fetch('/api/reservation-capacity?slug=' + encodeURIComponent(capSlug()) + '&date=' + capKey)
+        .then(x => x.ok ? x.json() : [])
+        .then(a => { capCache[capKey] = Array.isArray(a) ? Object.fromEntries(a.map(o => [o.time, o])) : {}; })
+        .catch(() => { capCache[capKey] = {}; })
+        .then(() => { if (selDay !== null && dayKey(days[selDay]) === capKey) renderSlots(); });
+    }
+    const capData = capOn && capCache[capKey] && capCache[capKey] !== 'loading' ? capCache[capKey] : null;
     const base = days[selDay];
     const cutoff = Date.now() + 30 * 60 * 1000;
     let html = '';
@@ -2049,12 +2079,22 @@ function openReserve() {
       const past = t.getTime() < cutoff;
       const on = label === selTime && !past;
       if (on) stillValid = true;
-      html += `<button type="button" class="rv-slot${on ? ' on' : ''}" data-rvtime="${label}" aria-pressed="${on}"${past ? ' disabled' : ''}>${label}</button>`;
+      const c = capData && capData[label];
+      if (c && CAP_LBL[c.available]) {
+        const full = c.available === 'full';
+        html += `<button type="button" class="rv-slot rv-slot-cap${on ? ' on' : ''}" data-rvtime="${label}" aria-pressed="${on}"${past || full ? ' disabled' : ''}>${CAP_LBL[c.available][0]} ${capFmt(label)} — ${CAP_LBL[c.available][1]}</button>`;
+      } else {
+        html += `<button type="button" class="rv-slot${on ? ' on' : ''}" data-rvtime="${label}" aria-pressed="${on}"${past ? ' disabled' : ''}>${label}</button>`;
+      }
     }
     box.innerHTML = html;
     if (!stillValid) selTime = null;
     syncWhen();
   }
+  fetch('/api/reservation-capacity?slug=' + encodeURIComponent(capSlug()) + '&flag=1')
+    .then(x => x.ok ? x.json() : null)
+    .then(j => { if (j && j.enabled === true) { capOn = true; if (selDay !== null) renderSlots(); } })
+    .catch(() => {});
   $('rvStrip').addEventListener('click', (e) => {
     const b = e.target.closest('[data-rvday]'); if (!b) return;
     selDay = parseInt(b.dataset.rvday, 10);
@@ -2383,7 +2423,7 @@ function openCart() {
         <br><span style="font-size:12px;color:var(--ink-dim)">${fmtPrice(it.price_cents, sym) || ''}</span>
       </div>
       <div class="qty">
-        <button data-dec="${i}">−</button><span>${it.qty}</span><button data-inc="${i}">+</button>
+        <button data-dec="${i}" aria-label="Decrease quantity">−</button><span>${it.qty}</span><button data-inc="${i}" aria-label="Increase quantity">+</button>
       </div>
     </div>`).join('');
   const tipBtns = [0, 10, 15, 20].map(p => `
@@ -2567,6 +2607,49 @@ function showOrderConfirmation(order) {
     else { notifyBtn.disabled = false; toast("Couldn't turn on notifications on this device", 'err'); }
   };
   $('confSaveImg').onclick = () => saveOrderReceiptImage(order);
+  celebrateOrder();
+}
+
+// Confetti burst + chime after the order confirmation renders.
+function celebrateOrder() {
+  try {
+    if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    try {
+      if (window.ArMenuSound && typeof ArMenuSound.play === 'function') ArMenuSound.play('chime');
+      else {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (AC) {
+          const ac = new AC(); const t0 = ac.currentTime;
+          [659.25, 783.99, 1046.5].forEach((f, i) => {
+            const o = ac.createOscillator(), g = ac.createGain();
+            o.type = 'sine'; o.frequency.value = f;
+            g.gain.setValueAtTime(0.0001, t0 + i * 0.09);
+            g.gain.exponentialRampToValueAtTime(0.15, t0 + i * 0.09 + 0.02);
+            g.gain.exponentialRampToValueAtTime(0.0001, t0 + i * 0.09 + 0.3);
+            o.connect(g); g.connect(ac.destination);
+            o.start(t0 + i * 0.09); o.stop(t0 + i * 0.09 + 0.32);
+          });
+          setTimeout(() => { try { ac.close(); } catch {} }, 1200);
+        }
+      }
+    } catch {}
+    const colors = ['#e8c58a', '#ffb066', '#f5efdc', '#7bd88f', '#6ec1ff', '#ff7a90'];
+    const wrap = document.createElement('div');
+    wrap.setAttribute('aria-hidden', 'true');
+    wrap.style.cssText = 'position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:9998';
+    for (let i = 0; i < 30; i++) {
+      const c = document.createElement('div');
+      const size = 6 + Math.random() * 6;
+      c.style.cssText = `position:absolute;top:-12px;left:${Math.random() * 100}%;width:${size}px;height:${size * 1.5}px;background:${colors[i % colors.length]};border-radius:2px;opacity:1;transition:transform ${1.6 + Math.random() * 1.2}s cubic-bezier(.25,.6,.5,1),opacity 2.6s ease-in`;
+      wrap.appendChild(c);
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        c.style.transform = `translate(${(Math.random() - 0.5) * 160}px,${window.innerHeight + 30}px) rotate(${Math.random() * 720}deg)`;
+        c.style.opacity = '0';
+      }));
+    }
+    document.body.appendChild(wrap);
+    setTimeout(() => wrap.remove(), 3000);
+  } catch {}
 }
 
 // Renders a simple receipt to an offscreen canvas and triggers a download.
@@ -2995,7 +3078,7 @@ function openReview() {
     <h3>How was it?</h3>
     <div class="sh-sub">One tap. It really helps.</div>
     <div class="stars" id="stars">
-      ${[1,2,3,4,5].map(n => `<button data-star="${n}">★</button>`).join('')}
+      ${[1,2,3,4,5].map(n => `<button data-star="${n}" aria-label="${n} star${n > 1 ? 's' : ''}">★</button>`).join('')}
     </div>
     <div class="field"><label>Comment (optional)</label><textarea id="revComment" rows="3" placeholder="Tell us more…"></textarea></div>
     <button class="submit" id="revSend" disabled>Send review →</button>
@@ -3056,9 +3139,70 @@ function wireActions() {
 
 $('cmpChip').onclick = openCompare;
 boot();
+
+// PWA install chip: only after the first scroll, never inside an installed PWA,
+// and only once (dismiss or install both set armenu_pwa_prompted).
+(function pwaInstallChip() {
+  let deferred = null, scrolled = false, shown = false;
+  const lsGet = () => { try { return localStorage.getItem('armenu_pwa_prompted'); } catch { return null; } };
+  const lsSet = () => { try { localStorage.setItem('armenu_pwa_prompted', String(Date.now())); } catch {} };
+  const standalone = () => (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+  function show() {
+    if (shown || !deferred || !scrolled || lsGet() || standalone()) return;
+    shown = true;
+    const chip = document.createElement('div');
+    chip.id = 'pwaChip';
+    chip.setAttribute('role', 'region');
+    chip.setAttribute('aria-label', 'Install app');
+    chip.style.cssText = 'position:fixed;left:12px;right:12px;bottom:84px;z-index:60;display:flex;align-items:center;gap:8px;padding:6px 6px 6px 14px;border-radius:999px;background:#13100c;border:1px solid var(--line);box-shadow:0 12px 32px rgba(0,0,0,.6);color:var(--ink);font-size:13px;max-width:420px;margin:0 auto';
+    chip.innerHTML = '<button type="button" id="pwaChipGo" style="flex:1;text-align:left;background:none;border:none;color:inherit;font:inherit;cursor:pointer;min-height:40px">📱 Add to home screen for offline menu access</button><button type="button" id="pwaChipX" aria-label="Dismiss" style="background:none;border:none;color:var(--ink-faint);font-size:14px;cursor:pointer;min-width:44px;min-height:44px">✕</button>';
+    document.body.appendChild(chip);
+    const hide = () => { lsSet(); chip.remove(); };
+    chip.querySelector('#pwaChipX').onclick = hide;
+    chip.querySelector('#pwaChipGo').onclick = async () => {
+      const ev = deferred; deferred = null; hide();
+      try { await ev.prompt(); await ev.userChoice; } catch {}
+    };
+  }
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); if (standalone() || lsGet()) return; deferred = e; show(); });
+  window.addEventListener('appinstalled', () => { lsSet(); deferred = null; const c = document.getElementById('pwaChip'); if (c) c.remove(); });
+  window.addEventListener('scroll', () => { scrolled = true; show(); }, { passive: true, once: true });
+})();
 </script>
 <link rel="stylesheet" href="/vendor/armenu-fx.css">
 <script defer src="/vendor/armenu-fx.js"></script>
 <script defer src="/vendor/armenu-cmdk.js"></script>
+
+<script>
+/* a11y: dialog focus management — focus in on open, trap Tab, restore focus on close */
+(function () {
+  var el = document.getElementById('sheet'); if (!el) return;
+  var trigger = null, wasOpen = false;
+  function isOpen() { return el.classList.contains('on'); }
+  function items() { return Array.prototype.filter.call(el.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'), function (n) { return n.offsetParent !== null || n === document.activeElement; }); }
+  new MutationObserver(function () {
+    var open = isOpen();
+    if (open && !wasOpen) {
+      trigger = document.activeElement;
+      setTimeout(function () {
+        if (el.contains(document.activeElement) && document.activeElement !== el) return;
+        var f = items(); (f[0] || el).focus();
+      }, 30);
+    } else if (!open && wasOpen) {
+      if (trigger && trigger.focus && document.contains(trigger)) { try { trigger.focus(); } catch (e) {} }
+      trigger = null;
+    }
+    wasOpen = open;
+  }).observe(el, { attributes: true, attributeFilter: ['class'] });
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Tab' || !isOpen()) return;
+    var f = items(); if (!f.length) { e.preventDefault(); return; }
+    var first = f[0], last = f[f.length - 1], a = document.activeElement;
+    if (!el.contains(a)) { e.preventDefault(); first.focus(); }
+    else if (e.shiftKey && a === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && a === last) { e.preventDefault(); first.focus(); }
+  }, true);
+})();
+</script>
 </body>
 </html>

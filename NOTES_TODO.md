@@ -1,7 +1,50 @@
 # ARMenu — Live TODO tracker
 
-Maintained by Claude across sessions. What's done, what's next, what's blocked.
-Update after every completed item.
+Maintained by Claude across sessions. Update after every completed item.
+Sections 1-4 are the current state; everything older is preserved under "Older history" at the bottom.
+
+## 🟢 Active
+- Nothing in flight. The followup batch (below) closed the last open items from the feature mega batch.
+- Next unblocked candidates (pick from here, no Ian input needed):
+  - Adopt `.sk-line/.sk-card/.btn-spinner` and `.empty-state` in remaining surfaces.
+  - Audit-log server-side pagination (cursor API).
+  - Drop the legacy `x-admin-secret` header path once nothing sends it.
+  - Guard the `manager_users` owner backfill so it does not re-scan on every deploy.
+- Requires a one-off DB migration after each schema-touching deploy: admin panel → ⚙ Run migration (or `POST /api/admin/migrate` with `x-admin-secret`).
+
+## ✅ Shipped this cycle (2026-09-28/29)
+_Hashes only where recorded; Big/Growth/Zero-bug/Feature-mega summaries are inferred from repo tests, workflows and crons, so correct them if wrong._
+- **Customer profiles v1** (78eb527) — `customers` + `customer_favourites`, cross-restaurant browser token, favourites/allergies/dietary prefs, phone-match merge, delete-my-data. Contract: docs/customer-profiles.md.
+- **Kitchen multi-screen** (80923ee) — `kitchen_stations`, station-scoped staff tokens + EXPO, auto-rush, bump-bar shortcuts, recall with reason, portal stations modal.
+- **UX batch 3** (27623db) — guest reorder/trending/wait estimate/dish ratings, waiter Floor tab + Bring-bill, manager live dashboard, kitchen course grouping + modifier chips, service-worker caching.
+- **Ops batch** (2473499) — kitchen offline banner/notification fallbacks, menu perf (preconnect, lazy .glb), last-order banner + save-to-phone, portal onboarding wizard, POPI wording + delete-my-data.
+- **Big batch** (hash n/a) — batch 2 follow-through: skeleton loaders, server-side plated ticks, manager roles, split-bill v2, lint in CI (see Batch 2 in history: 2faa68b + 5829f86) and UI overhaul (f5ce8de) with ArmenuFX + Ctrl+K palette.
+- **Growth batch** (hash n/a) — loyalty and referral on orders, waitlist and opening hours, shifts (covered by order-loyalty-referral, waitlist-and-hours, shifts tests).
+- **Zero-bug batch** (hash n/a) — cross-tenant scope guards, XSS escape sweep in admin renders, DB error-shape fixes, waiter-call and plated scope tests.
+- **Feature mega batch** (hash n/a) — combos, station routing polish, order idempotency, customer token validation, rate limiter, migrate split, Lighthouse CI + Playwright e2e workflows, nightly R2 backup cron and daily-summary cron.
+- **Followup batch** (this one, uncommitted) — NOTES_TODO restructure, README architecture refresh, POST_LAUNCH_CHECKLIST.md.
+
+## 🟡 Blocked on Ian
+- **Sentry DSN** → `SENTRY_DSN` (wired, silent no-op until set)
+- **Meshy** → `MESHY_API_KEY` (unlocks AI 3D generation; pick a plan)
+- **Anthropic** → `ANTHROPIC_API_KEY` (AI menu reader + translate)
+- **PayFast / Paddle** → merchant sign-up + `PAYFAST_*` or `PADDLE_*` (credit purchases currently fall back to WhatsApp)
+- **Upstash** → `UPSTASH_REDIS_URL` (replace per-instance in-memory rate limiter)
+- **Wildcard DNS** `*.armenu.co.za` (needs registrar; unlocks per-restaurant custom domains — middleware already supports it)
+
+## 🔁 Deferred / Revisit later
+- **Reservations capacity preview UI** — foundation shipped but off. Show "3 tables available" / near-capacity per slot; wait to see whether reservations get any use first.
+- **Pricing page rework** — /plans has placeholder R499/R1499/Custom tiers Ian is not going with. Revisit once the pricing model is settled.
+- **Group ordering** — several diners adding to one shared table cart.
+- **Multi-location for chains** — proper chain HQ view (today: one manager can own several restaurants; HQ default token picks alphabetically first).
+- **Digital tip splitter** — split pooled tips across staff.
+- Also parked: credit-pack pricing review, Sentry vs alternative, Paddle vs Peach vs Stripe, real business email.
+
+---
+
+## Older history
+_Everything below is the previous file content, kept verbatim (its original title and top sections are demoted here)._
+
 
 ## ✅ Just shipped
 Latest batches (details in the dated sections below where recorded):

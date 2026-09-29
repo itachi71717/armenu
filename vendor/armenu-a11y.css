@@ -39,6 +39,10 @@
   top: 8px;
 }
 
+/* Generic skip link (menu.html) */
+.skip-link {position:absolute;left:-9999px;top:0;}
+.skip-link:focus {left:12px;top:12px;z-index:9999;padding:8px 14px;background:var(--accent,#e8c58a);color:#0a0806;border-radius:8px;font-weight:700;}
+
 /* ============================================================
    Empty-state (used everywhere lists render zero rows)
    Usage: <div class="empty-state" data-icon="🍽">

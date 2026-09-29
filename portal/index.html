@@ -79,9 +79,10 @@
   @media(max-width:520px){.help-pill{bottom:12px;left:12px;font-size:11px;padding:7px 10px}}
   .actions-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:40px}
   @media(max-width:760px){.actions-grid{grid-template-columns:1fr}}
-  .action{padding:24px;border-radius:16px;background:linear-gradient(180deg,rgba(255,239,220,.03),rgba(255,239,220,.005));border:1px solid var(--line);cursor:pointer;transition:border-color .2s,transform .2s;display:flex;align-items:center;gap:18px}
+  .action{position:relative;padding:24px;border-radius:16px;background:linear-gradient(180deg,rgba(255,239,220,.03),rgba(255,239,220,.005));border:1px solid var(--line);cursor:pointer;transition:border-color .2s,transform .2s;display:flex;align-items:center;gap:18px}
   .action:hover{border-color:rgba(255,87,34,.3);transform:translateY(-2px)}
   .action .ico{width:48px;height:48px;border-radius:14px;flex-shrink:0;background:linear-gradient(135deg,rgba(255,87,34,.2),rgba(255,87,34,.05));border:1px solid rgba(255,87,34,.3);display:grid;place-items:center;font-size:22px}
+  .action .nav-badge{position:absolute;top:8px;right:8px;min-width:20px;height:20px;padding:0 6px;box-sizing:border-box;border-radius:999px;background:var(--accent);color:#fff;font-size:11px;font-weight:700;line-height:20px;text-align:center;pointer-events:none;font-family:var(--mono)}
   .action h3{font-size:16px;font-weight:600;letter-spacing:-.01em;margin-bottom:3px}
   .action p{color:var(--ink-dim);font-size:13px;line-height:1.4}
 
@@ -941,7 +942,7 @@
               </div>
               <div class="info">
                 <div class="name">${escapeHTML(d.name)}</div>
-                <div class="lbl">${escapeHTML(d.price || 'Live on menu')}</div>
+                <div class="lbl">${escapeHTML(d.price || 'Live on menu')}${typeof d.stock_count === 'number' && d.stock_count > 0 ? ' <span class="stock-inline" style="font-size:10.5px;padding:1px 6px;border-radius:99px;background:rgba(232,197,138,.12);color:#e8c58a;margin-left:4px">' + d.stock_count + ' left</span>' : ''}</div>
                 ${d.stock_count === 0
                   ? '<div class="stock-badge sold">Sold out — <a href="#" data-action="refill" data-slug="' + escapeHTML(d.slug) + '">refill</a></div>'
                   : (typeof d.stock_count === 'number'
@@ -1210,6 +1211,32 @@
     document.body.appendChild(b);
   })();
 
+  // ===== NAV BADGES — poll /api/portal/badges every 30s while the tab is visible =====
+  const BADGE_MAP = { new_orders: 'kitchenAction', unresponded_calls: 'staffAction', waitlist_pending: 'walkinsAction', new_reviews_24h: 'analyticsAction', active_reservations: 'reservationsAction' };
+  const BADGE_LABEL = { new_orders: 'new orders', unresponded_calls: 'unanswered waiter calls', waitlist_pending: 'guests waiting', new_reviews_24h: 'new reviews (24h)', active_reservations: 'upcoming reservations' };
+  async function loadBadges() {
+    if (document.hidden || !CURRENT?.restaurant?.slug) return;
+    try {
+      const { ok, data } = await mgrFetch(`/api/portal/badges?slug=${encodeURIComponent(CURRENT.restaurant.slug)}`);
+      if (!ok) return;
+      for (const k in BADGE_MAP) {
+        const card = document.getElementById(BADGE_MAP[k]);
+        if (!card) continue;
+        let b = card.querySelector(':scope > .nav-badge');
+        const n = Number(data[k]) || 0;
+        if (n > 0) {
+          if (!b) { b = document.createElement('span'); b.className = 'nav-badge'; card.appendChild(b); }
+          b.textContent = n > 99 ? '99+' : String(n);
+          b.title = n + ' ' + BADGE_LABEL[k];
+        } else if (b) b.remove();
+      }
+    } catch {}
+  }
+  setInterval(loadBadges, 30000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) loadBadges(); });
+  setTimeout(loadBadges, 1500);
+
+
   // Boot. Listener fires on sign-in / sign-out events; when a user shows up
   // we always re-run loadMe (which will render the app, or fall into
   // link-error / diagnostic if the server can't verify them).
@@ -1438,9 +1465,11 @@ Sub gluten-free bun +1200</code></div>
             </div>
           </details>
         </div>
-        <div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:4px">Stock count (optional)</div>
-          <input id="dishStock" type="number" min="0" style="width:100%;padding:11px 13px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:14px" value="${existing?.stock_count ?? ''}" placeholder="Leave empty = unlimited" />
-          <div style="font-size:11px;color:var(--ink-faint);margin-top:4px">When set, we count down each order and hide the dish at 0.</div></div>
+        <div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:4px">📦 Inventory</div>
+          <label style="display:flex;gap:8px;align-items:center;font-size:13px;cursor:pointer"><input type="checkbox" id="dishTrack" ${existing && existing.stock_count != null ? 'checked' : ''} /> Track stock for this dish <span style="font-size:10.5px;padding:2px 7px;border-radius:99px;background:rgba(232,197,138,.12);color:#e8c58a">Auto-marks sold-out at 0</span></label>
+          <div id="dishStockWrap" style="margin-top:8px;${existing && existing.stock_count != null ? '' : 'display:none'}">
+          <input id="dishStock" type="number" min="0" style="width:100%;padding:11px 13px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:14px" value="${existing?.stock_count ?? ''}" placeholder="How many are in stock?" />
+          <div style="font-size:11px;color:var(--ink-faint);margin-top:4px">We count down each order and hide the dish at 0.</div></div></div>
         ${isEdit ? '' : `
         <div><div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:4px">3D file (.glb) — optional</div>
           <input type="file" id="dishGlb" accept=".glb,model/gltf-binary" style="width:100%;padding:9px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink-dim);font-size:12.5px" />
@@ -1454,6 +1483,7 @@ Sub gluten-free bun +1200</code></div>
     $('wizOverlay').classList.add('on');
     $('wizClose').onclick = () => $('wizOverlay').classList.remove('on');
     $('dishCancelBtn').onclick = () => $('wizOverlay').classList.remove('on');
+    if ($('dishTrack')) $('dishTrack').onchange = () => { $('dishStockWrap').style.display = $('dishTrack').checked ? '' : 'none'; };
     // Auto-translate — sends the current name+description to /api/portal/translate
     $('dishAutoTranslate').onclick = async () => {
       const n = $('dishName').value.trim();
@@ -1519,8 +1549,10 @@ Sub gluten-free bun +1200</code></div>
           const stockRaw = $('dishStock')?.value.trim() || '';
           const patch = { name, price, description, translations, category_id, modifiers };
           if (station_id !== undefined) patch.station_id = station_id;
-          if (stockRaw === '') patch.stock_count = null;
-          else patch.stock_count = Math.max(0, parseInt(stockRaw));
+          const track = $('dishTrack') ? $('dishTrack').checked : stockRaw !== '';
+          patch.inventory_enabled = track;
+          if (!track || stockRaw === '') patch.stock_count = null;
+          else patch.stock_count = Math.max(0, parseInt(stockRaw) || 0);
           const { ok, data } = await mgrFetch(`/api/admin/dishes?slug=${CURRENT.restaurant.slug}&dish_slug=${existing.slug}`, {
             method: 'PATCH', body: JSON.stringify(patch)
           });
@@ -3041,6 +3073,12 @@ Sub gluten-free bun +1200</code></div>
           <div id="loyErr" style="color:#f87171;font-size:12.5px;min-height:16px"></div>
           <button type="button" id="loySave" style="width:100%;margin-top:2px;padding:9px;border-radius:9px;background:rgba(232,197,138,.1);color:#e8c58a;border:1px solid rgba(232,197,138,.3);font-size:12.5px;font-weight:700;cursor:pointer">Save loyalty settings</button>
         </div>
+        <div id="capSection" style="border-top:1px solid var(--line);padding-top:12px">
+          <div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:4px">Reservations</div>
+          <label style="display:flex;gap:8px;align-items:center;font-size:13px;cursor:pointer"><input type="checkbox" id="capOn" disabled /> Show diners live slot availability</label>
+          <div style="font-size:11px;color:var(--ink-faint);margin-top:3px">Booking times show plenty / filling / nearly full / full. Off by default.</div>
+          <div id="capErr" style="color:#f87171;font-size:12.5px;min-height:16px"></div>
+        </div>
         <div id="dsSection" style="border-top:1px solid var(--line);padding-top:12px">
           <div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:4px">Daily summary</div>
           <label style="display:flex;gap:8px;align-items:center;font-size:13px;cursor:pointer"><input type="checkbox" id="dsOn" disabled /> 📧 Send me a daily summary at 10pm</label>
@@ -3061,6 +3099,28 @@ Sub gluten-free bun +1200</code></div>
     $('wizClose').onclick = $('brCancel').onclick = () => $('wizOverlay').classList.remove('on');
 
     initHoursEditor(slug, s.opening_hours);
+    (async () => {
+      const cap = $('capOn');
+      if (!cap) return;
+      try {
+        const { ok, data } = await mgrFetch(`/api/reservation-capacity?slug=${encodeURIComponent(slug)}&flag=1&_=${Date.now()}`);
+        if (ok) cap.checked = data.enabled === true;
+      } catch (e) {}
+      cap.disabled = false;
+      cap.onchange = async () => {
+        $('capErr').textContent = '';
+        const want = cap.checked;
+        cap.disabled = true;
+        try {
+          const { ok, data } = await mgrFetch(`/api/reservation-capacity?slug=${encodeURIComponent(slug)}`, {
+            method: 'POST', body: JSON.stringify({ slug, enabled: want })
+          });
+          if (!ok) throw new Error(data.error || 'Save failed');
+          toast(want ? 'Live availability shown to diners' : 'Live availability hidden', 'ok');
+        } catch (e) { cap.checked = !want; $('capErr').textContent = e.message; }
+        finally { cap.disabled = false; }
+      };
+    })();
     (async () => {
       const cb = $('dsOn');
       try {

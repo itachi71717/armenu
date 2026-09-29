@@ -541,3 +541,13 @@ create table if not exists menu_presence (
   last_seen       timestamptz default now()
 );
 create index if not exists menu_presence_slug_seen on menu_presence (restaurant_slug, last_seen);
+
+-- Inventory countdown: explicit per-dish stock tracking flag. Existing dishes
+-- that already carry a stock_count are backfilled to enabled (one-off: only rows
+-- where the flag is still NULL, so re-running never re-enables a dish).
+alter table dishes add column if not exists inventory_enabled boolean;
+update dishes set inventory_enabled = (stock_count is not null) where inventory_enabled is null;
+alter table dishes alter column inventory_enabled set default false;
+
+-- Reservation capacity preview (guest-facing live slot availability). OFF by default.
+alter table restaurant_settings add column if not exists capacity_preview_enabled boolean default false;

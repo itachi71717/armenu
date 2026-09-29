@@ -123,6 +123,7 @@
 <script src="/vendor/push-optin.js" defer></script>
 </head>
 <body>
+<div id="armenuLive" role="status" aria-live="polite" aria-atomic="true" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap"></div>
 
 <div id="offlineBanner">⚠ Offline — orders may not appear</div>
 
@@ -512,6 +513,7 @@ async function refresh() {
     const currIds = new Set(kitchen.map(o => o.id));
     let newCount = 0;
     for (const id of currIds) if (!previousIds.has(id)) newCount++;
+    if (newCount > 0) { try { const lv = document.getElementById('armenuLive'); const nt = kitchen.filter(o => !previousIds.has(o.id)).map(o => o.table_label).filter(Boolean); if (lv && voiceSeeded) { lv.textContent = ''; setTimeout(() => { lv.textContent = nt.length ? 'New order table ' + nt.join(', ') : 'New order'; }, 50); } } catch (_) {} }
     if (newCount > 0) { beep(rushActive()); fireOrderNotification(newCount); bumpUnreadOrders(newCount); }
     try {
       if (voiceSeeded) announceOrders(kitchen.filter(o => !previousIds.has(o.id)));

@@ -130,6 +130,7 @@
 <script src="/vendor/push-optin.js" defer></script>
 </head>
 <body>
+<div id="armenuLive" role="status" aria-live="polite" aria-atomic="true" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap"></div>
 
 <div id="offlineBanner">⚠ Offline — orders may not appear</div>
 
@@ -170,7 +171,7 @@
   <div class="view" id="view-floor"><div class="sk-line"></div><div class="sk-line"></div></div>
 </main>
 
-<div class="modal-overlay" id="modal"><div class="modal" id="modalBody"></div></div>
+<div class="modal-overlay" id="modal"><div class="modal" id="modalBody" role="dialog" aria-modal="true" aria-label="Dialog"></div></div>
 
 <script>
 const $ = id => document.getElementById(id);
@@ -420,6 +421,7 @@ async function refresh() {
     let newOrders = 0, newCalls = 0;
     for (const id of oIds) if (!(window.__prevOids || new Set()).has(id) && window.__prevOids) { window.ArMenuSound?.play('order'); newOrders++; }
     for (const id of cIds) if (!(window.__prevCids || new Set()).has(id) && window.__prevCids) { window.ArMenuSound?.play('call'); newCalls++; }
+    if (newOrders > 0) { try { const lv = document.getElementById('armenuLive'); if (lv) { const nt = activeOrders.filter(o => !(window.__prevOids || new Set()).has(o.id)).map(o => o.table_label || o.table_number).filter(Boolean); lv.textContent = ''; setTimeout(() => { lv.textContent = nt.length ? 'New order table ' + nt.join(', ') : 'New order'; }, 50); } } catch (_) {} }
     if (newOrders > 0) fireStaffNotification(newOrders > 1 ? `${newOrders} new orders` : 'New order', 'New order in the queue');
     if (newCalls > 0) fireStaffNotification(newCalls > 1 ? `${newCalls} waiter calls` : 'Waiter call', 'A guest needs assistance');
     if (newOrders > 0 || newCalls > 0) bumpUnreadStaff(newOrders + newCalls);
@@ -600,9 +602,9 @@ function renderEvenSplitPane(totalCents) {
   pane.innerHTML = `
     <p style="color:var(--ink-dim);font-size:12.5px;margin:0 0 16px">Enter the number of guests and hand each person their amount.</p>
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
-      <button id="spMinus" style="width:38px;height:38px;border-radius:10px;background:rgba(245,236,216,.06);color:var(--ink);border:1px solid var(--line);font-size:18px">−</button>
+      <button id="spMinus" aria-label="Fewer guests" style="width:38px;height:38px;border-radius:10px;background:rgba(245,236,216,.06);color:var(--ink);border:1px solid var(--line);font-size:18px">−</button>
       <input id="spN" type="number" min="1" max="20" value="2" style="flex:1;padding:12px;border-radius:10px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:20px;text-align:center;font-family:var(--mono)" />
-      <button id="spPlus" style="width:38px;height:38px;border-radius:10px;background:rgba(245,236,216,.06);color:var(--ink);border:1px solid var(--line);font-size:18px">+</button>
+      <button id="spPlus" aria-label="More guests" style="width:38px;height:38px;border-radius:10px;background:rgba(245,236,216,.06);color:var(--ink);border:1px solid var(--line);font-size:18px">+</button>
     </div>
     <div id="spBreakdown" style="padding:14px;border-radius:12px;background:rgba(232,197,138,.08);border:1px solid rgba(232,197,138,.2);min-height:60px"></div>`;
   const inp = document.getElementById('spN');
@@ -902,5 +904,37 @@ document.addEventListener('DOMContentLoaded', registerCmdK);
 </script>
 <script defer src="/vendor/armenu-fx.js"></script>
 <script defer src="/vendor/armenu-cmdk.js"></script>
+
+<script>
+/* a11y: dialog focus management — focus in on open, trap Tab, restore focus on close */
+(function () {
+  var el = document.getElementById('modal'); if (!el) return;
+  var trigger = null, wasOpen = false;
+  function isOpen() { return el.classList.contains('on'); }
+  function items() { return Array.prototype.filter.call(el.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'), function (n) { return n.offsetParent !== null || n === document.activeElement; }); }
+  new MutationObserver(function () {
+    var open = isOpen();
+    if (open && !wasOpen) {
+      trigger = document.activeElement;
+      setTimeout(function () {
+        if (el.contains(document.activeElement) && document.activeElement !== el) return;
+        var f = items(); (f[0] || el).focus();
+      }, 30);
+    } else if (!open && wasOpen) {
+      if (trigger && trigger.focus && document.contains(trigger)) { try { trigger.focus(); } catch (e) {} }
+      trigger = null;
+    }
+    wasOpen = open;
+  }).observe(el, { attributes: true, attributeFilter: ['class'] });
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Tab' || !isOpen()) return;
+    var f = items(); if (!f.length) { e.preventDefault(); return; }
+    var first = f[0], last = f[f.length - 1], a = document.activeElement;
+    if (!el.contains(a)) { e.preventDefault(); first.focus(); }
+    else if (e.shiftKey && a === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && a === last) { e.preventDefault(); first.focus(); }
+  }, true);
+})();
+</script>
 </body>
 </html>

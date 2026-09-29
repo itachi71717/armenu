@@ -12,6 +12,7 @@ const ROUTES = {
   'review':       'review',
   'events':       'events',
   'reservation':  'reservation',
+  'reservation-capacity': 'reservation-capacity',
   'waitlist':     'waitlist',
 
   'customer/hello':     'customer/hello',
@@ -63,6 +64,7 @@ const ROUTES = {
   'admin/categories/reorder': 'admin/categories-reorder',
   'admin/dishes/reorder':     'admin/dishes-reorder',
   'admin/audit':              'admin/audit',
+  'admin/badges':             'admin/badges',
   'admin/push-test':          'admin/push-test',
   'admin/walkins':            'admin/walkins',
   'admin/waitlist':           'admin/waitlist',
@@ -93,6 +95,7 @@ const ROUTES = {
   'portal/team':           'portal/team',
   'portal/transfer':       'portal/transfer',
   'portal/menu-preview':   'portal/menu-preview',
+  'portal/badges':         'portal/badges',
 
   'paddle/webhook': 'paddle/webhook'
 };

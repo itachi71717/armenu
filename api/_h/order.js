@@ -372,15 +372,18 @@ export default async function handler(req, res) {
   for (const it of resolved) {
     if (it.stock_count != null) {
       try {
-        const r = await supabase.raw(
-          `update dishes
+        // Only dishes with inventory tracking on (inventory_enabled true, or NULL on
+        // pre-migration rows). Falls back to the legacy query if the column is missing.
+        const sql = (guard) => `update dishes
              set stock_count = stock_count - $1,
                  stock_updated_at = now()
            where id = $2
-             and stock_count >= $1
-           returning id`,
-          [it.qty, it.dish_id]
-        );
+             and stock_count >= $1${guard}
+           returning id`;
+        let r = await supabase.raw(sql(' and coalesce(inventory_enabled, true) = true'), [it.qty, it.dish_id]);
+        if (r.error && /inventory_enabled/i.test(String(r.error.message || ''))) {
+          r = await supabase.raw(sql(''), [it.qty, it.dish_id]);
+        }
         if (!r.data || r.data.length === 0) {
           console.warn('stock decrement blocked (would go negative):', it.dish_name);
         }

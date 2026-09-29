@@ -84,6 +84,9 @@
   .client-slug{color:var(--ink-faint);font-family:var(--mono);font-size:11px;margin-top:2px}
   .status{font-family:var(--mono);font-size:10px;font-weight:500;padding:4px 9px;border-radius:999px;text-transform:uppercase;letter-spacing:.1em;background:rgba(125,216,125,.1);color:#7dd87d;border:1px solid rgba(125,216,125,.2)}
 
+  .health-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#4ade80;margin-left:10px;flex-shrink:0;align-self:center}
+  .health-dot.warn{background:#fbbf24}
+  .nav-badge{margin-left:auto;background:var(--accent);color:#fff;padding:2px 8px;border-radius:999px;font-family:var(--mono);font-size:10px;font-weight:600;min-width:20px;text-align:center}
   .view{display:none}.view.active{display:block}
 
   .breadcrumb{display:flex;align-items:center;gap:8px;color:var(--ink-faint);font-size:13px;margin-bottom:18px}
@@ -204,14 +207,14 @@
 
 <div class="layout">
   <aside class="sidebar">
-    <div class="brand"><img src="/favicon.svg" alt="ARMenu" style="width:28px;height:28px" /><b>AR</b><i>Menu</i></div>
+    <div class="brand"><img src="/favicon.svg" alt="ARMenu" style="width:28px;height:28px" /><b>AR</b><i>Menu</i><span id="healthDot" class="health-dot" role="img" aria-label="System health OK" title="System health OK"></span></div>
     <div class="nav-section">Workspace</div>
     <button type="button" class="nav-item active" data-view="dashboard"><span class="ico">⌂</span> Dashboard</button>
     <button type="button" class="nav-item" data-view="clients"><span class="ico">◉</span> Clients</button>
     <button type="button" class="nav-item" data-view="pending"><span class="ico">●</span> Pending sign-ups <span id="pendingBadge" style="margin-left:auto;background:rgba(255,87,34,.2);color:var(--accent);padding:2px 8px;border-radius:999px;font-family:var(--mono);font-size:10px;font-weight:600;display:none"></span></button>
     <button type="button" class="nav-item" data-view="add-client"><span class="ico">+</span> Add restaurant</button>
     <button type="button" class="nav-item" data-view="add-dish" id="navAddDish"><span class="ico">↑</span> Add new dish</button>
-    <button type="button" class="nav-item" data-view="audit"><span class="ico">◈</span> Audit log</button>
+    <button type="button" class="nav-item" data-view="audit"><span class="ico">◈</span> Audit log <span id="auditBadge" class="nav-badge" style="display:none"></span></button>
     <button type="button" class="nav-item" data-view="migrate"><span class="ico">⚙</span> Run migration</button>
     <div class="nav-section">Account</div>
     <button type="button" class="nav-item" id="pwaInstall" style="display:none" aria-label="Install as app"><span class="ico">📱</span> Install as app</button>
@@ -350,7 +353,7 @@
           </select>
           <input id="audFilterActor" type="text" placeholder="Actor (e.g. admin, manager:xxx)" style="padding:8px 12px;border-radius:8px;background:rgba(255,239,220,.04);border:1px solid var(--line);color:var(--ink);font-size:13px;flex:1;min-width:140px" />
           <input id="audFilterQ" type="text" placeholder="Search target/metadata…" style="padding:8px 12px;border-radius:8px;background:rgba(255,239,220,.04);border:1px solid var(--line);color:var(--ink);font-size:13px;flex:1;min-width:140px" />
-          <button id="audRefresh" style="padding:8px 14px;border-radius:8px;background:linear-gradient(135deg,#e8c58a,#d4a574);color:#0a0806;font-weight:700;font-size:13px;border:none;cursor:pointer">↻</button>
+          <button id="audRefresh" aria-label="Refresh audit log" style="padding:8px 14px;border-radius:8px;background:linear-gradient(135deg,#e8c58a,#d4a574);color:#0a0806;font-weight:700;font-size:13px;border:none;cursor:pointer">↻</button>
         </div>
       </div>
       <div class="card" style="padding:0;overflow:hidden">
@@ -664,7 +667,7 @@
       <td>${c.dishes}</td>
       <td>${c.scans_30d.toLocaleString()}</td>
       <td><span class="status">live</span></td>
-      <td><button class="row-del" data-del-slug="${escapeHTML(c.slug)}" data-del-name="${escapeHTML(c.name)}" title="Delete restaurant" style="background:rgba(248,113,113,.1);color:#f87171;border:1px solid rgba(248,113,113,.25);padding:4px 8px;border-radius:6px;font-size:11px;cursor:pointer">🗑</button></td>
+      <td><button class="row-del" aria-label="Delete restaurant" data-del-slug="${escapeHTML(c.slug)}" data-del-name="${escapeHTML(c.name)}" title="Delete restaurant" style="background:rgba(248,113,113,.1);color:#f87171;border:1px solid rgba(248,113,113,.25);padding:4px 8px;border-radius:6px;font-size:11px;cursor:pointer">🗑</button></td>
     </tr>`;
   }
   function tableShell(rows) {
@@ -1124,10 +1127,38 @@
   // because ncSubmit is bound via addEventListener. Left as a TODO for a
   // future session to properly hook the post-create success path.)
 
+  // ===== NAV BADGES (poll /api/admin/badges every 30s while visible) =====
+  async function loadBadges() {
+    if (document.hidden || $('login').style.display === 'grid') return;
+    try {
+      const b = await fetch('/api/admin/badges', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : null);
+      if (!b) return;
+      const pb = $('pendingBadge');
+      if (pb) {
+        if (b.pending_signups > 0) { pb.textContent = b.pending_signups; pb.style.display = 'inline-block'; }
+        else pb.style.display = 'none';
+      }
+      const ab = $('auditBadge');
+      if (ab) {
+        if (b.audit_events_1h > 10) { ab.textContent = b.audit_events_1h; ab.title = b.audit_events_1h + ' events in the last hour'; ab.style.display = 'inline-block'; }
+        else ab.style.display = 'none';
+      }
+      const hd = $('healthDot');
+      if (hd) {
+        hd.classList.toggle('warn', !!b.low_health);
+        const t = b.low_health ? 'System health: errors in the last hour' : 'System health OK';
+        hd.title = t; hd.setAttribute('aria-label', t);
+      }
+    } catch {}
+  }
+  setInterval(loadBadges, 30000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) loadBadges(); });
+
   // ===== BOOT =====
   function boot() {
     loadOverview();
     loadPending();
+    loadBadges();
   }
 
   // (Silent auth is now handled by the /api/admin/login GET check above.)

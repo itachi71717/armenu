@@ -163,5 +163,20 @@
 <link rel="stylesheet" href="/vendor/armenu-fx.css">
 <script defer src="/vendor/armenu-fx.js"></script>
 <script defer src="/vendor/armenu-cmdk.js"></script>
+<script>
+(function () {
+  var seen = {}, re = /^\/(m\/|(how|why|faq|plans|contact|legal|discover)$)/;
+  document.addEventListener('mouseover', function (e) {
+    var a = e.target.closest && e.target.closest('a[href]');
+    if (!a || a.origin !== location.origin) return;
+    var p = a.pathname;
+    if (!re.test(p) || seen[p]) return;
+    seen[p] = 1;
+    var l = document.createElement('link');
+    l.rel = 'prefetch'; l.href = p;
+    document.head.appendChild(l);
+  }, true);
+})();
+</script>
 </body>
 </html>

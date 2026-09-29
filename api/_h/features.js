@@ -10,6 +10,12 @@ export default function handler(req, res) {
     sentry:    !!process.env.SENTRY_DSN,
     push:      !!(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY),
     email:     !!process.env.RESEND_API_KEY,
+    // Capabilities shipped with the schema/routes (additive)
+    loyalty:        true, // loyalty_stamps + loyalty_* settings
+    combos:         true, // combos table
+    waitlist:       true, // waitlist_entries table
+    analytics_deep: true, // /api/admin/live route
+    reviews_push:   true, // reviews + push_subscriptions.customer_id linking
     env:       process.env.VERCEL_ENV || 'development'
   });
 }
