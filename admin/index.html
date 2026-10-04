@@ -902,6 +902,7 @@
       $('ncName').value = $('ncSlug').value = $('ncEmail').value = '';
       delete $('ncSlug').dataset.touched; // let the next restaurant auto-slug from its name again
       loadPending(); // the server auto-clears the matching sign-up; refresh the badge/list
+      loadBadges();  // refresh badge counts (pending count drops when email matched)
       toast('Restaurant created — tell the manager to sign up at /portal/ with ' + email, 'ok');
       go('clients');
     } catch (e) {
@@ -1150,10 +1151,8 @@
       }));
     } catch (e) { if (e.message !== 'unauth') toast(e.message, 'err'); }
   }
-  // (Dead-code hook removed. The "auto-dismiss matching pending on create"
-  // behaviour was never wired — the onclick capture always resolved to null
-  // because ncSubmit is bound via addEventListener. Left as a TODO for a
-  // future session to properly hook the post-create success path.)
+  // loadBadges() is called in the ncSubmit success path so the pending-signups
+  // badge updates immediately after creating a restaurant that matched a sign-up.
 
   // ===== NAV BADGES (poll /api/admin/badges every 30s while visible) =====
   async function loadBadges() {
