@@ -31,8 +31,10 @@ export default async function handler(req, res) {
   if (guard) return res.status(guard.status).json({ error: guard.error });
 
   try {
-    const hasServedBy = await hasColumn('orders', 'served_by');
-    const hasTip = await hasColumn('orders', 'tip_cents');
+    const [hasServedBy, hasTip] = await Promise.all([
+      hasColumn('orders', 'served_by'),
+      hasColumn('orders', 'tip_cents')
+    ]);
     const who = hasServedBy ? 'coalesce(o.served_by, o.taken_by)' : 'o.taken_by';
     const tip = hasTip ? 'coalesce(o.tip_cents, 0)' : '0';
 
