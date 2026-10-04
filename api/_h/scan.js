@@ -9,28 +9,17 @@ export default async function handler(req, res) {
 
   try {
     const { r, d } = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    if (!r || typeof r !== 'string') return res.status(200).end();
 
-    const { data: restaurant } = await supabase
-      .from('restaurants')
-      .select('id')
-      .eq('slug', r)
-      .single();
-
-    if (!restaurant) return res.status(200).end();
-
-    const { data: dish } = await supabase
-      .from('dishes')
-      .select('id')
-      .eq('restaurant_id', restaurant.id)
-      .eq('slug', d)
-      .single();
-
-    await supabase.from('scans').insert({
-      restaurant_id: restaurant.id,
-      dish_id: dish?.id ?? null,
-      user_agent: req.headers['user-agent'] ?? ''
-    });
-  } catch (e) {
+    // Single INSERT ... SELECT avoids two round-trips.
+    await supabase.raw(`
+      insert into scans (restaurant_id, dish_id, user_agent)
+      select r.id,
+             (select di.id from dishes di where di.restaurant_id = r.id and di.slug = $2 limit 1),
+             $3
+      from restaurants r where r.slug = $1
+    `, [r, d || null, (req.headers['user-agent'] || '').slice(0, 500)]);
+  } catch {
     // never fail a scan — it's analytics, not critical
   }
 
