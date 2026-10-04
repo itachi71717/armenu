@@ -35,13 +35,15 @@ export default async function handler(req, res) {
     if (!r) return res.status(404).json({ error: 'not found' });
     const g = assertScope(req, r.id);
     if (g) return res.status(g.status).json({ error: g.error });
-    const sq = await supabase.from('menu_slots').select('id, name, starts_time, ends_time, days_of_week, active, created_at').eq('restaurant_id', r.id).order('starts_time');
+    const [sq, dq, st] = await Promise.all([
+      supabase.from('menu_slots').select('id, name, starts_time, ends_time, days_of_week, active, created_at').eq('restaurant_id', r.id).order('starts_time'),
+      supabase.from('dishes').select('id, menu_slot_id').eq('restaurant_id', r.id),
+      supabase.from('restaurant_settings').select('timezone').eq('restaurant_id', r.id).maybeSingle()
+    ]);
     if (sq.error) return res.status(200).json({ slots: [], dish_slots: {}, open_now: [], migrated: false });
     const slots = sq.data || [];
-    const dq = await supabase.from('dishes').select('id, menu_slot_id').eq('restaurant_id', r.id);
     const dish_slots = {};
     for (const d of (dq.data || [])) if (d.menu_slot_id) dish_slots[d.id] = d.menu_slot_id;
-    const st = await supabase.from('restaurant_settings').select('timezone').eq('restaurant_id', r.id).maybeSingle();
     const timezone = st?.data?.timezone || null;
     const { wd, mins } = localDayMinutes(timezone);
     return res.status(200).json({

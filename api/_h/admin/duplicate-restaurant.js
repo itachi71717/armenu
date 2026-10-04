@@ -64,9 +64,11 @@ export default async function handler(req, res) {
   if (RESERVED_SLUGS.has(new_slug)) return res.status(400).json({ error: 'That slug is reserved - pick another' });
   if (new_slug === source_slug) return res.status(400).json({ error: 'New slug must differ from the source slug' });
 
-  const { data: src } = await supabase.from('restaurants').select('*').eq('slug', source_slug).maybeSingle();
+  const [{ data: src }, { data: clash }] = await Promise.all([
+    supabase.from('restaurants').select('*').eq('slug', source_slug).maybeSingle(),
+    supabase.from('restaurants').select('id').eq('slug', new_slug).maybeSingle()
+  ]);
   if (!src) return res.status(404).json({ error: 'source restaurant not found' });
-  const { data: clash } = await supabase.from('restaurants').select('id').eq('slug', new_slug).maybeSingle();
   if (clash) return res.status(409).json({ error: 'That slug is already taken' });
 
   const newId = uuid();
