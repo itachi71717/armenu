@@ -14,15 +14,12 @@ export default async function handler(req, res) {
   const isBill = type === 'bill';
   if (!r) return res.status(400).json({ error: 'Missing r' });
 
-  const { data: rows } = await supabase.raw(`
-    select r.id, rs.waiter_call_enabled
-    from restaurants r
-    left join restaurant_settings rs on rs.restaurant_id = r.id
-    where r.slug = $1 limit 1
-  `, [r]);
-  const restaurant = rows?.[0];
+  const { data: restaurant } = await supabase.from('restaurants').select('id').eq('slug', r).single();
   if (!restaurant) return res.status(404).json({ error: 'Restaurant not found' });
-  if (!restaurant.waiter_call_enabled) return res.status(403).json({ error: 'Waiter-call is not enabled' });
+
+  const { data: s } = await supabase.from('restaurant_settings')
+    .select('waiter_call_enabled').eq('restaurant_id', restaurant.id).maybeSingle();
+  if (!s?.waiter_call_enabled) return res.status(403).json({ error: 'Waiter-call is not enabled' });
 
   let table_id = null, table_label = table || null;
   if (table) {
