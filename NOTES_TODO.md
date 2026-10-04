@@ -4,12 +4,13 @@ Maintained by Claude across sessions. Update after every completed item.
 Sections 1-4 are the current state; everything older is preserved under "Older history" at the bottom.
 
 ## 🟢 Active
-- Nothing in flight. The followup batch (below) closed the last open items from the feature mega batch.
-- Next unblocked candidates (pick from here, no Ian input needed):
-  - Adopt `.sk-line/.sk-card/.btn-spinner` and `.empty-state` in remaining surfaces.
-  - Audit-log server-side pagination (cursor API).
-  - Drop the legacy `x-admin-secret` header path once nothing sends it.
-  - Guard the `manager_users` owner backfill so it does not re-scan on every deploy.
+- Nothing in flight.
+- **All unblocked candidates resolved** (2026-10-04 session):
+  - ✅ `.sk-line/.empty-state` sweep — discover.html empty/error states now `.empty-state`; admin/restaurant.html branding tab disables inputs while loading; portal modal list containers already had skeletons from prior session.
+  - ✅ Audit-log server-side pagination — already fully implemented (cursor `before`/`has_more`/`next_before` in audit.js + admin UI).
+  - ✅ `manager_users` owner backfill guard — already guarded in schema.sql.
+  - ✅ Perf: menu-slots GET 3 sequential queries → `Promise.all`; duplicate-restaurant 2 slug lookups → `Promise.all`.
+  - ⚠️ Drop legacy `x-admin-secret` header — still deferred: NOTES_TODO migration curl commands reference it; only safe to drop once Ian confirms no aliases use it.
 - Requires a one-off DB migration after each schema-touching deploy: admin panel → ⚙ Run migration (or `POST /api/admin/migrate` with `x-admin-secret`).
 
 ## ✅ Shipped this cycle (2026-09-28/29)
