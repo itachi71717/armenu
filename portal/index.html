@@ -578,7 +578,7 @@
         <button class="btn" id="spClose">Close</button>
       </div>
     </div>
-    <div id="spBody" style="color:var(--ink-dim)">Loading…</div>
+    <div id="spBody" style="color:var(--ink-dim)"><div class="sk-line" style="width:80%"></div><div class="sk-line" style="width:65%"></div></div>
   </div>
 </div>
 
@@ -2115,7 +2115,7 @@ Sub gluten-free bun +1200</code></div>
   let _spSeq = 0;
   async function spLoad() {
     const seq = ++_spSeq;
-    $('spBody').textContent = 'Loading…';
+    $('spBody').innerHTML = '<div style="padding:8px 0"><div class="sk-line" style="width:85%"></div><div class="sk-line" style="width:70%"></div></div>';
     try {
       const { ok, data } = await mgrFetch(`/api/admin/staff-performance?slug=${encodeURIComponent(CURRENT.restaurant.slug)}&range=${spRange}`);
       if (seq !== _spSeq) return;
