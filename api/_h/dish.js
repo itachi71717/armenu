@@ -160,13 +160,19 @@ export default async function handler(req, res) {
   if (q.error) return res.status(502).json({ error: 'Backend temporarily unavailable' });
   const dishes = q.data || [];
 
-  // Optional secondary data — degrade silently if missing
-  let cats = [];
-  try {
-    const c = await supabase.from('categories').select('id, slug, name, sort_order')
-      .eq('restaurant_id', restaurant.id).eq('active', true).order('sort_order');
-    if (!c.error) cats = c.data || [];
-  } catch {}
+  // Optional secondary data — fetch in parallel, degrade silently if missing
+  let cats = [], _schedules = [], _offers = [];
+  await Promise.all([
+    supabase.from('categories').select('id, slug, name, sort_order')
+      .eq('restaurant_id', restaurant.id).eq('active', true).order('sort_order')
+      .then(c => { if (!c.error) cats = c.data || []; }).catch(() => {}),
+    supabase.from('menu_schedules')
+      .select('starts_at, ends_at, days_of_week, category_ids, active').eq('restaurant_id', restaurant.id)
+      .then(r => { if (!r.error) _schedules = r.data || []; }).catch(() => {}),
+    supabase.from('offers').select('id, name, discount_pct, starts_at, ends_at, days_of_week, dish_ids, active')
+      .eq('restaurant_id', restaurant.id)
+      .then(r => { if (!r.error) _offers = r.data || []; }).catch(() => {})
+  ]);
   const catById = Object.fromEntries(cats.map(c => [c.id, c]));
 
   // ============================================================
@@ -178,8 +184,7 @@ export default async function handler(req, res) {
   let scheduledCategoryIds = new Set();   // categories that have at least one schedule
   let activeCategoryIds = new Set();      // categories currently unlocked by an active schedule
   try {
-    const { data: schedules = [] } = await supabase.from('menu_schedules')
-      .select('starts_at, ends_at, days_of_week, category_ids, active').eq('restaurant_id', restaurant.id);
+    const schedules = _schedules;
     const sa = new Date(Date.now() + 2 * 60 * 60 * 1000);
     const dow = sa.getUTCDay();
     const mins = sa.getUTCHours() * 60 + sa.getUTCMinutes();
@@ -207,7 +212,7 @@ export default async function handler(req, res) {
   // We fetch every offer, then filter in JS so we can short-circuit cleanly.
   let activeOffers = [];
   try {
-    const { data: offers = [] } = await supabase.from('offers').select('id, name, discount_pct, starts_at, ends_at, days_of_week, dish_ids, active').eq('restaurant_id', restaurant.id);
+    const offers = _offers;
     // SA wall-clock: UTC+2, no DST
     const now = new Date();
     const sa = new Date(now.getTime() + 2 * 60 * 60 * 1000);
