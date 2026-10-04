@@ -108,6 +108,9 @@
   }
   document.getElementById('contactForm').onsubmit = async (e) => {
     e.preventDefault();
+    const btn = e.target.querySelector('[type=submit]');
+    const orig = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Sending…';
     // Use explicit lookups — the browser's implicit id → global binding
     // shadows the id "name" with window.name (a string), so `name.value`
     // was undefined and every submission previously POSTed an empty name.
@@ -116,9 +119,10 @@
     // Fire-and-forget: attempts a serverless endpoint if you add one; else falls back to mailto.
     try {
       const r = await fetch('/api/portal/pending-signup', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: body.email, restaurant_name: body.restaurant, phone: '', message: `[${body.type}] [utm:${body.utm_source}] ${body.name}: ${body.message}` }) });
-      if (r.ok) { document.getElementById('ok').style.display = 'block'; e.target.reset(); return; }
+      if (r.ok) { document.getElementById('ok').style.display = 'block'; e.target.reset(); btn.disabled = false; btn.textContent = orig; return; }
     } catch {}
     // Fallback: open WhatsApp
+    btn.disabled = false; btn.textContent = orig;
     location.href = `https://wa.me/27683282991?text=${encodeURIComponent('[' + body.type + '] ' + body.name + ' from ' + body.restaurant + ': ' + body.message)}`;
   };
 </script>

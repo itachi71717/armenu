@@ -520,7 +520,14 @@
     <h2>Your <b>dishes.</b></h2>
     <div class="section-sub">All dishes currently live on your menu. Tap "QR" to download the printable QR code for that dish.</div>
 
-    <div id="dishesWrap"></div>
+    <div id="dishesWrap">
+      <div class="dishes-grid" id="dishGridSkeleton" aria-hidden="true">
+        <div class="dish-tile sk-card" style="pointer-events:none"><div class="thumb"></div><div class="info"><span class="sk-line" style="width:70%"></span><span class="sk-line" style="width:45%"></span></div></div>
+        <div class="dish-tile sk-card" style="pointer-events:none"><div class="thumb"></div><div class="info"><span class="sk-line" style="width:60%"></span><span class="sk-line" style="width:50%"></span></div></div>
+        <div class="dish-tile sk-card" style="pointer-events:none"><div class="thumb"></div><div class="info"><span class="sk-line" style="width:75%"></span><span class="sk-line" style="width:40%"></span></div></div>
+        <div class="dish-tile sk-card" style="pointer-events:none"><div class="thumb"></div><div class="info"><span class="sk-line" style="width:55%"></span><span class="sk-line" style="width:60%"></span></div></div>
+      </div>
+    </div>
 
     <div class="request-card" style="margin-top:32px">
       <h3>Need a new dish or a change?</h3>
@@ -556,7 +563,7 @@
         <button class="btn" id="anClose">Close</button>
       </div>
     </div>
-    <div id="anBody" style="color:var(--ink-dim)">Loading…</div>
+    <div id="anBody" style="color:var(--ink-dim)"><div class="sk-line" style="width:80%"></div><div class="sk-line" style="width:65%"></div></div>
   </div>
 </div>
 
@@ -2294,7 +2301,7 @@ Sub gluten-free bun +1200</code></div>
     $('wizProgress').innerHTML = '';
     $('wizBody').innerHTML = `
       <p style="color:var(--ink-dim);margin-bottom:12px">Time windows such as Breakfast or Dinner. Set a dish's "Available during" in the dish editor. Dishes with no slot are always shown.</p>
-      <div id="msList" style="max-height:34vh;overflow:auto;margin-bottom:12px"></div>
+      <div id="msList" style="max-height:34vh;overflow:auto;margin-bottom:12px"><div class="sk-line" style="width:80%"></div><div class="sk-line" style="width:60%"></div></div>
       <details id="msAddWrap" style="background:rgba(245,236,216,.03);border:1px solid var(--line);border-radius:9px;padding:8px 12px">
         <summary style="cursor:pointer;font-size:13px;color:var(--ink-dim)">+ Add slot</summary>
         <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
@@ -2414,7 +2421,7 @@ Sub gluten-free bun +1200</code></div>
         <input type="date" id="ppDate" value="" style="flex:1;padding:9px 10px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:13px" />
         <button class="wiz-secondary" id="ppLoad">Show</button>
       </div>
-      <div id="ppBody" style="max-height:44vh;overflow:auto"></div>
+      <div id="ppBody" style="max-height:44vh;overflow:auto"><div style="padding:8px 0"><div class="sk-line" style="width:90%"></div><div class="sk-line" style="width:75%"></div><div class="sk-line" style="width:82%"></div></div></div>
       <div id="ppErr" style="color:#f87171;font-size:12.5px;min-height:16px;margin-top:8px"></div>`;
     $('wizActions').innerHTML = `<button class="wiz-secondary" id="ppClose">Close</button><button class="wiz-primary" id="ppPrint">🖨 Print tomorrow's prep</button>`;
     $('wizOverlay').classList.add('on');
@@ -2508,7 +2515,7 @@ Sub gluten-free bun +1200</code></div>
   async function anLoad() {
     const seq = ++_anSeq;
     const range = anRange;
-    $('anBody').textContent = 'Loading…';
+    $('anBody').innerHTML = '<div style="padding:12px 0"><div class="sk-line" style="width:85%"></div><div class="sk-line" style="width:70%"></div></div>';
     try {
       const { ok, data } = await mgrFetch(`/api/admin/analytics?slug=${encodeURIComponent(CURRENT.restaurant.slug)}&range=${range}`);
       if (seq !== _anSeq) return; // a newer range was picked while this one was in flight

@@ -316,22 +316,32 @@ begin
 end $$;
 
 -- Back-fill: every restaurant gets a manager_users row for its current
--- owner (restaurants.email) with role='owner'. Idempotent — skips a
--- restaurant that already has an owner row, and skips (no-ops) an
--- existing non-owner row for that same email rather than clobbering it.
+-- owner (restaurants.email) with role='owner'. Guarded — only scans all
+-- restaurants when at least one is missing an owner row (fast no-op on
+-- every subsequent migration once fully back-filled).
 do $$
 declare r record;
 begin
-  for r in select id, email from restaurants where email is not null loop
-    if not exists (
-      select 1 from manager_users where restaurant_id = r.id and role = 'owner'
-    ) then
-      insert into manager_users (restaurant_id, email, role, invited_by, accepted_at)
-        values (r.id, lower(r.email), 'owner', lower(r.email), now())
-      on conflict (restaurant_id, email)
-        do update set role = 'owner' where manager_users.role <> 'owner';
-    end if;
-  end loop;
+  if exists (
+    select 1 from restaurants r2
+    where r2.email is not null
+      and not exists (
+        select 1 from manager_users mu
+        where mu.restaurant_id = r2.id and mu.role = 'owner'
+      )
+    limit 1
+  ) then
+    for r in select id, email from restaurants where email is not null loop
+      if not exists (
+        select 1 from manager_users where restaurant_id = r.id and role = 'owner'
+      ) then
+        insert into manager_users (restaurant_id, email, role, invited_by, accepted_at)
+          values (r.id, lower(r.email), 'owner', lower(r.email), now())
+        on conflict (restaurant_id, email)
+          do update set role = 'owner' where manager_users.role <> 'owner';
+      end if;
+    end loop;
+  end if;
 end $$;
 
 -- At most one owner per restaurant.
