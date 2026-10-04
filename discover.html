@@ -123,7 +123,7 @@
     grid.innerHTML = list.map(cardHtml).join('');
     if (!list.length) {
       state.style.display = '';
-      state.innerHTML = '<h3>No restaurants found</h3><p>Try a different search or clear the filters.</p>';
+      state.innerHTML = '<div class="empty-state" data-icon="🔍"><h3>No restaurants found</h3><p>Try a different search or clear the filters.</p></div>';
     } else state.style.display = 'none';
   }
   function uniq(k) {
@@ -159,7 +159,7 @@
   }).catch(function () {
     $('count').textContent = '';
     state.style.display = '';
-    state.innerHTML = '<h3>Could not load restaurants</h3><p>Please refresh in a moment.</p>';
+    state.innerHTML = '<div class="empty-state" data-icon="⚠️"><h3>Could not load restaurants</h3><p>Please refresh in a moment.</p></div>';
   });
 })();
 </script>

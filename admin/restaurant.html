@@ -680,7 +680,9 @@ async function load(tab) {
       $('s_plan').value = s.plan || 'starter';
     }
     if (tab === 'branding') {
+      ['b_logo','b_cover','b_primary','b_bg','b_tagline'].forEach(id => { try { $(id).disabled = true; } catch {} });
       const { settings: s } = await api('/api/admin/settings?slug=' + slug);
+      ['b_logo','b_cover','b_primary','b_bg','b_tagline'].forEach(id => { try { $(id).disabled = false; } catch {} });
       $('b_logo').value = s.logo_url || ''; $('b_cover').value = s.cover_url || '';
       $('b_primary').value = s.theme_primary || '#ff5722'; _updateSwatch($('b_primary').value);
       $('b_bg').value = s.theme_bg || '#0a0806';
