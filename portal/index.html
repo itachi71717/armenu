@@ -1409,27 +1409,20 @@
   async function openDishEditor(existing) {
     // Reuse the wizard overlay chrome for a familiar modal look
     const isEdit = !!existing;
-    // Load categories for the picker (best-effort)
-    let categories = [];
-    try {
-      const cr = await mgrFetch(`/api/admin/categories?slug=${CURRENT.restaurant.slug}`);
-      if (cr.ok) categories = cr.data.categories || [];
-    } catch {}
-    // Kitchen stations for the routing picker (best-effort; none = hide picker)
-    let stations = [];
-    try {
-      const sr = await mgrFetch(`/api/admin/kitchen-stations?slug=${CURRENT.restaurant.slug}`);
-      if (sr.ok) stations = sr.data.stations || [];
-    } catch {}
-    // Menu slots for the "Available during" picker (best-effort; none = hide picker)
-    let menuSlots = [], currentSlotId = '';
-    try {
-      const mr = await mgrFetch(`/api/admin/menu-slots?slug=${encodeURIComponent(CURRENT.restaurant.slug)}`);
-      if (mr.ok) {
-        menuSlots = mr.data.slots || [];
-        if (existing && existing.id) currentSlotId = (mr.data.dish_slots || {})[existing.id] || '';
-      }
-    } catch {}
+    // Load categories, stations, and menu slots in parallel (best-effort).
+    const slug = CURRENT.restaurant.slug;
+    let categories = [], stations = [], menuSlots = [], currentSlotId = '';
+    const [cr, sr, mr] = await Promise.all([
+      mgrFetch(`/api/admin/categories?slug=${slug}`).catch(() => null),
+      mgrFetch(`/api/admin/kitchen-stations?slug=${slug}`).catch(() => null),
+      mgrFetch(`/api/admin/menu-slots?slug=${encodeURIComponent(slug)}`).catch(() => null)
+    ]);
+    if (cr?.ok) categories = cr.data.categories || [];
+    if (sr?.ok) stations = sr.data.stations || [];
+    if (mr?.ok) {
+      menuSlots = mr.data.slots || [];
+      if (existing && existing.id) currentSlotId = (mr.data.dish_slots || {})[existing.id] || '';
+    }
     $('wizKicker').textContent = isEdit ? 'Edit dish' : 'New dish';
     $('wizTitle').textContent  = isEdit ? existing.name : 'Add a new dish';
     $('wizProgress').innerHTML = '';
