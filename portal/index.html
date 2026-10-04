@@ -1638,7 +1638,7 @@ Sub gluten-free bun +1200</code></div>
     $('wizProgress').innerHTML = '';
     $('wizBody').innerHTML = `
       <p style="color:var(--ink-dim);margin-bottom:14px">${subtitle}</p>
-      <div id="listBody" style="max-height:44vh;overflow-y:auto;margin-bottom:16px"></div>
+      <div id="listBody" style="max-height:44vh;overflow-y:auto;margin-bottom:16px"><div class="sk-line" style="width:80%;margin-bottom:8px"></div><div class="sk-line" style="width:65%;margin-bottom:8px"></div><div class="sk-line" style="width:72%"></div></div>
       <div style="border-top:1px solid var(--line);padding-top:14px">
         ${addForm}
       </div>
@@ -1834,7 +1834,7 @@ Sub gluten-free bun +1200</code></div>
     $('wizTitle').textContent = 'Photo reviews';
     $('wizProgress').innerHTML = '';
     $('wizBody').innerHTML = `<p style="color:var(--ink-dim);margin-bottom:14px">Guest photos wait here until you approve them. Approved photos show on the menu; rejected ones are deleted.</p>
-      <div id="prBody" style="max-height:52vh;overflow-y:auto"></div>
+      <div id="prBody" style="max-height:52vh;overflow-y:auto"><div class="sk-line" style="width:80%;margin-bottom:8px"></div><div class="sk-line" style="width:60%"></div></div>
       <div id="prErr" style="color:#f87171;font-size:12.5px;min-height:16px;margin-top:8px"></div>`;
     $('wizActions').innerHTML = `<button class="wiz-secondary" id="prClose">Close</button>`;
     $('wizOverlay').classList.add('on');
@@ -1882,7 +1882,7 @@ Sub gluten-free bun +1200</code></div>
     $('wizProgress').innerHTML = '';
     $('wizBody').innerHTML = `
       <p style="color:var(--ink-dim);margin-bottom:14px">Split the kitchen into screens (Hot, Cold, Dessert…). Assign each dish a station in the dish editor; an Expo screen sees everything.</p>
-      <div id="stBody" style="max-height:44vh;overflow-y:auto;margin-bottom:16px"></div>
+      <div id="stBody" style="max-height:44vh;overflow-y:auto;margin-bottom:16px"><div class="sk-line" style="width:70%;margin-bottom:8px"></div><div class="sk-line" style="width:55%"></div></div>
       <div style="border-top:1px solid var(--line);padding-top:14px">
         <button class="wiz-secondary" id="stAddToggle" style="width:100%">+ Add station</button>
         <div id="stAddRow" style="display:none;margin-top:10px">
@@ -2538,7 +2538,7 @@ Sub gluten-free bun +1200</code></div>
     $('wizProgress').innerHTML = '';
     $('wizBody').innerHTML = `
       <p style="color:var(--ink-dim);margin-bottom:14px">Invite co-managers by their Clerk email. They sign in at armenu.co.za/portal with the same email and get instant access to this restaurant's portal.</p>
-      <div id="teamListBody" style="max-height:44vh;overflow-y:auto;margin-bottom:16px"></div>
+      <div id="teamListBody" style="max-height:44vh;overflow-y:auto;margin-bottom:16px"><div class="sk-line" style="width:75%;margin-bottom:8px"></div><div class="sk-line" style="width:55%"></div></div>
       ${isOwner ? `
         <div style="border-top:1px solid var(--line);padding-top:14px">
           ${inputRow('Teammate email', 'tmEmail', 'colleague@restaurant.co.za', 'email')}
