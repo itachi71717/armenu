@@ -118,8 +118,10 @@
     const body = { name: $c('name').value, email: $c('email').value, restaurant: $c('restaurant').value, message: $c('message').value, type: $c('type').value, utm_source: $c('utm_source').value };
     // Fire-and-forget: attempts a serverless endpoint if you add one; else falls back to mailto.
     try {
-      const r = await fetch('/api/portal/pending-signup', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: body.email, restaurant_name: body.restaurant, phone: '', message: `[${body.type}] [utm:${body.utm_source}] ${body.name}: ${body.message}` }) });
+      const r = await fetch('/api/contact', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+      const d = await r.json().catch(() => ({}));
       if (r.ok) { document.getElementById('ok').style.display = 'block'; e.target.reset(); btn.disabled = false; btn.textContent = orig; return; }
+      if (r.status === 429) { btn.disabled = false; btn.textContent = orig; alert(d.error || 'Too many submissions — try again later.'); return; }
     } catch {}
     // Fallback: open WhatsApp
     btn.disabled = false; btn.textContent = orig;

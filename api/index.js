@@ -36,6 +36,7 @@ const ROUTES = {
   'og':             'og',
   'features':       'features',
   'discover':       'discover',
+  'contact':        'contact',
 
   'admin/settings':      'admin/settings',
   'admin/categories':    'admin/categories',

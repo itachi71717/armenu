@@ -1158,7 +1158,8 @@
     // Clear .loading state after fetch (skeletons → real numbers)
     const clearLoading = () => document.querySelectorAll('#dashTiles .dash-tile.loading').forEach(el => el.classList.remove('loading'));
     try {
-      const { ok, data } = await authFetch('/api/portal/dashboard');
+      const slug = CURRENT.restaurant?.slug;
+      const { ok, data } = await authFetch('/api/portal/dashboard' + (slug ? `?slug=${encodeURIComponent(slug)}` : ''));
       if (!ok) {
         // Show em-dashes rather than perpetual skeleton on failure
         ['dtOrders','dtBookings','dtWaitlist','dtLowStock'].forEach(id => $(id).textContent = '—');
@@ -3250,6 +3251,11 @@ Sub gluten-free bun +1200</code></div>
           <div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:4px">Tagline (shown on menu)</div>
           <input id="brTagline" type="text" value="${(s.tagline || '').replace(/"/g,'&quot;')}" style="width:100%;padding:11px 13px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:14px" placeholder="e.g. Signature dishes, in your palm." />
         </div>
+        <div>
+          <div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:4px">Google Review Link</div>
+          <input id="brGReview" type="url" value="${(s.google_review_url || '').replace(/"/g,'&quot;')}" style="width:100%;padding:11px 13px;border-radius:9px;background:rgba(245,236,216,.04);border:1px solid var(--line);color:var(--ink);font-size:14px" placeholder="https://g.page/r/…/review" />
+          <div style="font-size:11px;color:var(--ink-faint);margin-top:4px">Paste your Google Maps review link. A ⭐ Review us button appears on the guest menu.</div>
+        </div>
         <div id="ohSection" style="border-top:1px solid var(--line);padding-top:12px">
           <div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:4px">Opening hours</div>
           <div style="font-size:11px;color:var(--ink-faint);margin-bottom:8px">Outside these hours the menu greys out and ordering is paused. Leave every day empty to stay open all the time.</div>
@@ -3386,7 +3392,8 @@ Sub gluten-free bun +1200</code></div>
         const coverFile = $('brCover').files?.[0];
         const patch = {
           theme_primary: $('brPrimary').value.trim() || '#d4a574',
-          tagline: $('brTagline').value.trim() || null
+          tagline: $('brTagline').value.trim() || null,
+          google_review_url: $('brGReview').value.trim() || null
         };
         if (logoFile)  patch.logo_url  = await uploadAsset(logoFile, 'logo');
         if (coverFile) patch.cover_url = await uploadAsset(coverFile, 'cover');
