@@ -8,33 +8,43 @@ import { requireAdmin } from '../../_auth.js';
 export default async function handler(req, res) {
   if (!requireAdmin(req)) return res.status(401).json({ error: 'Unauthorized' });
 
-  const [{ data: restaurants = [] }, { data: dishes = [] }, { data: scans = [] }] = await Promise.all([
+  const since30d = new Date(Date.now() - 30 * 864e5).toISOString();
+
+  const [{ data: restaurants = [] }, dishCounts, scanCounts] = await Promise.all([
     supabaseAdmin.from('restaurants').select('id, slug, name, email, created_at').order('name'),
-    supabaseAdmin.from('dishes').select('id, restaurant_id, active'),
-    supabaseAdmin
-      .from('scans')
-      .select('id, restaurant_id, dish_id, scanned_at')
-      .gte('scanned_at', new Date(Date.now() - 30 * 864e5).toISOString())
+    // Aggregate in Postgres instead of fetching every row.
+    supabaseAdmin.raw(
+      `select restaurant_id, count(*) filter (where active) as active_count, count(*) as total_count
+       from dishes group by restaurant_id`
+    ),
+    supabaseAdmin.raw(
+      `select restaurant_id, count(*)::int as scan_count
+       from scans where scanned_at >= $1 group by restaurant_id`,
+      [since30d]
+    )
   ]);
 
-  const dishCount = {}, scanCount = {};
-  dishes.forEach(d => { if (d.active) dishCount[d.restaurant_id] = (dishCount[d.restaurant_id] || 0) + 1; });
-  scans.forEach(s => { scanCount[s.restaurant_id] = (scanCount[s.restaurant_id] || 0) + 1; });
+  const dishMap = {}, scanMap = {};
+  for (const r of dishCounts.data || []) dishMap[r.restaurant_id] = { active: Number(r.active_count) || 0 };
+  for (const r of scanCounts.data || []) scanMap[r.restaurant_id] = Number(r.scan_count) || 0;
 
   const clients = restaurants.map(r => ({
     slug: r.slug,
     name: r.name,
     email: r.email,
     created_at: r.created_at,
-    dishes: dishCount[r.id] || 0,
-    scans_30d: scanCount[r.id] || 0
+    dishes: dishMap[r.id]?.active || 0,
+    scans_30d: scanMap[r.id] || 0
   }));
+
+  const totalsActive = Object.values(dishMap).reduce((s, x) => s + x.active, 0);
+  const totalScans = Object.values(scanMap).reduce((s, x) => s + x, 0);
 
   return res.status(200).json({
     totals: {
       restaurants: restaurants.length,
-      dishes_live: dishes.filter(d => d.active).length,
-      scans_30d: scans.length
+      dishes_live: totalsActive,
+      scans_30d: totalScans
     },
     clients
   });
